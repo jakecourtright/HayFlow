@@ -1,28 +1,28 @@
-import { Pool } from '@neondatabase/serverless';
+import { neon } from '@neondatabase/serverless';
 
 if (!process.env.DATABASE_URL) {
-    // We don't throw error immediately to allow build to pass if env is missing during build time
     console.warn('DATABASE_URL is not defined');
 }
 
-// Global pool to prevent multiple connections in dev
-const globalForDb = global as unknown as { pool: Pool };
+// Use the serverless HTTP driver for Vercel
+const sql = neon(process.env.DATABASE_URL!);
 
-let pool: Pool;
-
-
-if (!globalForDb.pool) {
-    pool = new Pool({
-        connectionString: process.env.DATABASE_URL,
-    });
-    if (process.env.NODE_ENV !== 'production') {
-        globalForDb.pool = pool;
+// Create a pool-like interface for compatibility with existing code
+const pool = {
+    query: async (text: string, params?: any[]) => {
+        // neon() function with raw query method
+        const rows = await sql.call(null, [text] as unknown as TemplateStringsArray, ...(params || []));
+        return { rows: Array.isArray(rows) ? rows : [] };
+    },
+    connect: async () => {
+        return {
+            query: async (text: string, params?: any[]) => {
+                const rows = await sql.call(null, [text] as unknown as TemplateStringsArray, ...(params || []));
+                return { rows: Array.isArray(rows) ? rows : [] };
+            },
+            release: () => { /* no-op for serverless */ }
+        };
     }
-} else {
-    pool = globalForDb.pool;
-}
+};
 
 export default pool;
-
-// Helper type for global
-declare const globalAsAny: any;
