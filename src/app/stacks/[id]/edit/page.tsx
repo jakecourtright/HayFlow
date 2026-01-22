@@ -33,29 +33,21 @@ export default async function EditStackPage({ params }: { params: Promise<{ id: 
         <div>
             <h1 className="text-xl font-bold mb-6">Edit Stack</h1>
 
-            <form action={updateWithId} className="glass-card p-6 space-y-4">
+            <form action={updateWithId} className="glass-card space-y-5">
                 <div>
-                    <label className="block text-xs font-bold uppercase text-slate-400 mb-1">
-                        Lot/Stack Name
-                    </label>
+                    <label className="label-modern">Lot/Stack Name</label>
                     <input
                         type="text"
                         name="name"
                         required
                         defaultValue={stack.name}
-                        className="w-full bg-slate-800 border border-white/10 rounded-xl p-3 text-white focus:outline-none focus:border-emerald-500"
+                        className="input-modern"
                     />
                 </div>
 
                 <div>
-                    <label className="block text-xs font-bold uppercase text-slate-400 mb-1">
-                        Commodity
-                    </label>
-                    <select
-                        name="commodity"
-                        defaultValue={stack.commodity}
-                        className="w-full bg-slate-800 border border-white/10 rounded-xl p-3 text-white focus:outline-none focus:border-emerald-500"
-                    >
+                    <label className="label-modern">Commodity</label>
+                    <select name="commodity" defaultValue={stack.commodity} className="select-modern">
                         <option value="Alfalfa">Alfalfa</option>
                         <option value="Timothy">Timothy</option>
                         <option value="Bermuda">Bermuda</option>
@@ -66,28 +58,18 @@ export default async function EditStackPage({ params }: { params: Promise<{ id: 
 
                 <div className="grid grid-cols-2 gap-4">
                     <div>
-                        <label className="block text-xs font-bold uppercase text-slate-400 mb-1">
-                            Bale Size
-                        </label>
-                        <select
-                            name="baleSize"
-                            defaultValue={stack.bale_size}
-                            className="w-full bg-slate-800 border border-white/10 rounded-xl p-3 text-white focus:outline-none focus:border-emerald-500"
-                        >
+                        <label className="label-modern">Bale Size</label>
+                        <select name="baleSize" defaultValue={stack.bale_size} className="select-modern">
                             <option value="Small Square">Small Square</option>
                             <option value="Large Square">Large Square</option>
+                            <option value="3x4x8">3x4x8 Large Sq</option>
+                            <option value="3x3x8">3x3x8 Large Sq</option>
                             <option value="Round">Round</option>
                         </select>
                     </div>
                     <div>
-                        <label className="block text-xs font-bold uppercase text-slate-400 mb-1">
-                            Quality
-                        </label>
-                        <select
-                            name="quality"
-                            defaultValue={stack.quality}
-                            className="w-full bg-slate-800 border border-white/10 rounded-xl p-3 text-white focus:outline-none focus:border-emerald-500"
-                        >
+                        <label className="label-modern">Quality</label>
+                        <select name="quality" defaultValue={stack.quality} className="select-modern">
                             <option value="Premium">Premium</option>
                             <option value="#1">#1</option>
                             <option value="Feeder">Feeder</option>
@@ -96,15 +78,13 @@ export default async function EditStackPage({ params }: { params: Promise<{ id: 
                 </div>
 
                 <div>
-                    <label className="block text-xs font-bold uppercase text-slate-400 mb-1">
-                        Base Price ($/unit)
-                    </label>
+                    <label className="label-modern">Base Price ($/unit)</label>
                     <input
                         type="number"
                         name="basePrice"
                         step="0.01"
                         defaultValue={stack.base_price}
-                        className="w-full bg-slate-800 border border-white/10 rounded-xl p-3 text-white focus:outline-none focus:border-emerald-500"
+                        className="input-modern"
                     />
                 </div>
 

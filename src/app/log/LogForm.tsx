@@ -25,11 +25,11 @@ export default function LogForm({ stacks, locations }: { stacks: any[], location
     }
 
     return (
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit} className="space-y-5">
             <div className="grid grid-cols-2 gap-4">
                 <div>
-                    <label className="block text-xs font-bold uppercase text-slate-400 mb-1">Type</label>
-                    <select name="type" className="input-field w-full">
+                    <label className="label-modern">Type</label>
+                    <select name="type" className="select-modern">
                         <option value="production">Production (In)</option>
                         <option value="sale">Sale (Out)</option>
                         <option value="purchase">Purchase (In)</option>
@@ -38,8 +38,8 @@ export default function LogForm({ stacks, locations }: { stacks: any[], location
                     </select>
                 </div>
                 <div>
-                    <label className="block text-xs font-bold uppercase text-slate-400 mb-1">Stack (Product)</label>
-                    <select name="stackId" required className="input-field w-full">
+                    <label className="label-modern">Stack (Product)</label>
+                    <select name="stackId" required className="select-modern">
                         <option value="">Select Stack...</option>
                         {stacks.map(s => (
                             <option key={s.id} value={s.id}>{s.name} ({s.commodity})</option>
@@ -49,8 +49,8 @@ export default function LogForm({ stacks, locations }: { stacks: any[], location
             </div>
 
             <div>
-                <label className="block text-xs font-bold uppercase text-slate-400 mb-1">Destination Location</label>
-                <select name="locationId" className="input-field w-full">
+                <label className="label-modern">Destination Location</label>
+                <select name="locationId" className="select-modern">
                     <option value="none">None (In Transit / Sold)</option>
                     {locations.map(l => (
                         <option key={l.id} value={l.id}>{l.name}</option>
@@ -60,12 +60,12 @@ export default function LogForm({ stacks, locations }: { stacks: any[], location
 
             <div className="grid grid-cols-2 gap-4">
                 <div>
-                    <label className="block text-xs font-bold uppercase text-slate-400 mb-1">Amount</label>
-                    <input type="number" name="amount" required step="0.01" className="input-field w-full" placeholder="0" />
+                    <label className="label-modern">Amount</label>
+                    <input type="number" name="amount" required step="0.01" className="input-modern" placeholder="0" />
                 </div>
                 <div>
-                    <label className="block text-xs font-bold uppercase text-slate-400 mb-1">Unit</label>
-                    <select name="unit" className="input-field w-full">
+                    <label className="label-modern">Unit</label>
+                    <select name="unit" className="select-modern">
                         <option value="bales">Bales</option>
                         <option value="tons">Tons</option>
                     </select>
@@ -73,24 +73,18 @@ export default function LogForm({ stacks, locations }: { stacks: any[], location
             </div>
 
             <div>
-                <label className="block text-xs font-bold uppercase text-slate-400 mb-1">Entity / Notes</label>
-                <input type="text" name="entity" className="input-field w-full" placeholder="Buyer Name / Field # / Notes" />
+                <label className="label-modern">Entity / Notes</label>
+                <input type="text" name="entity" className="input-modern" placeholder="Buyer Name / Field # / Notes" />
             </div>
 
             <div>
-                <label className="block text-xs font-bold uppercase text-slate-400 mb-1">Price per Unit ($)</label>
-                <input type="number" name="price" step="0.01" className="input-field w-full" placeholder="0.00" />
+                <label className="label-modern">Price per Unit ($)</label>
+                <input type="number" name="price" step="0.01" className="input-modern" placeholder="0.00" />
             </div>
 
             <button type="submit" disabled={loading} className="btn btn-primary w-full mt-6">
                 {loading ? 'Logging...' : 'Log Transaction'}
             </button>
-
-            <style jsx global>{`
-        .input-field {
-          @apply bg-slate-800 border border-white/10 rounded-xl p-3 text-white focus:outline-none focus:border-emerald-500;
-        }
-      `}</style>
         </form>
     );
 }

@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { House, Box, FileText, ClipboardList, MapPin, BarChart3 } from 'lucide-react';
+import { House, Box, ClipboardList, MapPin, BarChart3 } from 'lucide-react';
 import './globals.css';
 
 export default function RootLayout({
@@ -11,9 +11,9 @@ export default function RootLayout({
     <html lang="en">
       <body className="antialiased pb-24">
         {/* Header */}
-        <header className="sticky top-0 z-50 border-b border-white/10 bg-slate-900/50 backdrop-blur-xl">
+        <header className="sticky top-0 z-50 border-b bg-[var(--bg-deep)]/80 backdrop-blur-xl" style={{ borderColor: 'var(--glass-border)' }}>
           <div className="container mx-auto px-6 py-4">
-            <h1 className="text-2xl font-extrabold tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-white to-slate-400">
+            <h1 className="text-2xl font-extrabold tracking-tight" style={{ color: 'var(--accent)' }}>
               HayStock
             </h1>
           </div>
@@ -25,7 +25,7 @@ export default function RootLayout({
         </main>
 
         {/* Bottom Navigation */}
-        <nav className="fixed bottom-0 left-0 right-0 z-50 border-t border-white/10 bg-slate-900/80 backdrop-blur-xl pb-safe">
+        <nav className="fixed bottom-0 left-0 right-0 z-50 border-t bg-[var(--bg-deep)]/90 backdrop-blur-xl pb-safe" style={{ borderColor: 'var(--glass-border)' }}>
           <div className="flex justify-around items-center py-3">
             <NavLink href="/" icon={<House size={20} />} label="Home" />
             <NavLink href="/locations" icon={<MapPin size={20} />} label="Locations" />
@@ -41,7 +41,7 @@ export default function RootLayout({
 
 function NavLink({ href, icon, label }: { href: string; icon: React.ReactNode; label: string }) {
   return (
-    <Link href={href} className="flex flex-col items-center gap-1 text-slate-400 hover:text-emerald-500 transition-colors">
+    <Link href={href} className="flex flex-col items-center gap-1 transition-colors hover:opacity-100 opacity-70" style={{ color: 'var(--text-dim)' }}>
       <div className="w-5 h-5">{icon}</div>
       <span className="text-[10px] uppercase font-bold tracking-wider">{label}</span>
     </Link>
