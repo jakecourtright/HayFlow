@@ -5,14 +5,12 @@ import { redirect } from "next/navigation";
 async function getReportData(userId: string) {
     const client = await pool.connect();
     try {
-        // Get production totals
         const productionResult = await client.query(`
             SELECT COALESCE(SUM(amount), 0) as total
             FROM transactions
             WHERE user_id = $1 AND type = 'production'
         `, [userId]);
 
-        // Get sales totals and revenue
         const salesResult = await client.query(`
             SELECT 
                 COALESCE(SUM(amount), 0) as total_units,
@@ -21,7 +19,6 @@ async function getReportData(userId: string) {
             WHERE user_id = $1 AND type = 'sale'
         `, [userId]);
 
-        // Get purchase totals
         const purchaseResult = await client.query(`
             SELECT 
                 COALESCE(SUM(amount), 0) as total_units,
@@ -51,60 +48,56 @@ export default async function ReportsPage() {
     if (!session?.user?.id) redirect("/api/auth/signin");
 
     const data = await getReportData(session.user.id);
+    const netPosition = data.sales.revenue - data.purchases.cost;
 
     return (
         <div>
-            <h1 className="text-xl font-bold mb-6">Reports</h1>
+            <h1 className="text-xl font-bold mb-6" style={{ color: 'var(--accent)' }}>Reports</h1>
 
             <div className="grid gap-4">
                 {/* Production Card */}
                 <div className="glass-card">
-                    <span className="text-xs font-bold uppercase text-slate-400 tracking-wider">
-                        Production Yield
-                    </span>
-                    <div className="text-3xl font-bold text-white mt-2">
+                    <span className="label-modern">Production Yield</span>
+                    <div className="text-3xl font-bold mt-2" style={{ color: 'var(--accent)' }}>
                         {data.production.toLocaleString()}
                     </div>
-                    <p className="text-sm text-slate-400 mt-1">
+                    <p className="text-sm mt-1" style={{ color: 'var(--text-dim)' }}>
                         Total units baled from fields
                     </p>
                 </div>
 
                 {/* Sales Card */}
                 <div className="glass-card">
-                    <span className="text-xs font-bold uppercase text-slate-400 tracking-wider">
-                        Sales Revenue
-                    </span>
-                    <div className="text-3xl font-bold text-emerald-400 mt-2">
+                    <span className="label-modern">Sales Revenue</span>
+                    <div className="text-3xl font-bold mt-2" style={{ color: 'var(--primary-light)' }}>
                         ${data.sales.revenue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                     </div>
-                    <p className="text-sm text-slate-400 mt-1">
+                    <p className="text-sm mt-1" style={{ color: 'var(--text-dim)' }}>
                         From {data.sales.units.toLocaleString()} units sold
                     </p>
                 </div>
 
                 {/* Purchases Card */}
                 <div className="glass-card">
-                    <span className="text-xs font-bold uppercase text-slate-400 tracking-wider">
-                        Purchases
-                    </span>
-                    <div className="text-3xl font-bold text-amber-400 mt-2">
+                    <span className="label-modern">Purchases</span>
+                    <div className="text-3xl font-bold mt-2" style={{ color: '#EBF4DD' }}>
                         ${data.purchases.cost.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                     </div>
-                    <p className="text-sm text-slate-400 mt-1">
+                    <p className="text-sm mt-1" style={{ color: 'var(--text-dim)' }}>
                         {data.purchases.units.toLocaleString()} units purchased
                     </p>
                 </div>
 
-                {/* Net Profit Card */}
-                <div className="glass-card border-2 border-emerald-500/30">
-                    <span className="text-xs font-bold uppercase text-slate-400 tracking-wider">
-                        Net Position
-                    </span>
-                    <div className={`text-3xl font-bold mt-2 ${data.sales.revenue - data.purchases.cost >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-                        ${(data.sales.revenue - data.purchases.cost).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                {/* Net Position Card */}
+                <div className="glass-card" style={{ borderWidth: '2px', borderColor: 'var(--primary)' }}>
+                    <span className="label-modern">Net Position</span>
+                    <div
+                        className="text-3xl font-bold mt-2"
+                        style={{ color: netPosition >= 0 ? 'var(--primary-light)' : '#ef4444' }}
+                    >
+                        ${netPosition.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                     </div>
-                    <p className="text-sm text-slate-400 mt-1">
+                    <p className="text-sm mt-1" style={{ color: 'var(--text-dim)' }}>
                         Sales revenue minus purchase costs
                     </p>
                 </div>

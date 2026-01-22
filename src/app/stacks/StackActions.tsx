@@ -17,9 +17,10 @@ export default function StackActions({ stackId }: { stackId: number }) {
     return (
         <button
             onClick={handleDelete}
-            className="p-2 rounded-lg bg-white/5 hover:bg-red-500/20 transition-colors text-red-400"
+            className="p-2 rounded-lg transition-colors"
+            style={{ background: 'var(--bg-surface)' }}
         >
-            <Trash2 size={14} />
+            <Trash2 size={14} className="text-red-400" />
         </button>
     );
 }

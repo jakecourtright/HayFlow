@@ -40,15 +40,7 @@ async function getStats(userId: string) {
 
 export default async function Dashboard() {
   const session = await auth();
-  if (!session?.user?.id) {
-    // For demo purposes, we might want to redirect, but let's check auth logic
-    // redirect("/api/auth/signin"); 
-    // We'll let them see empty dashboard or redirect later.
-    // Actually, redirecting is safer.
-    // For now, let's just return a "Please Login" state if no session to avoid crash
-  }
 
-  // Mock data if no user (or we create a default user later)
   const stats = session?.user?.id ? await getStats(session.user.id) : { totalStock: 0, recentActivity: [] };
 
   return (
@@ -56,18 +48,20 @@ export default async function Dashboard() {
       {/* Stats Grid */}
       <div className="grid grid-cols-2 gap-4">
         <div className="glass-card">
-          <span className="text-xs font-bold uppercase tracking-wider text-slate-400">Total Stock</span>
-          <div className="text-4xl font-extrabold text-emerald-500 my-2">{stats.totalStock.toLocaleString()}</div>
-          <p className="text-xs text-slate-500">Bales on hand</p>
+          <span className="label-modern">Total Stock</span>
+          <div className="text-4xl font-extrabold my-2" style={{ color: 'var(--primary-light)' }}>
+            {stats.totalStock.toLocaleString()}
+          </div>
+          <p className="text-xs" style={{ color: 'var(--text-dim)' }}>Bales on hand</p>
         </div>
         <div className="glass-card">
-          <span className="text-xs font-bold uppercase tracking-wider text-slate-400">Actions</span>
+          <span className="label-modern">Actions</span>
           <div className="flex flex-col gap-2 mt-2">
-            <Link href="/log" className="text-sm font-semibold text-emerald-400 hover:text-emerald-300">
+            <Link href="/log" className="text-sm font-semibold transition-colors" style={{ color: 'var(--primary-light)' }}>
               + New Log Entry
             </Link>
-            <Link href="/inventory" className="text-sm font-semibold text-emerald-400 hover:text-emerald-300">
-              → View Inventory
+            <Link href="/locations" className="text-sm font-semibold transition-colors" style={{ color: 'var(--primary-light)' }}>
+              → View Locations
             </Link>
           </div>
         </div>
@@ -75,22 +69,25 @@ export default async function Dashboard() {
 
       {/* Recent Activity */}
       <div>
-        <h2 className="text-lg font-bold mb-4">Recent Activity</h2>
+        <h2 className="text-lg font-bold mb-4" style={{ color: 'var(--accent)' }}>Recent Activity</h2>
         <div className="flex flex-col gap-2">
           {stats.recentActivity.length === 0 ? (
-            <div className="text-center py-8 text-slate-500">No recent activity found.</div>
+            <div className="text-center py-8" style={{ color: 'var(--text-dim)' }}>No recent activity found.</div>
           ) : (
             stats.recentActivity.map((tx: any) => (
               <div key={tx.id} className="glass-card flex items-center justify-between py-4 px-5 !rounded-2xl">
                 <div>
-                  <div className="font-semibold text-sm">
+                  <div className="font-semibold text-sm" style={{ color: 'var(--accent)' }}>
                     {tx.type === 'production' ? 'Baled' : tx.type.charAt(0).toUpperCase() + tx.type.slice(1)}: {tx.stack_name || 'Unknown Stack'}
                   </div>
-                  <div className="text-xs text-slate-500 mt-0.5">
+                  <div className="text-xs mt-0.5" style={{ color: 'var(--text-dim)' }}>
                     {tx.commodity} • {new Date(tx.date).toLocaleDateString()}
                   </div>
                 </div>
-                <div className={`font-mono font-bold ${tx.type === 'sale' ? 'text-red-500' : 'text-emerald-500'}`}>
+                <div
+                  className="font-mono font-bold"
+                  style={{ color: tx.type === 'sale' ? '#ef4444' : 'var(--primary-light)' }}
+                >
                   {tx.type === 'sale' ? '−' : '+'}{Number(tx.amount).toLocaleString()}
                 </div>
               </div>
@@ -101,7 +98,7 @@ export default async function Dashboard() {
 
       {!session && (
         <div className="glass-card text-center">
-          <p className="mb-4 text-sm text-slate-300">Sign in to manage your inventory</p>
+          <p className="mb-4 text-sm" style={{ color: 'var(--text-dim)' }}>Sign in to manage your inventory</p>
           <Link href="/api/auth/signin" className="btn btn-primary w-full">Sign In</Link>
         </div>
       )}

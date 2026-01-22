@@ -2,13 +2,12 @@ import { auth } from "@/lib/auth";
 import pool from "@/lib/db";
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { Pencil, Trash2 } from "lucide-react";
+import { Pencil } from "lucide-react";
 import StackActions from "./StackActions";
 
 async function getStacksWithInventory(userId: string) {
     const client = await pool.connect();
     try {
-        // Get stacks with their total inventory and location breakdown
         const stacksResult = await client.query(`
             SELECT 
                 s.*,
@@ -26,7 +25,6 @@ async function getStacksWithInventory(userId: string) {
             ORDER BY s.created_at DESC
         `, [userId]);
 
-        // Get location breakdown for each stack
         const breakdownResult = await client.query(`
             SELECT 
                 t.stack_id,
@@ -52,7 +50,6 @@ async function getStacksWithInventory(userId: string) {
             ), 0) != 0
         `, [userId]);
 
-        // Build breakdown map
         const breakdownMap: Record<number, Array<{ location_name: string; stock: number }>> = {};
         breakdownResult.rows.forEach((row: any) => {
             if (!breakdownMap[row.stack_id]) {
@@ -83,7 +80,7 @@ export default async function StacksPage() {
     return (
         <div className="space-y-6">
             <div className="flex justify-between items-center">
-                <h1 className="text-xl font-bold">Product Definitions (Stacks)</h1>
+                <h1 className="text-xl font-bold" style={{ color: 'var(--accent)' }}>Product Definitions (Stacks)</h1>
                 <Link href="/stacks/new" className="btn btn-primary">
                     + New Stack
                 </Link>
@@ -92,7 +89,7 @@ export default async function StacksPage() {
             <div className="grid gap-4">
                 {stacks.length === 0 ? (
                     <div className="glass-card text-center py-12">
-                        <p className="text-slate-400 mb-4">No stacks defined yet</p>
+                        <p className="mb-4" style={{ color: 'var(--text-dim)' }}>No stacks defined yet</p>
                         <Link href="/stacks/new" className="btn btn-primary">
                             Create Your First Stack
                         </Link>
@@ -102,17 +99,18 @@ export default async function StacksPage() {
                         <div key={stack.id} className="glass-card">
                             <div className="flex justify-between items-start">
                                 <div>
-                                    <h3 className="text-lg font-bold text-white">{stack.name}</h3>
-                                    <span className="text-xs font-bold text-emerald-400 uppercase tracking-wider">
+                                    <h3 className="text-lg font-bold" style={{ color: 'var(--accent)' }}>{stack.name}</h3>
+                                    <span className="text-xs font-bold uppercase tracking-wider" style={{ color: 'var(--primary-light)' }}>
                                         {stack.commodity}
                                     </span>
                                 </div>
                                 <div className="flex gap-2">
                                     <Link
                                         href={`/stacks/${stack.id}/edit`}
-                                        className="p-2 rounded-lg bg-white/5 hover:bg-white/10 transition-colors"
+                                        className="p-2 rounded-lg transition-colors"
+                                        style={{ background: 'var(--bg-surface)' }}
                                     >
-                                        <Pencil size={14} />
+                                        <Pencil size={14} style={{ color: 'var(--text-dim)' }} />
                                     </Link>
                                     <StackActions stackId={stack.id} />
                                 </div>
@@ -120,36 +118,36 @@ export default async function StacksPage() {
 
                             {/* Total Inventory */}
                             <div className="mt-4 mb-3">
-                                <span className="text-xs text-slate-400 block">TOTAL INVENTORY</span>
-                                <span className="text-xl font-semibold">
+                                <span className="text-xs block" style={{ color: 'var(--text-dim)' }}>TOTAL INVENTORY</span>
+                                <span className="text-xl font-semibold" style={{ color: 'var(--accent)' }}>
                                     {stack.current_stock.toLocaleString()} Bales
                                 </span>
                             </div>
 
                             {/* Location Breakdown */}
                             {stack.location_breakdown.length > 0 && (
-                                <div className="bg-white/5 p-3 rounded-lg mb-4 text-sm">
-                                    <div className="font-semibold text-slate-400 text-xs mb-2 pb-1 border-b border-white/5">
+                                <div className="p-3 rounded-lg mb-4 text-sm" style={{ background: 'var(--bg-surface)' }}>
+                                    <div className="font-semibold text-xs mb-2 pb-1" style={{ color: 'var(--text-dim)', borderBottom: '1px solid var(--glass-border)' }}>
                                         LOCATION BREAKDOWN
                                     </div>
                                     {stack.location_breakdown.map((loc: any, idx: number) => (
                                         <div key={idx} className="flex justify-between py-1">
-                                            <span className="text-slate-400">{loc.location_name}:</span>
-                                            <span className="font-semibold">{loc.stock.toLocaleString()}</span>
+                                            <span style={{ color: 'var(--text-dim)' }}>{loc.location_name}:</span>
+                                            <span className="font-semibold" style={{ color: 'var(--accent)' }}>{loc.stock.toLocaleString()}</span>
                                         </div>
                                     ))}
                                 </div>
                             )}
 
                             {/* Badges */}
-                            <div className="flex flex-wrap gap-2 text-xs border-t border-white/5 pt-4">
-                                <span className="bg-white/5 px-2 py-1 rounded border border-white/5 text-slate-400">
+                            <div className="flex flex-wrap gap-2 text-xs pt-4" style={{ borderTop: '1px solid var(--glass-border)' }}>
+                                <span className="px-2 py-1 rounded" style={{ background: 'var(--bg-surface)', color: 'var(--text-dim)' }}>
                                     {stack.quality}
                                 </span>
-                                <span className="bg-white/5 px-2 py-1 rounded border border-white/5 text-slate-400">
+                                <span className="px-2 py-1 rounded" style={{ background: 'var(--bg-surface)', color: 'var(--text-dim)' }}>
                                     {stack.bale_size}
                                 </span>
-                                <span className="bg-white/5 px-2 py-1 rounded border border-white/5 text-slate-400">
+                                <span className="px-2 py-1 rounded" style={{ background: 'var(--bg-surface)', color: 'var(--text-dim)' }}>
                                     ${stack.base_price}/unit
                                 </span>
                             </div>

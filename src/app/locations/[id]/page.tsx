@@ -7,7 +7,6 @@ import { ArrowLeft } from "lucide-react";
 async function getLocationWithInventory(locationId: string, userId: string) {
     const client = await pool.connect();
     try {
-        // Get location details
         const locationResult = await client.query(
             'SELECT * FROM locations WHERE id = $1 AND user_id = $2',
             [locationId, userId]
@@ -19,7 +18,6 @@ async function getLocationWithInventory(locationId: string, userId: string) {
 
         const location = locationResult.rows[0];
 
-        // Get inventory by stack at this location
         const inventoryResult = await client.query(`
             SELECT 
                 s.id,
@@ -73,12 +71,16 @@ export default async function LocationDetailPage({ params }: { params: Promise<{
     return (
         <div>
             <div className="flex items-center gap-4 mb-6">
-                <Link href="/locations" className="p-2 rounded-xl bg-white/5 hover:bg-white/10 transition-colors">
-                    <ArrowLeft size={20} />
+                <Link
+                    href="/locations"
+                    className="p-2 rounded-xl transition-colors"
+                    style={{ background: 'var(--bg-surface)' }}
+                >
+                    <ArrowLeft size={20} style={{ color: 'var(--text-dim)' }} />
                 </Link>
                 <div>
-                    <h1 className="text-xl font-bold">{location.name}</h1>
-                    <p className="text-sm text-slate-400">
+                    <h1 className="text-xl font-bold" style={{ color: 'var(--accent)' }}>{location.name}</h1>
+                    <p className="text-sm" style={{ color: 'var(--text-dim)' }}>
                         {totalStock.toLocaleString()} / {location.capacity.toLocaleString()} {location.unit} ({percentUsed}% full)
                     </p>
                 </div>
@@ -86,7 +88,7 @@ export default async function LocationDetailPage({ params }: { params: Promise<{
 
             {location.stacks.length === 0 ? (
                 <div className="glass-card text-center py-12">
-                    <p className="text-slate-400">No stacks currently stored at this location</p>
+                    <p style={{ color: 'var(--text-dim)' }}>No stacks currently stored at this location</p>
                 </div>
             ) : (
                 <div className="space-y-3">
@@ -94,8 +96,8 @@ export default async function LocationDetailPage({ params }: { params: Promise<{
                         <div key={stack.id} className="glass-card p-5">
                             <div className="flex justify-between items-start mb-2">
                                 <div>
-                                    <h3 className="text-lg font-semibold">{stack.name}</h3>
-                                    <span className="text-sm text-emerald-400 font-semibold uppercase">
+                                    <h3 className="text-lg font-semibold" style={{ color: 'var(--accent)' }}>{stack.name}</h3>
+                                    <span className="text-sm font-semibold uppercase" style={{ color: 'var(--primary-light)' }}>
                                         {stack.commodity}
                                     </span>
                                 </div>
@@ -103,14 +105,14 @@ export default async function LocationDetailPage({ params }: { params: Promise<{
 
                             <div className="grid grid-cols-2 gap-4 mt-4">
                                 <div>
-                                    <span className="text-xs text-slate-400 block">STOCK HERE</span>
-                                    <span className="text-lg font-semibold">
+                                    <span className="text-xs block" style={{ color: 'var(--text-dim)' }}>STOCK HERE</span>
+                                    <span className="text-lg font-semibold" style={{ color: 'var(--accent)' }}>
                                         {parseFloat(stack.current_stock).toLocaleString()} Bales
                                     </span>
                                 </div>
                                 <div>
-                                    <span className="text-xs text-slate-400 block">QUALITY</span>
-                                    <span className="text-lg font-semibold">{stack.quality || 'N/A'}</span>
+                                    <span className="text-xs block" style={{ color: 'var(--text-dim)' }}>QUALITY</span>
+                                    <span className="text-lg font-semibold" style={{ color: 'var(--accent)' }}>{stack.quality || 'N/A'}</span>
                                 </div>
                             </div>
                         </div>

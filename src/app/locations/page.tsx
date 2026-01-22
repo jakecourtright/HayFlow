@@ -7,13 +7,11 @@ import LocationCard from "./LocationCard";
 async function getLocationsWithInventory(userId: string) {
     const client = await pool.connect();
     try {
-        // Get all locations
         const locations = await client.query(
             'SELECT * FROM locations WHERE user_id = $1 ORDER BY name ASC',
             [userId]
         );
 
-        // Get inventory totals per location
         const inventoryQuery = await client.query(`
             SELECT 
                 t.location_id,
@@ -57,7 +55,7 @@ export default async function LocationsPage() {
     return (
         <div>
             <div className="flex justify-between items-center mb-6">
-                <h1 className="text-xl font-bold">Locations</h1>
+                <h1 className="text-xl font-bold" style={{ color: 'var(--accent)' }}>Locations</h1>
                 <Link href="/locations/new" className="btn btn-primary">
                     + Add Location
                 </Link>
@@ -65,7 +63,7 @@ export default async function LocationsPage() {
 
             {locations.length === 0 ? (
                 <div className="glass-card text-center py-12">
-                    <p className="text-slate-400 mb-4">No locations yet</p>
+                    <p className="mb-4" style={{ color: 'var(--text-dim)' }}>No locations yet</p>
                     <Link href="/locations/new" className="btn btn-primary">
                         Create Your First Location
                     </Link>
