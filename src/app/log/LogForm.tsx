@@ -8,15 +8,35 @@ interface LogFormProps {
     stacks: any[];
     locations: any[];
     type?: string;
+    inventory: any[];
 }
 
-export default function LogForm({ stacks, locations, type: initialType }: LogFormProps) {
+export default function LogForm({ stacks, locations, type: initialType, inventory = [] }: LogFormProps) {
     const router = useRouter();
     const [loading, setLoading] = useState(false);
     const [selectedType, setSelectedType] = useState(initialType || 'production');
+    const [selectedStackId, setSelectedStackId] = useState('');
+    const [selectedLocationId, setSelectedLocationId] = useState('');
+    const [error, setError] = useState<string | null>(null);
 
     // If initialType is provided, lock the form to that type
     const isTypeLocked = !!initialType;
+
+    // Filter logic
+    const isSale = selectedType === 'sale';
+
+    // Get available inventory for selected stack at selected location (if applicable)
+    const getAvailableStock = (stackId: string, locationId: string) => {
+        // loose equality to handle string/number mismatch
+        const item = inventory.find(i => i.stack_id == stackId && i.location_id == locationId);
+        return item ? parseFloat(item.quantity) : 0;
+    };
+
+    // Filter locations based on inventory if it's a sale
+    const filteredLocations = isSale && selectedStackId
+        ? locations.filter(l => getAvailableStock(selectedStackId, l.id) > 0)
+        : locations;
+
 
     const getPriceLabel = (type: string) => {
         switch (type) {
@@ -32,13 +52,24 @@ export default function LogForm({ stacks, locations, type: initialType }: LogFor
         event.preventDefault();
         setLoading(true);
         const formData = new FormData(event.currentTarget);
+        const amount = parseFloat(formData.get('amount') as string);
+
+        // Client-side validation for sales
+        if (isSale && selectedStackId && selectedLocationId) {
+            const available = getAvailableStock(selectedStackId, selectedLocationId);
+            if (amount > available) {
+                setError(`Insufficient stock! You only have ${available} available at this location.`);
+                setLoading(false);
+                return;
+            }
+        }
 
         try {
+            setError(null);
             await submitTransaction(formData);
-            alert('Transaction Logged!');
             router.push('/');
         } catch (e) {
-            alert('Error logging transaction');
+            setError('Error logging transaction. Please try again.');
         } finally {
             setLoading(false);
         }
@@ -46,12 +77,17 @@ export default function LogForm({ stacks, locations, type: initialType }: LogFor
 
     return (
         <form onSubmit={handleSubmit} className="space-y-5">
+            {error && (
+                <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative">
+                    {error}
+                </div>
+            )}
             <div className="grid grid-cols-2 gap-4">
                 {/* Type Selection - Hidden if type is locked */}
                 <div className={isTypeLocked ? 'hidden' : ''}>
                     <label className="label-modern">Type</label>
                     <select
-                        name="type"
+                        name={isTypeLocked ? undefined : "type"}
                         className="select-modern"
                         value={selectedType}
                         onChange={(e) => setSelectedType(e.target.value)}
@@ -69,7 +105,16 @@ export default function LogForm({ stacks, locations, type: initialType }: LogFor
 
                 <div className={isTypeLocked ? 'col-span-2' : ''}>
                     <label className="label-modern">Stack (Product)</label>
-                    <select name="stackId" required className="select-modern">
+                    <select
+                        name="stackId"
+                        required
+                        className="select-modern"
+                        value={selectedStackId}
+                        onChange={(e) => {
+                            setSelectedStackId(e.target.value);
+                            setSelectedLocationId(''); // Reset location when stack changes
+                        }}
+                    >
                         <option value="">Select Stack...</option>
                         {stacks.map(s => (
                             <option key={s.id} value={s.id}>{s.name} ({s.commodity})</option>
@@ -79,13 +124,26 @@ export default function LogForm({ stacks, locations, type: initialType }: LogFor
             </div>
 
             <div>
-                <label className="label-modern">Destination Location</label>
-                <select name="locationId" className="select-modern">
+                <label className="label-modern">{isSale ? 'Source Location' : 'Destination Location'}</label>
+                <select
+                    name="locationId"
+                    className="select-modern"
+                    value={selectedLocationId}
+                    onChange={(e) => setSelectedLocationId(e.target.value)}
+                >
                     <option value="none">None (In Transit / Sold)</option>
-                    {locations.map(l => (
-                        <option key={l.id} value={l.id}>{l.name}</option>
-                    ))}
+                    {filteredLocations.map(l => {
+                        const stock = isSale && selectedStackId ? getAvailableStock(selectedStackId, l.id) : null;
+                        return (
+                            <option key={l.id} value={l.id}>
+                                {l.name} {stock !== null ? `(Avail: ${stock})` : ''}
+                            </option>
+                        );
+                    })}
                 </select>
+                {isSale && filteredLocations.length === 0 && selectedStackId && (
+                    <p className="text-red-500 text-sm mt-1">No stock available for this stack.</p>
+                )}
             </div>
 
             <div className="grid grid-cols-2 gap-4">

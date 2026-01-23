@@ -23,6 +23,32 @@ export async function submitTransaction(formData: FormData) {
 
     const client = await pool.connect();
     try {
+        // Validation for sales: Check if enough stock exists
+        if (type === 'sale') {
+            if (!locationId || locationId === 'none') {
+                throw new Error("Source location is required for sales");
+            }
+
+            const inventoryRes = await client.query(`
+                SELECT 
+                    SUM(CASE 
+                        WHEN type IN ('production', 'purchase') THEN amount 
+                        WHEN type IN ('sale') THEN -amount 
+                        ELSE 0 
+                    END) as quantity
+                FROM transactions
+                WHERE stack_id = $1 AND location_id = $2
+            `, [stackId, locationId]);
+
+            const currentStock = parseFloat(inventoryRes.rows[0]?.quantity || '0');
+            const saleAmount = parseFloat(amount as string);
+
+            if (currentStock < saleAmount) {
+                // Formatting number for error message
+                throw new Error(`Insufficient funds. Available: ${currentStock}, Requested: ${saleAmount}`);
+            }
+        }
+
         await client.query(`
             INSERT INTO transactions (type, stack_id, location_id, amount, unit, entity, price, user_id)
             VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
