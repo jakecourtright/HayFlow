@@ -40,25 +40,25 @@
   --error: #fb7185;
 }
 
-/* Forest Theme - Deep Woods & Neon */
+/* Forest Theme - Deep Teal & Cyan (Refined) */
 :root[data-theme="forest"] {
-  --bg-deep: #1A2F25;
-  /* Very deep forest green */
-  --bg-surface: #2C4A3E;
-  /* Lighter moss green */
-  --primary: #4ADE80;
-  /* Neon Green */
-  --primary-light: #86EFAC;
-  /* Soft Green */
-  --primary-glow: rgba(74, 222, 128, 0.4);
-  --accent: #ECFCCB;
-  /* Lime Cream */
-  --text-main: #F0FDF4;
-  /* White-green tint */
-  --text-dim: #86EFAC;
-  /* Dim green */
-  --glass-bg: rgba(26, 47, 37, 0.8);
-  --glass-border: rgba(74, 222, 128, 0.2);
+  --bg-deep: #0f2329;
+  /* Deep Blue-Green / Dark Cyan */
+  --bg-surface: #1e4045;
+  /* Rich Teal for cards */
+  --primary: #2dd4bf;
+  /* Bright Turquoise */
+  --primary-light: #5eead4;
+  /* Soft Turquoise */
+  --primary-glow: rgba(45, 212, 191, 0.4);
+  --accent: #ccfbf1;
+  /* Cool Mint */
+  --text-main: #f0fdfa;
+  /* Mint White */
+  --text-dim: #99f6e4;
+  /* Dim Teal */
+  --glass-bg: rgba(15, 35, 41, 0.8);
+  --glass-border: rgba(45, 212, 191, 0.2);
   --glass-blur: blur(24px);
   --error: #fb7185;
 }
