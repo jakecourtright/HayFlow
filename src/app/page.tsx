@@ -47,38 +47,39 @@ export default async function Dashboard() {
   return (
     <div className="space-y-6">
       {/* Stats Grid */}
+      {/* Stats Header - Total Stock */}
+      <div className="glass-card flex items-center justify-between py-6 px-8">
+        <div>
+          <span className="label-modern" style={{ marginBottom: 0 }}>Total Stock</span>
+          <p className="text-sm mt-1" style={{ color: 'var(--text-dim)' }}>Bales on hand</p>
+        </div>
+        <div className="text-5xl font-extrabold" style={{ color: 'var(--primary-light)' }}>
+          {stats.totalStock.toLocaleString()}
+        </div>
+      </div>
+
+      {/* Action Buttons Grid */}
       <div className="grid grid-cols-2 gap-4">
-        <div className="glass-card">
-          <span className="label-modern">Total Stock</span>
-          <div className="text-4xl font-extrabold my-2" style={{ color: 'var(--primary-light)' }}>
-            {stats.totalStock.toLocaleString()}
-          </div>
-          <p className="text-xs" style={{ color: 'var(--text-dim)' }}>Bales on hand</p>
-        </div>
-        {/* Action Buttons */}
-        {/* Action Buttons */}
-        <div className="grid grid-cols-2 gap-4">
-          <Link href="/log?type=production" className="glass-card flex flex-col items-center justify-center py-6 hover:brightness-110 transition-all active:scale-95 text-center group border-2 border-transparent hover:border-[#F8B195]">
-            <Tractor size={32} style={{ color: '#F8B195', marginBottom: '8px' }} />
-            <span className="font-bold text-lg" style={{ color: '#F8B195' }}>Bale</span>
-            <span className="text-xs mt-1" style={{ color: 'var(--text-dim)' }}>Record Production</span>
-          </Link>
-          <Link href="/log?type=purchase" className="glass-card flex flex-col items-center justify-center py-6 hover:brightness-110 transition-all active:scale-95 text-center group border-2 border-transparent hover:border-[#F67280]">
-            <ShoppingCart size={32} style={{ color: '#F67280', marginBottom: '8px' }} />
-            <span className="font-bold text-lg" style={{ color: '#F67280' }}>Buy</span>
-            <span className="text-xs mt-1" style={{ color: 'var(--text-dim)' }}>Record Purchase</span>
-          </Link>
-          <Link href="/log?type=sale" className="glass-card flex flex-col items-center justify-center py-6 hover:brightness-110 transition-all active:scale-95 text-center group border-2 border-transparent hover:border-[#C06C84]">
-            <Banknote size={32} style={{ color: '#C06C84', marginBottom: '8px' }} />
-            <span className="font-bold text-lg" style={{ color: '#C06C84' }}>Sell</span>
-            <span className="text-xs mt-1" style={{ color: 'var(--text-dim)' }}>Record Sale</span>
-          </Link>
-          <Link href="/log?type=adjustment" className="glass-card flex flex-col items-center justify-center py-6 hover:brightness-110 transition-all active:scale-95 text-center group border-2 border-transparent hover:border-[#6C5B7B]">
-            <Wrench size={32} style={{ color: '#6C5B7B', marginBottom: '8px' }} />
-            <span className="font-bold text-lg" style={{ color: '#6C5B7B' }}>Adjust</span>
-            <span className="text-xs mt-1" style={{ color: 'var(--text-dim)' }}>Fix Inventory</span>
-          </Link>
-        </div>
+        <Link href="/log?type=production" className="glass-card flex flex-col items-center justify-center p-6 hover:brightness-110 transition-all active:scale-95 text-center group border-2 border-transparent hover:border-[var(--primary)] aspect-square">
+          <Tractor size={36} style={{ color: 'var(--primary)', marginBottom: '12px' }} />
+          <span className="font-bold text-lg" style={{ color: 'var(--text-main)' }}>Bale</span>
+          <span className="text-xs mt-1 opacity-80" style={{ color: 'var(--text-dim)' }}>Production</span>
+        </Link>
+        <Link href="/log?type=purchase" className="glass-card flex flex-col items-center justify-center p-6 hover:brightness-110 transition-all active:scale-95 text-center group border-2 border-transparent hover:border-[var(--primary)] aspect-square">
+          <ShoppingCart size={36} style={{ color: 'var(--primary)', marginBottom: '12px' }} />
+          <span className="font-bold text-lg" style={{ color: 'var(--text-main)' }}>Buy</span>
+          <span className="text-xs mt-1 opacity-80" style={{ color: 'var(--text-dim)' }}>Purchase</span>
+        </Link>
+        <Link href="/log?type=sale" className="glass-card flex flex-col items-center justify-center p-6 hover:brightness-110 transition-all active:scale-95 text-center group border-2 border-transparent hover:border-[var(--primary)] aspect-square">
+          <Banknote size={36} style={{ color: 'var(--primary)', marginBottom: '12px' }} />
+          <span className="font-bold text-lg" style={{ color: 'var(--text-main)' }}>Sell</span>
+          <span className="text-xs mt-1 opacity-80" style={{ color: 'var(--text-dim)' }}>Sale</span>
+        </Link>
+        <Link href="/log?type=adjustment" className="glass-card flex flex-col items-center justify-center p-6 hover:brightness-110 transition-all active:scale-95 text-center group border-2 border-transparent hover:border-[var(--primary)] aspect-square">
+          <Wrench size={36} style={{ color: 'var(--primary)', marginBottom: '12px' }} />
+          <span className="font-bold text-lg" style={{ color: 'var(--text-main)' }}>Adjust</span>
+          <span className="text-xs mt-1 opacity-80" style={{ color: 'var(--text-dim)' }}>Inventory</span>
+        </Link>
       </div>
 
       {/* Recent Activity */}
