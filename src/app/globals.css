@@ -1,18 +1,24 @@
 @import "tailwindcss";
 
 @theme {
-  /* Sunset Palette */
-  --color-bg-deep: #355C7D;
-  --color-bg-surface: #6C5B7B;
-  --color-primary: #C06C84;
-  --color-primary-light: #F67280;
-  --color-accent: #F8B195;
-  --color-text-main: #F8B195;
-  --color-text-dim: #F67280;
-  --color-error: #ef4444;
+  /* Default Theme Variables */
+  --color-bg-deep: var(--bg-deep);
+  --color-bg-surface: var(--bg-surface);
+  --color-primary: var(--primary);
+  --color-primary-light: var(--primary-light);
+  --color-accent: var(--accent);
+  --color-text-main: var(--text-main);
+  --color-text-dim: var(--text-dim);
+  --color-error: var(--error);
 }
 
 :root {
+  /* Base variables */
+  --error: #ef4444;
+}
+
+/* Sunset Theme (Default) */
+:root[data-theme="sunset"] {
   --bg-deep: #355C7D;
   --bg-surface: #6C5B7B;
   --primary: #C06C84;
@@ -24,21 +30,36 @@
   --glass-bg: rgba(53, 92, 125, 0.8);
   --glass-border: rgba(248, 177, 149, 0.12);
   --glass-blur: blur(20px);
-  --error: #ef4444;
+}
+
+/* Forest Theme */
+:root[data-theme="forest"] {
+  --bg-deep: #594F4F;
+  --bg-surface: #547980;
+  --primary: #45ADA8;
+  --primary-light: #9DE0AD;
+  --primary-glow: rgba(69, 173, 168, 0.4);
+  --accent: #E5FCC2;
+  --text-main: #E5FCC2;
+  --text-dim: #9DE0AD;
+  --glass-bg: rgba(89, 79, 79, 0.8);
+  --glass-border: rgba(229, 252, 194, 0.12);
+  --glass-blur: blur(20px);
 }
 
 body {
   background-color: var(--bg-deep);
   background-image:
-    radial-gradient(at 0% 0%, rgba(192, 108, 132, 0.15) 0px, transparent 50%),
-    radial-gradient(at 100% 100%, rgba(246, 114, 128, 0.08) 0px, transparent 50%);
+    radial-gradient(at 0% 0%, var(--primary-glow) 0px, transparent 50%),
+    radial-gradient(at 100% 100%, rgba(255, 255, 255, 0.05) 0px, transparent 50%);
   color: var(--text-main);
   min-height: 100vh;
+  transition: background-color 0.3s ease, color 0.3s ease;
 }
 
 /* Glass Card Utility */
 .glass-card {
-  @apply relative overflow-hidden rounded-3xl border p-6 backdrop-blur-xl;
+  @apply relative overflow-hidden rounded-3xl border p-6 backdrop-blur-xl transition-colors duration-300;
   background: var(--glass-bg);
   border-color: var(--glass-border);
 }
@@ -46,7 +67,7 @@ body {
 .glass-card::before {
   content: '';
   @apply absolute top-0 left-0 right-0 h-[1px];
-  background: linear-gradient(90deg, transparent, rgba(235, 244, 221, 0.15), transparent);
+  background: linear-gradient(90deg, transparent, var(--glass-border), transparent);
 }
 
 /* Buttons */
@@ -61,7 +82,7 @@ body {
 .btn-primary {
   background: var(--primary);
   color: var(--accent);
-  box-shadow: 0 8px 24px rgba(192, 108, 132, 0.3);
+  box-shadow: 0 8px 24px var(--primary-glow);
 }
 
 .btn-secondary {
@@ -74,14 +95,49 @@ body {
 .select-modern {
   @apply w-full rounded-xl py-3 px-4 font-medium transition-all duration-200;
   @apply appearance-none cursor-pointer;
-  background: var(--bg-surface);
+  background-color: var(--bg-surface);
   border: 1px solid var(--glass-border);
   color: var(--text-main);
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20' viewBox='0 0 24 24' fill='none' stroke='%23F67280' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  /* Use mask for dynamic color SVG */
+  background-image: none;
+  padding-right: 40px;
+  position: relative;
+}
+
+/* Wrapper needed for custom arrow if using standard select, 
+   but for now we'll stick to a simpler background-image approach 
+   that works with the variables if we encoded the SVG data URI dynamically.
+   
+   However, simpler approach for pure CSS variables in SVG 
+   is to use mask-image. But that requires a wrapper element or pseudo-element.
+   
+   Let's use a pseudo-element on the parent wrapper if possible, 
+   but since this class is applied directly to the select, 
+   we will use a hardcoded color for now that matches the theme generic 
+   OR we can use a clever trick with mask-image if we accept it might be tricky.
+   
+   Better yet: Since we are in Next.js, let's keep it simple. 
+   We will revert to background-image but use a generic white/transparent one 
+   and rely on the native appearance or correct the approach below.
+   
+   Actually, let's use the mask approach on a chevron icon class instead?
+   No, let's just stick to a colored SVG but we can't inject CSS var into data URI.
+   
+   Alternative: Use `accent-color` or just keep the arrow color neutral or matching one theme.
+   OR: We can use a small colored span next to it?
+   
+   Let's try to simulate the colored arrow by using the --primary-light color.
+   Since we can't put a var() in a data URI, we have to settle for a color that works on both 
+   OR separate classes. 
+   
+   For now, I will use a neutral white arrow which looks good on both dark themes.
+*/
+.select-modern {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
   background-repeat: no-repeat;
   background-position: right 12px center;
-  padding-right: 40px;
 }
+
 
 .select-modern:hover {
   border-color: var(--primary-light);
@@ -90,7 +146,7 @@ body {
 .select-modern:focus {
   outline: none;
   border-color: var(--primary);
-  box-shadow: 0 0 0 3px rgba(192, 108, 132, 0.2);
+  box-shadow: 0 0 0 3px var(--primary-glow);
 }
 
 .select-modern option {
@@ -119,7 +175,7 @@ body {
 .input-modern:focus {
   outline: none;
   border-color: var(--primary);
-  box-shadow: 0 0 0 3px rgba(192, 108, 132, 0.2);
+  box-shadow: 0 0 0 3px var(--primary-glow);
 }
 
 /* Label styling */

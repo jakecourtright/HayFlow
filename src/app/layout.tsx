@@ -1,6 +1,7 @@
 import Link from "next/link";
-import { House, Box, ClipboardList, MapPin, BarChart3 } from 'lucide-react';
+import { House, Box, ClipboardList, MapPin, BarChart3, Settings } from 'lucide-react';
 import './globals.css';
+import { ThemeProvider } from "./contexts/theme-context";
 
 export default function RootLayout({
   children,
@@ -9,31 +10,34 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body className="antialiased pb-24">
-        {/* Header */}
-        <header className="sticky top-0 z-50 border-b bg-[var(--bg-deep)]/80 backdrop-blur-xl" style={{ borderColor: 'var(--glass-border)' }}>
-          <div className="container mx-auto px-6 py-4">
-            <h1 className="text-2xl font-extrabold tracking-tight" style={{ color: 'var(--accent)' }}>
-              HayStock
-            </h1>
-          </div>
-        </header>
+      <body className="antialiased pb-24 transition-colors duration-300">
+        <ThemeProvider>
+          {/* Header */}
+          <header className="sticky top-0 z-50 border-b bg-[var(--bg-deep)]/80 backdrop-blur-xl" style={{ borderColor: 'var(--glass-border)' }}>
+            <div className="container mx-auto px-6 py-4">
+              <h1 className="text-2xl font-extrabold tracking-tight" style={{ color: 'var(--accent)' }}>
+                HayStock
+              </h1>
+            </div>
+          </header>
 
-        {/* Main Content */}
-        <main className="container mx-auto px-6 py-6 max-w-2xl">
-          {children}
-        </main>
+          {/* Main Content */}
+          <main className="container mx-auto px-6 py-6 max-w-2xl">
+            {children}
+          </main>
 
-        {/* Bottom Navigation */}
-        <nav className="fixed bottom-0 left-0 right-0 z-50 border-t bg-[var(--bg-deep)]/90 backdrop-blur-xl pb-safe" style={{ borderColor: 'var(--glass-border)' }}>
-          <div className="flex justify-around items-center py-3">
-            <NavLink href="/" icon={<House size={20} />} label="Home" />
-            <NavLink href="/locations" icon={<MapPin size={20} />} label="Locations" />
-            <NavLink href="/stacks" icon={<Box size={20} />} label="Stacks" />
-            <NavLink href="/log" icon={<ClipboardList size={20} />} label="Log" />
-            <NavLink href="/reports" icon={<BarChart3 size={20} />} label="Reports" />
-          </div>
-        </nav>
+          {/* Bottom Navigation */}
+          <nav className="fixed bottom-0 left-0 right-0 z-50 border-t bg-[var(--bg-deep)]/90 backdrop-blur-xl pb-safe" style={{ borderColor: 'var(--glass-border)' }}>
+            <div className="flex justify-around items-center py-3">
+              <NavLink href="/" icon={<House size={20} />} label="Home" />
+              <NavLink href="/locations" icon={<MapPin size={20} />} label="Locations" />
+              <NavLink href="/stacks" icon={<Box size={20} />} label="Stacks" />
+              <NavLink href="/log" icon={<ClipboardList size={20} />} label="Log" />
+              <NavLink href="/reports" icon={<BarChart3 size={20} />} label="Reports" />
+              <NavLink href="/settings" icon={<Settings size={20} />} label="Settings" />
+            </div>
+          </nav>
+        </ThemeProvider>
       </body>
     </html>
   );
