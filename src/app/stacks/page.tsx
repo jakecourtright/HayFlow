@@ -1,11 +1,11 @@
-import { auth } from "@/lib/auth";
+import { auth } from "@clerk/nextjs/server";
 import pool from "@/lib/db";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Pencil } from "lucide-react";
 import StackActions from "./StackActions";
 
-async function getStacksWithInventory(userId: string) {
+async function getStacksWithInventory(orgId: string) {
     const client = await pool.connect();
     try {
         const stacksResult = await client.query(`
@@ -20,10 +20,10 @@ async function getStacksWithInventory(userId: string) {
                 ), 0) as current_stock
             FROM stacks s
             LEFT JOIN transactions t ON t.stack_id = s.id
-            WHERE s.user_id = $1
+            WHERE s.org_id = $1
             GROUP BY s.id
             ORDER BY s.created_at DESC
-        `, [userId]);
+        `, [orgId]);
 
         const breakdownResult = await client.query(`
             SELECT 
@@ -39,7 +39,7 @@ async function getStacksWithInventory(userId: string) {
                 ), 0) as stock
             FROM transactions t
             JOIN locations l ON l.id = t.location_id
-            WHERE t.user_id = $1 AND t.location_id IS NOT NULL
+            WHERE t.org_id = $1 AND t.location_id IS NOT NULL
             GROUP BY t.stack_id, l.id, l.name
             HAVING COALESCE(SUM(
                 CASE 
@@ -48,7 +48,7 @@ async function getStacksWithInventory(userId: string) {
                     ELSE 0
                 END
             ), 0) != 0
-        `, [userId]);
+        `, [orgId]);
 
         const breakdownMap: Record<number, Array<{ location_name: string; stock: number }>> = {};
         breakdownResult.rows.forEach((row: any) => {
@@ -72,10 +72,10 @@ async function getStacksWithInventory(userId: string) {
 }
 
 export default async function StacksPage() {
-    const session = await auth();
-    if (!session?.user?.id) redirect("/api/auth/signin");
+    const { userId, orgId } = await auth();
+    if (!userId || !orgId) redirect("/sign-in");
 
-    const stacks = await getStacksWithInventory(session.user.id);
+    const stacks = await getStacksWithInventory(orgId);
 
     return (
         <div className="space-y-6">

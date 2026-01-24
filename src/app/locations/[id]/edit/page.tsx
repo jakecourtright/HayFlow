@@ -1,15 +1,15 @@
-import { auth } from "@/lib/auth";
+import { auth } from "@clerk/nextjs/server";
 import pool from "@/lib/db";
 import { redirect, notFound } from "next/navigation";
 import { updateLocation } from "@/app/actions";
 import DeleteButton from "./DeleteButton";
 
-async function getLocation(locationId: string, userId: string) {
+async function getLocation(locationId: string, orgId: string) {
     const client = await pool.connect();
     try {
         const result = await client.query(
-            'SELECT * FROM locations WHERE id = $1 AND user_id = $2',
-            [locationId, userId]
+            'SELECT * FROM locations WHERE id = $1 AND org_id = $2',
+            [locationId, orgId]
         );
         return result.rows[0] || null;
     } finally {
@@ -18,11 +18,11 @@ async function getLocation(locationId: string, userId: string) {
 }
 
 export default async function EditLocationPage({ params }: { params: Promise<{ id: string }> }) {
-    const session = await auth();
-    if (!session?.user?.id) redirect("/api/auth/signin");
+    const { userId, orgId } = await auth();
+    if (!userId || !orgId) redirect("/sign-in");
 
     const { id } = await params;
-    const location = await getLocation(id, session.user.id);
+    const location = await getLocation(id, orgId);
 
     if (!location) {
         notFound();

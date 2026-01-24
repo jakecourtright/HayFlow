@@ -1,13 +1,13 @@
 'use server';
 
-import { auth } from "@/lib/auth";
+import { auth } from "@clerk/nextjs/server";
 import pool from "@/lib/db";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
 export async function submitTransaction(formData: FormData) {
-    const session = await auth();
-    if (!session?.user?.id) throw new Error("Unauthorized");
+    const { userId, orgId } = await auth();
+    if (!userId || !orgId) throw new Error("Unauthorized");
 
     const type = formData.get('type') as string;
     const stackId = formData.get('stackId');
@@ -50,8 +50,8 @@ export async function submitTransaction(formData: FormData) {
         }
 
         await client.query(`
-            INSERT INTO transactions (type, stack_id, location_id, amount, unit, entity, price, user_id)
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+            INSERT INTO transactions (type, stack_id, location_id, amount, unit, entity, price, user_id, org_id)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
         `, [
             type,
             stackId,
@@ -60,7 +60,8 @@ export async function submitTransaction(formData: FormData) {
             unit,
             entity,
             price ? parseFloat(price as string) : 0,
-            session.user.id
+            userId,
+            orgId
         ]);
     } catch (e) {
         console.error(e);
@@ -78,8 +79,8 @@ export async function submitTransaction(formData: FormData) {
 // ============ LOCATION ACTIONS ============
 
 export async function createLocation(formData: FormData) {
-    const session = await auth();
-    if (!session?.user?.id) throw new Error("Unauthorized");
+    const { userId, orgId } = await auth();
+    if (!userId || !orgId) throw new Error("Unauthorized");
 
     const name = formData.get('name') as string;
     const capacity = formData.get('capacity') as string;
@@ -92,9 +93,9 @@ export async function createLocation(formData: FormData) {
     const client = await pool.connect();
     try {
         await client.query(`
-            INSERT INTO locations (name, capacity, unit, user_id)
-            VALUES ($1, $2, $3, $4)
-        `, [name, parseInt(capacity), unit, session.user.id]);
+            INSERT INTO locations (name, capacity, unit, user_id, org_id)
+            VALUES ($1, $2, $3, $4, $5)
+        `, [name, parseInt(capacity), unit, userId, orgId]);
     } catch (e) {
         console.error(e);
         throw new Error("Failed to create location");
@@ -107,8 +108,8 @@ export async function createLocation(formData: FormData) {
 }
 
 export async function updateLocation(id: string, formData: FormData) {
-    const session = await auth();
-    if (!session?.user?.id) throw new Error("Unauthorized");
+    const { userId, orgId } = await auth();
+    if (!userId || !orgId) throw new Error("Unauthorized");
 
     const name = formData.get('name') as string;
     const capacity = formData.get('capacity') as string;
@@ -122,8 +123,8 @@ export async function updateLocation(id: string, formData: FormData) {
     try {
         await client.query(`
             UPDATE locations SET name = $1, capacity = $2, unit = $3
-            WHERE id = $4 AND user_id = $5
-        `, [name, parseInt(capacity), unit, id, session.user.id]);
+            WHERE id = $4 AND org_id = $5
+        `, [name, parseInt(capacity), unit, id, orgId]);
     } catch (e) {
         console.error(e);
         throw new Error("Failed to update location");
@@ -137,23 +138,23 @@ export async function updateLocation(id: string, formData: FormData) {
 }
 
 export async function deleteLocation(id: string) {
-    const session = await auth();
-    if (!session?.user?.id) throw new Error("Unauthorized");
+    const { userId, orgId } = await auth();
+    if (!userId || !orgId) throw new Error("Unauthorized");
 
     const client = await pool.connect();
     try {
         // Check if location has transactions
         const check = await client.query(
-            'SELECT COUNT(*) FROM transactions WHERE location_id = $1',
-            [id]
+            'SELECT COUNT(*) FROM transactions WHERE location_id = $1 AND org_id = $2',
+            [id, orgId]
         );
         if (parseInt(check.rows[0].count) > 0) {
             throw new Error("Cannot delete location with transaction history");
         }
 
         await client.query(
-            'DELETE FROM locations WHERE id = $1 AND user_id = $2',
-            [id, session.user.id]
+            'DELETE FROM locations WHERE id = $1 AND org_id = $2',
+            [id, orgId]
         );
     } catch (e) {
         console.error(e);
@@ -169,8 +170,8 @@ export async function deleteLocation(id: string) {
 // ============ STACK ACTIONS ============
 
 export async function createStack(formData: FormData) {
-    const session = await auth();
-    if (!session?.user?.id) throw new Error("Unauthorized");
+    const { userId, orgId } = await auth();
+    if (!userId || !orgId) throw new Error("Unauthorized");
 
     const name = formData.get('name') as string;
     const commodity = formData.get('commodity') as string;
@@ -185,9 +186,9 @@ export async function createStack(formData: FormData) {
     const client = await pool.connect();
     try {
         await client.query(`
-            INSERT INTO stacks (name, commodity, bale_size, quality, base_price, user_id)
-            VALUES ($1, $2, $3, $4, $5, $6)
-        `, [name, commodity, baleSize, quality, parseFloat(basePrice || '0'), session.user.id]);
+            INSERT INTO stacks (name, commodity, bale_size, quality, base_price, user_id, org_id)
+            VALUES ($1, $2, $3, $4, $5, $6, $7)
+        `, [name, commodity, baleSize, quality, parseFloat(basePrice || '0'), userId, orgId]);
     } catch (e) {
         console.error(e);
         throw new Error("Failed to create stack");
@@ -200,8 +201,8 @@ export async function createStack(formData: FormData) {
 }
 
 export async function updateStack(id: string, formData: FormData) {
-    const session = await auth();
-    if (!session?.user?.id) throw new Error("Unauthorized");
+    const { userId, orgId } = await auth();
+    if (!userId || !orgId) throw new Error("Unauthorized");
 
     const name = formData.get('name') as string;
     const commodity = formData.get('commodity') as string;
@@ -217,8 +218,8 @@ export async function updateStack(id: string, formData: FormData) {
     try {
         await client.query(`
             UPDATE stacks SET name = $1, commodity = $2, bale_size = $3, quality = $4, base_price = $5
-            WHERE id = $6 AND user_id = $7
-        `, [name, commodity, baleSize, quality, parseFloat(basePrice || '0'), id, session.user.id]);
+            WHERE id = $6 AND org_id = $7
+        `, [name, commodity, baleSize, quality, parseFloat(basePrice || '0'), id, orgId]);
     } catch (e) {
         console.error(e);
         throw new Error("Failed to update stack");
@@ -232,14 +233,14 @@ export async function updateStack(id: string, formData: FormData) {
 }
 
 export async function deleteStack(id: string) {
-    const session = await auth();
-    if (!session?.user?.id) throw new Error("Unauthorized");
+    const { userId, orgId } = await auth();
+    if (!userId || !orgId) throw new Error("Unauthorized");
 
     const client = await pool.connect();
     try {
         await client.query(
-            'DELETE FROM stacks WHERE id = $1 AND user_id = $2',
-            [id, session.user.id]
+            'DELETE FROM stacks WHERE id = $1 AND org_id = $2',
+            [id, orgId]
         );
     } catch (e) {
         console.error(e);

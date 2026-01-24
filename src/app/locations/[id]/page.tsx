@@ -1,15 +1,15 @@
-import { auth } from "@/lib/auth";
+import { auth } from "@clerk/nextjs/server";
 import pool from "@/lib/db";
 import { redirect, notFound } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 
-async function getLocationWithInventory(locationId: string, userId: string) {
+async function getLocationWithInventory(locationId: string, orgId: string) {
     const client = await pool.connect();
     try {
         const locationResult = await client.query(
-            'SELECT * FROM locations WHERE id = $1 AND user_id = $2',
-            [locationId, userId]
+            'SELECT * FROM locations WHERE id = $1 AND org_id = $2',
+            [locationId, orgId]
         );
 
         if (locationResult.rows.length === 0) {
@@ -33,7 +33,7 @@ async function getLocationWithInventory(locationId: string, userId: string) {
                 ), 0) as current_stock
             FROM stacks s
             LEFT JOIN transactions t ON t.stack_id = s.id AND t.location_id = $1
-            WHERE s.user_id = $2
+            WHERE s.org_id = $2
             GROUP BY s.id, s.name, s.commodity, s.quality
             HAVING COALESCE(SUM(
                 CASE 
@@ -43,7 +43,7 @@ async function getLocationWithInventory(locationId: string, userId: string) {
                 END
             ), 0) != 0
             ORDER BY s.name ASC
-        `, [locationId, userId]);
+        `, [locationId, orgId]);
 
         return {
             ...location,
@@ -55,11 +55,11 @@ async function getLocationWithInventory(locationId: string, userId: string) {
 }
 
 export default async function LocationDetailPage({ params }: { params: Promise<{ id: string }> }) {
-    const session = await auth();
-    if (!session?.user?.id) redirect("/api/auth/signin");
+    const { userId, orgId } = await auth();
+    if (!userId || !orgId) redirect("/sign-in");
 
     const { id } = await params;
-    const location = await getLocationWithInventory(id, session.user.id);
+    const location = await getLocationWithInventory(id, orgId);
 
     if (!location) {
         notFound();

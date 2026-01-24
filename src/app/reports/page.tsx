@@ -1,31 +1,31 @@
-import { auth } from "@/lib/auth";
+import { auth } from "@clerk/nextjs/server";
 import pool from "@/lib/db";
 import { redirect } from "next/navigation";
 
-async function getReportData(userId: string) {
+async function getReportData(orgId: string) {
     const client = await pool.connect();
     try {
         const productionResult = await client.query(`
             SELECT COALESCE(SUM(amount), 0) as total
             FROM transactions
-            WHERE user_id = $1 AND type = 'production'
-        `, [userId]);
+            WHERE org_id = $1 AND type = 'production'
+        `, [orgId]);
 
         const salesResult = await client.query(`
             SELECT 
                 COALESCE(SUM(amount), 0) as total_units,
                 COALESCE(SUM(amount * price), 0) as total_revenue
             FROM transactions
-            WHERE user_id = $1 AND type = 'sale'
-        `, [userId]);
+            WHERE org_id = $1 AND type = 'sale'
+        `, [orgId]);
 
         const purchaseResult = await client.query(`
             SELECT 
                 COALESCE(SUM(amount), 0) as total_units,
                 COALESCE(SUM(amount * price), 0) as total_cost
             FROM transactions
-            WHERE user_id = $1 AND type = 'purchase'
-        `, [userId]);
+            WHERE org_id = $1 AND type = 'purchase'
+        `, [orgId]);
 
         return {
             production: parseFloat(productionResult.rows[0].total),
@@ -44,10 +44,10 @@ async function getReportData(userId: string) {
 }
 
 export default async function ReportsPage() {
-    const session = await auth();
-    if (!session?.user?.id) redirect("/api/auth/signin");
+    const { userId, orgId } = await auth();
+    if (!userId || !orgId) redirect("/sign-in");
 
-    const data = await getReportData(session.user.id);
+    const data = await getReportData(orgId);
     const netPosition = data.sales.revenue - data.purchases.cost;
 
     return (

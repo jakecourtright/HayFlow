@@ -1,3 +1,12 @@
+import {
+  ClerkProvider,
+  SignInButton,
+  SignUpButton,
+  SignedIn,
+  SignedOut,
+  OrganizationSwitcher,
+  UserButton,
+} from "@clerk/nextjs";
 import Link from "next/link";
 import { House, Box, ClipboardList, MapPin, BarChart3, Settings } from 'lucide-react';
 import './globals.css';
@@ -9,36 +18,58 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
-      <body className="antialiased pb-24 transition-colors duration-300">
-        <ThemeProvider>
-          {/* Header */}
-          <header className="sticky top-0 z-50 border-b bg-[var(--bg-deep)]/80 backdrop-blur-xl" style={{ borderColor: 'var(--glass-border)' }}>
-            <div className="container mx-auto px-6 py-4">
-              <h1 className="text-2xl font-extrabold tracking-tight" style={{ color: 'var(--accent)' }}>
-                HayFlow
-              </h1>
-            </div>
-          </header>
+    <ClerkProvider>
+      <html lang="en">
+        <body className="antialiased pb-24 transition-colors duration-300">
+          <ThemeProvider>
+            {/* Header */}
+            <header className="sticky top-0 z-50 border-b bg-[var(--bg-deep)]/80 backdrop-blur-xl" style={{ borderColor: 'var(--glass-border)' }}>
+              <div className="container mx-auto px-6 py-4 flex justify-between items-center">
+                <h1 className="text-2xl font-extrabold tracking-tight" style={{ color: 'var(--accent)' }}>
+                  HayFlow
+                </h1>
+                <div className="flex items-center gap-4">
+                  <SignedIn>
+                    <OrganizationSwitcher
+                      appearance={{
+                        elements: {
+                          organizationSwitcherTrigger: "py-2 px-3 rounded-xl hover:bg-[var(--bg-surface)] text-[var(--text-main)]",
+                        }
+                      }}
+                    />
+                    <UserButton
+                      appearance={{
+                        elements: {
+                          avatarBox: "w-9 h-9 border-2 border-[var(--primary)]"
+                        }
+                      }}
+                    />
+                  </SignedIn>
+                </div>
+              </div>
+            </header>
 
-          {/* Main Content */}
-          <main className="container mx-auto px-6 py-6 max-w-2xl">
-            {children}
-          </main>
+            {/* Main Content */}
+            <main className="container mx-auto px-6 py-6 max-w-2xl">
+              {children}
+            </main>
 
-          {/* Bottom Navigation */}
-          <nav className="fixed bottom-0 left-0 right-0 z-50 border-t bg-[var(--bg-deep)]/90 backdrop-blur-xl pb-safe" style={{ borderColor: 'var(--glass-border)' }}>
-            <div className="flex justify-around items-center py-3">
-              <NavLink href="/" icon={<House size={20} />} label="Home" />
-              <NavLink href="/locations" icon={<MapPin size={20} />} label="Locations" />
-              <NavLink href="/stacks" icon={<Box size={20} />} label="Stacks" />
-              <NavLink href="/reports" icon={<BarChart3 size={20} />} label="Reports" />
-              <NavLink href="/settings" icon={<Settings size={20} />} label="Settings" />
-            </div>
-          </nav>
-        </ThemeProvider>
-      </body>
-    </html>
+            {/* Bottom Navigation */}
+            <SignedIn>
+              <nav className="fixed bottom-0 left-0 right-0 z-50 border-t bg-[var(--bg-deep)]/90 backdrop-blur-xl pb-safe" style={{ borderColor: 'var(--glass-border)' }}>
+                <div className="flex justify-around items-center py-3">
+                  <NavLink href="/" icon={<House size={20} />} label="Home" />
+                  <NavLink href="/locations" icon={<MapPin size={20} />} label="Locations" />
+                  <NavLink href="/stacks" icon={<Box size={20} />} label="Stacks" />
+                  <NavLink href="/reports" icon={<BarChart3 size={20} />} label="Reports" />
+                  <NavLink href="/settings" icon={<Settings size={20} />} label="Settings" />
+                </div>
+              </nav>
+            </SignedIn>
+          </ThemeProvider>
+        </body>
+      </html>
+    </ClerkProvider>
   );
 }
 

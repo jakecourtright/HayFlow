@@ -1,12 +1,12 @@
-import { auth } from "@/lib/auth";
+import { auth } from "@clerk/nextjs/server";
 import pool from "@/lib/db";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 
 async function createLocation(formData: FormData) {
     'use server';
-    const session = await auth();
-    if (!session?.user?.id) return;
+    const { userId, orgId } = await auth();
+    if (!userId || !orgId) return;
 
     const name = formData.get('name');
     const capacity = formData.get('capacity');
@@ -15,8 +15,8 @@ async function createLocation(formData: FormData) {
     const client = await pool.connect();
     try {
         await client.query(
-            'INSERT INTO locations (name, capacity, unit, user_id) VALUES ($1, $2, $3, $4)',
-            [name, capacity, unit, session.user.id]
+            'INSERT INTO locations (name, capacity, unit, user_id, org_id) VALUES ($1, $2, $3, $4, $5)',
+            [name, capacity, unit, userId, orgId]
         );
     } finally {
         client.release();
@@ -26,8 +26,8 @@ async function createLocation(formData: FormData) {
 }
 
 export default async function NewLocationPage() {
-    const session = await auth();
-    if (!session?.user?.id) redirect("/api/auth/signin");
+    const { userId, orgId } = await auth();
+    if (!userId || !orgId) redirect("/sign-in");
 
     return (
         <div className="max-w-md mx-auto">

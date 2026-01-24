@@ -1,10 +1,10 @@
-import { auth } from "@/lib/auth";
+import { auth } from "@clerk/nextjs/server";
 import { redirect } from "next/navigation";
 import { createLocation } from "@/app/actions";
 
 export default async function NewLocationPage() {
-    const session = await auth();
-    if (!session?.user?.id) redirect("/api/auth/signin");
+    const { userId, orgId } = await auth();
+    if (!userId || !orgId) redirect("/sign-in");
 
     return (
         <div>

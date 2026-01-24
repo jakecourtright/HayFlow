@@ -1,4 +1,4 @@
-import { auth } from "@/lib/auth";
+import { auth } from "@clerk/nextjs/server";
 import pool from "@/lib/db";
 import Link from "next/link";
 import { redirect } from "next/navigation";
@@ -8,10 +8,10 @@ type Props = {
     params: Promise<{ id: string }>;
 };
 
-async function getLocationDetails(userId: string, locationId: string) {
+async function getLocationDetails(orgId: string, locationId: string) {
     const client = await pool.connect();
     try {
-        const locRes = await client.query('SELECT * FROM locations WHERE id = $1 AND user_id = $2', [locationId, userId]);
+        const locRes = await client.query('SELECT * FROM locations WHERE id = $1 AND org_id = $2', [locationId, orgId]);
         const location = locRes.rows[0];
 
         if (!location) return null;
@@ -25,10 +25,10 @@ async function getLocationDetails(userId: string, locationId: string) {
         COALESCE(SUM(CASE WHEN t.type IN ('production', 'purchase') THEN t.amount ELSE -t.amount END), 0) as current_stock
       FROM transactions t
       JOIN stacks s ON t.stack_id = s.id
-      WHERE t.location_id = $1 AND t.user_id = $2
+      WHERE t.location_id = $1 AND t.org_id = $2
       GROUP BY s.id, s.name, s.commodity, s.quality
       HAVING COALESCE(SUM(CASE WHEN t.type IN ('production', 'purchase') THEN t.amount ELSE -t.amount END), 0) > 0
-    `, [locationId, userId]);
+    `, [locationId, orgId]);
 
         return {
             location,
@@ -40,11 +40,11 @@ async function getLocationDetails(userId: string, locationId: string) {
 }
 
 export default async function LocationPage({ params }: Props) {
-    const session = await auth();
-    if (!session?.user?.id) redirect("/api/auth/signin");
+    const { userId, orgId } = await auth();
+    if (!userId || !orgId) redirect("/sign-in");
 
     const { id } = await params;
-    const data = await getLocationDetails(session.user.id, id);
+    const data = await getLocationDetails(orgId, id);
 
     if (!data) {
         return <div className="text-center py-10">Location not found</div>;

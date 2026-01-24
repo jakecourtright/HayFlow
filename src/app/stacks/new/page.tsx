@@ -1,24 +1,25 @@
-import { auth } from "@/lib/auth";
+import { auth } from "@clerk/nextjs/server";
 import pool from "@/lib/db";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 
 async function createStack(formData: FormData) {
     'use server';
-    const session = await auth();
-    if (!session?.user?.id) return;
+    const { userId, orgId } = await auth();
+    if (!userId || !orgId) return;
 
     const client = await pool.connect();
     try {
         await client.query(
-            'INSERT INTO stacks (name, commodity, bale_size, quality, base_price, user_id) VALUES ($1, $2, $3, $4, $5, $6)',
+            'INSERT INTO stacks (name, commodity, bale_size, quality, base_price, user_id, org_id) VALUES ($1, $2, $3, $4, $5, $6, $7)',
             [
                 formData.get('name'),
                 formData.get('commodity'),
                 formData.get('baleSize'),
                 formData.get('quality'),
                 parseFloat(formData.get('basePrice') as string || '0'),
-                session.user.id
+                userId,
+                orgId
             ]
         );
     } finally {
@@ -29,8 +30,8 @@ async function createStack(formData: FormData) {
 }
 
 export default async function NewStackPage() {
-    const session = await auth();
-    if (!session?.user?.id) redirect("/api/auth/signin");
+    const { userId, orgId } = await auth();
+    if (!userId || !orgId) redirect("/sign-in");
 
     return (
         <div className="max-w-md mx-auto">

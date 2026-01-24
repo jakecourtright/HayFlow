@@ -1,15 +1,15 @@
-import { auth } from "@/lib/auth";
+import { auth } from "@clerk/nextjs/server";
 import pool from "@/lib/db";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import LocationCard from "./LocationCard";
 
-async function getLocationsWithInventory(userId: string) {
+async function getLocationsWithInventory(orgId: string) {
     const client = await pool.connect();
     try {
         const locations = await client.query(
-            'SELECT * FROM locations WHERE user_id = $1 ORDER BY name ASC',
-            [userId]
+            'SELECT * FROM locations WHERE org_id = $1 ORDER BY name ASC',
+            [orgId]
         );
 
         const inventoryQuery = await client.query(`
@@ -24,9 +24,9 @@ async function getLocationsWithInventory(userId: string) {
                 ), 0) as total_stock,
                 COUNT(DISTINCT t.stack_id) as stack_count
             FROM transactions t
-            WHERE t.user_id = $1 AND t.location_id IS NOT NULL
+            WHERE t.org_id = $1 AND t.location_id IS NOT NULL
             GROUP BY t.location_id
-        `, [userId]);
+        `, [orgId]);
 
         const inventoryMap: Record<string, { total_stock: number; stack_count: number }> = {};
         inventoryQuery.rows.forEach((row: any) => {
@@ -47,10 +47,10 @@ async function getLocationsWithInventory(userId: string) {
 }
 
 export default async function LocationsPage() {
-    const session = await auth();
-    if (!session?.user?.id) redirect("/api/auth/signin");
+    const { userId, orgId } = await auth();
+    if (!userId || !orgId) redirect("/sign-in");
 
-    const locations = await getLocationsWithInventory(session.user.id);
+    const locations = await getLocationsWithInventory(orgId);
 
     return (
         <div>
