@@ -1,4 +1,5 @@
 // Unit conversion utilities for bales and tons
+// BASE UNIT: Tons - all prices are normalized to $/ton for consistent reporting
 
 // Default weights per bale size (in lbs)
 export const BALE_SIZE_WEIGHTS: Record<string, number> = {
@@ -37,6 +38,33 @@ export function tonsToBales(tons: number, weightPerBale: number): number {
 }
 
 /**
+ * Convert $/bale to $/ton (normalize price to base unit)
+ * Formula: $/ton = $/bale * (2000 / weightPerBale)
+ */
+export function pricePerBaleToPerTon(pricePerBale: number, weightPerBale: number): number {
+    return pricePerBale * (LBS_PER_TON / weightPerBale);
+}
+
+/**
+ * Convert $/ton to $/bale (for display when user prefers bale pricing)
+ * Formula: $/bale = $/ton * (weightPerBale / 2000)
+ */
+export function pricePerTonToPerBale(pricePerTon: number, weightPerBale: number): number {
+    return pricePerTon * (weightPerBale / LBS_PER_TON);
+}
+
+/**
+ * Normalize price to $/ton based on input unit
+ * Always returns $/ton for consistent storage and reporting
+ */
+export function normalizePrice(price: number, inputUnit: 'bale' | 'ton', weightPerBale: number): number {
+    if (inputUnit === 'ton') {
+        return price; // Already in $/ton
+    }
+    return pricePerBaleToPerTon(price, weightPerBale);
+}
+
+/**
  * Format a number with locale-specific formatting
  */
 export function formatNumber(num: number, decimals: number = 0): string {
@@ -61,3 +89,4 @@ export function formatDualUnits(bales: number, weightPerBale: number): string {
 export function resolveWeight(weightPerBale: number | null, baleSize: string): number {
     return weightPerBale || getDefaultWeight(baleSize);
 }
+

@@ -4,7 +4,7 @@ import { auth } from "@clerk/nextjs/server";
 import pool from "@/lib/db";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { tonsToBales, getDefaultWeight } from "@/lib/units";
+import { tonsToBales, getDefaultWeight, normalizePrice } from "@/lib/units";
 
 export async function submitTransaction(formData: FormData) {
     const { userId, orgId } = await auth();
@@ -16,7 +16,8 @@ export async function submitTransaction(formData: FormData) {
     const enteredAmount = formData.get('amount');
     const unit = formData.get('unit') as string || 'bales';
     const entity = formData.get('entity');
-    const price = formData.get('price');
+    const enteredPrice = formData.get('price');
+    const priceUnit = formData.get('priceUnit') as string || 'ton'; // Price unit from form
 
     if (!stackId || !enteredAmount || !type) {
         throw new Error("Missing required fields");
@@ -67,6 +68,13 @@ export async function submitTransaction(formData: FormData) {
             }
         }
 
+        // Normalize price to $/ton (base unit for reporting)
+        let pricePerTon = 0;
+        if (enteredPrice) {
+            const priceValue = parseFloat(enteredPrice as string);
+            pricePerTon = normalizePrice(priceValue, priceUnit as 'bale' | 'ton', weightPerBale);
+        }
+
         await client.query(`
             INSERT INTO transactions (type, stack_id, location_id, amount, unit, entity, price, user_id, org_id)
             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
@@ -77,7 +85,7 @@ export async function submitTransaction(formData: FormData) {
             amountInBales, // Always stored in bales
             'bales', // Always store as bales
             entity,
-            price ? parseFloat(price as string) : 0,
+            pricePerTon, // Always stored as $/ton
             userId,
             orgId
         ]);
@@ -102,7 +110,8 @@ export async function updateTransaction(id: string, formData: FormData) {
     const enteredAmount = formData.get('amount');
     const unit = formData.get('unit') as string || 'bales';
     const entity = formData.get('entity');
-    const price = formData.get('price');
+    const enteredPrice = formData.get('price');
+    const priceUnit = formData.get('priceUnit') as string || 'ton';
 
     if (!stackId || !enteredAmount || !type) {
         throw new Error("Missing required fields");
@@ -129,6 +138,13 @@ export async function updateTransaction(id: string, formData: FormData) {
             amountInBales = tonsToBales(amountInBales, weightPerBale);
         }
 
+        // Normalize price to $/ton
+        let pricePerTon = 0;
+        if (enteredPrice) {
+            const priceValue = parseFloat(enteredPrice as string);
+            pricePerTon = normalizePrice(priceValue, priceUnit as 'bale' | 'ton', weightPerBale);
+        }
+
         await client.query(`
             UPDATE transactions SET
                 type = $1,
@@ -146,7 +162,7 @@ export async function updateTransaction(id: string, formData: FormData) {
             amountInBales,
             'bales',
             entity,
-            price ? parseFloat(price as string) : 0,
+            pricePerTon,
             id,
             orgId
         ]);

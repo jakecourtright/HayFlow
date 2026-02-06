@@ -159,16 +159,25 @@ export default function EditTransactionForm({ transaction, stacks, locations }: 
                     />
                 </div>
 
-                <div>
-                    <label className="label-modern">{getPriceLabel(selectedType)}</label>
-                    <input
-                        type="number"
-                        name="price"
-                        step="0.01"
-                        className="input-modern"
-                        placeholder="0.00"
-                        defaultValue={transaction.price ? parseFloat(transaction.price) : ''}
-                    />
+                <div className="grid grid-cols-2 gap-4">
+                    <div>
+                        <label className="label-modern">{getPriceLabel(selectedType)}</label>
+                        <input
+                            type="number"
+                            name="price"
+                            step="0.01"
+                            className="input-modern"
+                            placeholder="0.00"
+                            defaultValue={transaction.price ? parseFloat(transaction.price) : ''}
+                        />
+                    </div>
+                    <div>
+                        <label className="label-modern">Price Per</label>
+                        <select name="priceUnit" className="select-modern" defaultValue="ton">
+                            <option value="ton">$ / Ton</option>
+                            <option value="bale">$ / Bale</option>
+                        </select>
+                    </div>
                 </div>
 
                 <button type="submit" disabled={loading} className="btn btn-primary w-full mt-6">
