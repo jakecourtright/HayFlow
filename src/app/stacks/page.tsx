@@ -98,12 +98,12 @@ export default async function StacksPage() {
                     stacks.map((stack: any) => (
                         <div key={stack.id} className="glass-card">
                             <div className="flex justify-between items-start">
-                                <div>
+                                <Link href={`/stacks/${stack.id}`} className="flex-1 hover:opacity-80 transition-opacity">
                                     <h3 className="text-lg font-bold" style={{ color: 'var(--accent)' }}>{stack.name}</h3>
                                     <span className="text-xs font-bold uppercase tracking-wider" style={{ color: 'var(--primary-light)' }}>
                                         {stack.commodity}
                                     </span>
-                                </div>
+                                </Link>
                                 <div className="flex gap-2">
                                     <Link
                                         href={`/stacks/${stack.id}/edit`}
