@@ -11,6 +11,7 @@ interface LocationCardProps {
         unit: string;
         total_stock: number;
         stack_count: number;
+        total_tons: number;
     };
 }
 
@@ -25,7 +26,7 @@ export default function LocationCard({ location }: LocationCardProps) {
                     <div>
                         <h3 className="text-lg font-semibold" style={{ color: 'var(--accent)' }}>{location.name}</h3>
                         <span className="text-sm" style={{ color: 'var(--text-dim)' }}>
-                            {location.total_stock.toLocaleString()} / {location.capacity.toLocaleString()} {location.unit}
+                            {location.total_stock.toLocaleString()} bales ({location.total_tons.toFixed(2)} tons)
                         </span>
                     </div>
                     <div className="flex items-center gap-3">
@@ -54,8 +55,9 @@ export default function LocationCard({ location }: LocationCardProps) {
                     />
                 </div>
 
-                <div className="text-xs" style={{ color: 'var(--text-dim)' }}>
-                    {location.stack_count} {location.stack_count === 1 ? 'lot' : 'lots'} stored here
+                <div className="flex justify-between text-xs" style={{ color: 'var(--text-dim)' }}>
+                    <span>{location.stack_count} {location.stack_count === 1 ? 'lot' : 'lots'} stored here</span>
+                    <span>Capacity: {location.capacity.toLocaleString()} {location.unit}</span>
                 </div>
             </div>
         </Link>

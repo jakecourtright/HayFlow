@@ -3,6 +3,7 @@ import pool from "@/lib/db";
 import { redirect, notFound } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft, Pencil, Tractor, ShoppingCart, Banknote, Wrench } from "lucide-react";
+import { balesToTons, resolveWeight } from "@/lib/units";
 
 async function getLocationWithInventory(locationId: string, orgId: string) {
     const client = await pool.connect();
@@ -24,6 +25,8 @@ async function getLocationWithInventory(locationId: string, orgId: string) {
                 s.name,
                 s.commodity,
                 s.quality,
+                s.weight_per_bale,
+                s.bale_size,
                 COALESCE(SUM(
                     CASE 
                         WHEN t.type IN ('production', 'purchase') THEN t.amount
@@ -34,7 +37,7 @@ async function getLocationWithInventory(locationId: string, orgId: string) {
             FROM stacks s
             LEFT JOIN transactions t ON t.stack_id = s.id AND t.location_id = $1
             WHERE s.org_id = $2
-            GROUP BY s.id, s.name, s.commodity, s.quality
+            GROUP BY s.id, s.name, s.commodity, s.quality, s.weight_per_bale, s.bale_size
             HAVING COALESCE(SUM(
                 CASE 
                     WHEN t.type IN ('production', 'purchase') THEN t.amount
@@ -154,26 +157,34 @@ export default async function LocationDetailPage({ params }: { params: Promise<{
                     </div>
                 ) : (
                     <div className="space-y-2">
-                        {location.stacks.map((stack: any) => (
-                            <Link
-                                key={stack.id}
-                                href={`/stacks/${stack.id}`}
-                                className="glass-card p-4 flex justify-between items-center hover:brightness-110 transition-all"
-                            >
-                                <div>
-                                    <h3 className="font-semibold" style={{ color: 'var(--accent)' }}>{stack.name}</h3>
-                                    <span className="text-xs font-semibold uppercase" style={{ color: 'var(--primary-light)' }}>
-                                        {stack.commodity}
-                                    </span>
-                                </div>
-                                <div className="text-right">
-                                    <span className="text-lg font-bold" style={{ color: 'var(--primary-light)' }}>
-                                        {parseFloat(stack.current_stock).toLocaleString()}
-                                    </span>
-                                    <span className="text-xs ml-1" style={{ color: 'var(--text-dim)' }}>bales</span>
-                                </div>
-                            </Link>
-                        ))}
+                        {location.stacks.map((stack: any) => {
+                            const stock = parseFloat(stack.current_stock);
+                            const weight = resolveWeight(stack.weight_per_bale, stack.bale_size);
+                            const tons = balesToTons(stock, weight);
+                            return (
+                                <Link
+                                    key={stack.id}
+                                    href={`/stacks/${stack.id}`}
+                                    className="glass-card p-4 flex justify-between items-center hover:brightness-110 transition-all"
+                                >
+                                    <div>
+                                        <h3 className="font-semibold" style={{ color: 'var(--accent)' }}>{stack.name}</h3>
+                                        <span className="text-xs font-semibold uppercase" style={{ color: 'var(--primary-light)' }}>
+                                            {stack.commodity}
+                                        </span>
+                                    </div>
+                                    <div className="text-right">
+                                        <span className="text-lg font-bold" style={{ color: 'var(--primary-light)' }}>
+                                            {stock.toLocaleString()}
+                                        </span>
+                                        <span className="text-xs ml-1" style={{ color: 'var(--text-dim)' }}>bales</span>
+                                        <p className="text-xs" style={{ color: 'var(--text-dim)' }}>
+                                            {tons.toFixed(2)} tons
+                                        </p>
+                                    </div>
+                                </Link>
+                            );
+                        })}
                     </div>
                 )}
             </div>

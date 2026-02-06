@@ -3,6 +3,7 @@ import pool from "@/lib/db";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import LocationCard from "./LocationCard";
+import { getDefaultWeight } from "@/lib/units";
 
 async function getLocationsWithInventory(orgId: string) {
     const client = await pool.connect();
@@ -12,34 +13,47 @@ async function getLocationsWithInventory(orgId: string) {
             [orgId]
         );
 
+        // Get inventory with weight info for tonnage calculation
         const inventoryQuery = await client.query(`
             SELECT 
                 t.location_id,
+                t.stack_id,
+                s.weight_per_bale,
+                s.bale_size,
                 COALESCE(SUM(
                     CASE 
                         WHEN t.type IN ('production', 'purchase') THEN t.amount
                         WHEN t.type = 'sale' THEN -t.amount
                         ELSE 0
                     END
-                ), 0) as total_stock,
-                COUNT(DISTINCT t.stack_id) as stack_count
+                ), 0) as stock
             FROM transactions t
+            LEFT JOIN stacks s ON s.id = t.stack_id
             WHERE t.org_id = $1 AND t.location_id IS NOT NULL
-            GROUP BY t.location_id
+            GROUP BY t.location_id, t.stack_id, s.weight_per_bale, s.bale_size
         `, [orgId]);
 
-        const inventoryMap: Record<string, { total_stock: number; stack_count: number }> = {};
+        // Aggregate by location with tonnage
+        const inventoryMap: Record<string, { total_stock: number; stack_count: number; total_tons: number }> = {};
         inventoryQuery.rows.forEach((row: any) => {
-            inventoryMap[row.location_id] = {
-                total_stock: parseFloat(row.total_stock) || 0,
-                stack_count: parseInt(row.stack_count) || 0
-            };
+            const locId = row.location_id;
+            const stock = parseFloat(row.stock) || 0;
+            const weight = row.weight_per_bale || getDefaultWeight(row.bale_size || '3x4');
+            const tons = (stock * weight) / 2000;
+
+            if (!inventoryMap[locId]) {
+                inventoryMap[locId] = { total_stock: 0, stack_count: 0, total_tons: 0 };
+            }
+            inventoryMap[locId].total_stock += stock;
+            inventoryMap[locId].total_tons += tons;
+            if (stock > 0) inventoryMap[locId].stack_count += 1;
         });
 
         return locations.rows.map((loc: any) => ({
             ...loc,
             total_stock: inventoryMap[loc.id]?.total_stock || 0,
-            stack_count: inventoryMap[loc.id]?.stack_count || 0
+            stack_count: inventoryMap[loc.id]?.stack_count || 0,
+            total_tons: inventoryMap[loc.id]?.total_tons || 0
         }));
     } finally {
         client.release();
