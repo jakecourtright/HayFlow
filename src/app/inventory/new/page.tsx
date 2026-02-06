@@ -1,29 +1,6 @@
 import { auth } from "@clerk/nextjs/server";
-import pool from "@/lib/db";
 import { redirect } from "next/navigation";
-import { revalidatePath } from "next/cache";
-
-async function createLocation(formData: FormData) {
-    'use server';
-    const { userId, orgId } = await auth();
-    if (!userId || !orgId) return;
-
-    const name = formData.get('name');
-    const capacity = formData.get('capacity');
-    const unit = formData.get('unit') || 'bales';
-
-    const client = await pool.connect();
-    try {
-        await client.query(
-            'INSERT INTO locations (name, capacity, unit, user_id, org_id) VALUES ($1, $2, $3, $4, $5)',
-            [name, capacity, unit, userId, orgId]
-        );
-    } finally {
-        client.release();
-    }
-    revalidatePath('/inventory');
-    redirect('/inventory');
-}
+import { createLocation } from "@/app/actions";
 
 export default async function NewLocationPage() {
     const { userId, orgId } = await auth();
@@ -33,24 +10,37 @@ export default async function NewLocationPage() {
         <div className="max-w-md mx-auto">
             <h1 className="text-xl font-bold mb-6">Add New Location</h1>
 
-            <form action={createLocation} className="space-y-4">
+            <form action={createLocation} className="glass-card space-y-5">
                 <div>
-                    <label className="block text-xs font-bold uppercase text-slate-400 mb-1">Location Name</label>
-                    <input type="text" name="name" required className="bg-slate-800 border border-white/10 rounded-xl p-3 w-full text-white focus:outline-none focus:border-emerald-500" placeholder="e.g. Barn A" />
+                    <label className="label-modern">Location Name</label>
+                    <input
+                        type="text"
+                        name="name"
+                        required
+                        placeholder="e.g., Barn A"
+                        className="input-modern"
+                    />
                 </div>
 
-                <div>
-                    <label className="block text-xs font-bold uppercase text-slate-400 mb-1">Capacity</label>
-                    <input type="number" name="capacity" required className="bg-slate-800 border border-white/10 rounded-xl p-3 w-full text-white focus:outline-none focus:border-emerald-500" placeholder="2000" />
-                </div>
-
-                <div>
-                    <label className="block text-xs font-bold uppercase text-slate-400 mb-1">Unit</label>
-                    <select name="unit" className="bg-slate-800 border border-white/10 rounded-xl p-3 w-full text-white focus:outline-none focus:border-emerald-500">
-                        <option value="bales">Bales</option>
-                        <option value="tons">Tons</option>
-                        <option value="loads">Loads</option>
-                    </select>
+                <div className="grid grid-cols-2 gap-4">
+                    <div>
+                        <label className="label-modern">Capacity</label>
+                        <input
+                            type="number"
+                            name="capacity"
+                            required
+                            placeholder="2000"
+                            className="input-modern"
+                        />
+                    </div>
+                    <div>
+                        <label className="label-modern">Unit</label>
+                        <select name="unit" className="select-modern">
+                            <option value="bales">Bales</option>
+                            <option value="tons">Tons</option>
+                            <option value="loads">Loads</option>
+                        </select>
+                    </div>
                 </div>
 
                 <button type="submit" className="btn btn-primary w-full mt-4">

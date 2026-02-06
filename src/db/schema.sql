@@ -1,11 +1,5 @@
--- Users Table
-CREATE TABLE IF NOT EXISTS users (
-  id SERIAL PRIMARY KEY,
-  name VARCHAR(255),
-  email VARCHAR(255) UNIQUE NOT NULL,
-  password VARCHAR(255) NOT NULL,
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
+-- Users Table (managed by Clerk, but referenced for foreign keys)
+-- Note: user_id and org_id are Clerk IDs stored as VARCHAR
 
 -- Locations Table
 CREATE TABLE IF NOT EXISTS locations (
@@ -13,10 +7,12 @@ CREATE TABLE IF NOT EXISTS locations (
   name VARCHAR(255) NOT NULL,
   capacity INTEGER NOT NULL,
   unit VARCHAR(50) DEFAULT 'bales',
-  user_id INTEGER REFERENCES users(id) ON DELETE CASCADE
+  user_id VARCHAR(255) NOT NULL,
+  org_id VARCHAR(255) NOT NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
--- Stacks (Products) Table
+-- Stacks (Products/Lot Numbers) Table
 CREATE TABLE IF NOT EXISTS stacks (
   id SERIAL PRIMARY KEY,
   name VARCHAR(255) NOT NULL,
@@ -24,20 +20,28 @@ CREATE TABLE IF NOT EXISTS stacks (
   bale_size VARCHAR(100),
   quality VARCHAR(100),
   base_price DECIMAL(10, 2) DEFAULT 0,
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  user_id INTEGER REFERENCES users(id) ON DELETE CASCADE
+  user_id VARCHAR(255) NOT NULL,
+  org_id VARCHAR(255) NOT NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
 -- Transactions Table
 CREATE TABLE IF NOT EXISTS transactions (
   id SERIAL PRIMARY KEY,
   date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  type VARCHAR(50) NOT NULL, -- 'production', 'purchase', 'sale'
+  type VARCHAR(50) NOT NULL, -- 'production', 'purchase', 'sale', 'adjustment'
   stack_id INTEGER REFERENCES stacks(id) ON DELETE SET NULL,
   location_id INTEGER REFERENCES locations(id) ON DELETE SET NULL,
   amount DECIMAL(10, 2) NOT NULL,
   unit VARCHAR(50),
   entity VARCHAR(255), -- Buyer or seller name
   price DECIMAL(10, 2) DEFAULT 0,
-  user_id INTEGER REFERENCES users(id) ON DELETE CASCADE
+  user_id VARCHAR(255) NOT NULL,
+  org_id VARCHAR(255) NOT NULL
 );
+
+-- Indexes for performance on org_id queries
+CREATE INDEX IF NOT EXISTS idx_locations_org_id ON locations(org_id);
+CREATE INDEX IF NOT EXISTS idx_stacks_org_id ON stacks(org_id);
+CREATE INDEX IF NOT EXISTS idx_transactions_org_id ON transactions(org_id);
+CREATE INDEX IF NOT EXISTS idx_transactions_stack_location ON transactions(stack_id, location_id);
