@@ -173,6 +173,8 @@ export async function createStack(formData: FormData) {
     const baleSize = formData.get('baleSize') as string;
     const quality = formData.get('quality') as string;
     const basePrice = formData.get('basePrice') as string;
+    const weightPerBale = formData.get('weightPerBale') as string;
+    const priceUnit = formData.get('priceUnit') as string || 'bale';
 
     if (!name) throw new Error("Stack name is required");
     if (!commodity) throw new Error("Commodity is required");
@@ -180,9 +182,19 @@ export async function createStack(formData: FormData) {
     const client = await pool.connect();
     try {
         await client.query(`
-            INSERT INTO stacks (name, commodity, bale_size, quality, base_price, user_id, org_id)
-            VALUES ($1, $2, $3, $4, $5, $6, $7)
-        `, [name, commodity, baleSize, quality, parseFloat(basePrice || '0'), userId, orgId]);
+            INSERT INTO stacks (name, commodity, bale_size, quality, base_price, weight_per_bale, price_unit, user_id, org_id)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+        `, [
+            name,
+            commodity,
+            baleSize,
+            quality,
+            parseFloat(basePrice || '0'),
+            weightPerBale ? parseInt(weightPerBale) : null,
+            priceUnit,
+            userId,
+            orgId
+        ]);
     } finally {
         client.release();
     }
@@ -201,6 +213,8 @@ export async function updateStack(id: string, formData: FormData) {
     const baleSize = formData.get('baleSize') as string;
     const quality = formData.get('quality') as string;
     const basePrice = formData.get('basePrice') as string;
+    const weightPerBale = formData.get('weightPerBale') as string;
+    const priceUnit = formData.get('priceUnit') as string || 'bale';
 
     if (!name) throw new Error("Stack name is required");
     if (!commodity) throw new Error("Commodity is required");
@@ -208,9 +222,26 @@ export async function updateStack(id: string, formData: FormData) {
     const client = await pool.connect();
     try {
         await client.query(`
-            UPDATE stacks SET name = $1, commodity = $2, bale_size = $3, quality = $4, base_price = $5
-            WHERE id = $6 AND org_id = $7
-        `, [name, commodity, baleSize, quality, parseFloat(basePrice || '0'), id, orgId]);
+            UPDATE stacks SET 
+                name = $1, 
+                commodity = $2, 
+                bale_size = $3, 
+                quality = $4, 
+                base_price = $5,
+                weight_per_bale = $6,
+                price_unit = $7
+            WHERE id = $8 AND org_id = $9
+        `, [
+            name,
+            commodity,
+            baleSize,
+            quality,
+            parseFloat(basePrice || '0'),
+            weightPerBale ? parseInt(weightPerBale) : null,
+            priceUnit,
+            id,
+            orgId
+        ]);
     } finally {
         client.release();
     }

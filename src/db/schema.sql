@@ -7,6 +7,7 @@ CREATE TABLE IF NOT EXISTS locations (
   name VARCHAR(255) NOT NULL,
   capacity INTEGER NOT NULL,
   unit VARCHAR(50) DEFAULT 'bales',
+  capacity_unit VARCHAR(20) DEFAULT 'bales', -- 'bales' or 'tons'
   user_id VARCHAR(255) NOT NULL,
   org_id VARCHAR(255) NOT NULL,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
@@ -17,9 +18,11 @@ CREATE TABLE IF NOT EXISTS stacks (
   id SERIAL PRIMARY KEY,
   name VARCHAR(255) NOT NULL,
   commodity VARCHAR(255),
-  bale_size VARCHAR(100),
+  bale_size VARCHAR(100), -- '3x3', '3x4', '4x4', '2-Tie', '3-Tie'
   quality VARCHAR(100),
   base_price DECIMAL(10, 2) DEFAULT 0,
+  weight_per_bale INTEGER, -- lbs per bale (overrides bale_size default)
+  price_unit VARCHAR(20) DEFAULT 'bale', -- 'bale' or 'ton'
   user_id VARCHAR(255) NOT NULL,
   org_id VARCHAR(255) NOT NULL,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP

@@ -3,6 +3,7 @@ import pool from "@/lib/db";
 import { redirect, notFound } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft, Pencil, Tractor, ShoppingCart, Banknote, Wrench } from "lucide-react";
+import { balesToTons, resolveWeight } from "@/lib/units";
 
 async function getStackWithDetails(stackId: string, orgId: string) {
     const client = await pool.connect();
@@ -140,34 +141,49 @@ export default async function StackDetailPage({ params }: { params: Promise<{ id
             </div>
 
             {/* Stats Card */}
-            <div className="glass-card">
-                <div className="grid grid-cols-2 gap-4">
-                    <div>
-                        <span className="text-xs block" style={{ color: 'var(--text-dim)' }}>TOTAL INVENTORY</span>
-                        <span className="text-2xl font-bold" style={{ color: 'var(--accent)' }}>
-                            {stack.total_stock.toLocaleString()}
-                        </span>
-                        <span className="text-sm ml-1" style={{ color: 'var(--text-dim)' }}>Bales</span>
-                    </div>
-                    <div>
-                        <span className="text-xs block" style={{ color: 'var(--text-dim)' }}>BASE PRICE</span>
-                        <span className="text-2xl font-bold" style={{ color: 'var(--accent)' }}>
-                            ${parseFloat(stack.base_price).toFixed(2)}
-                        </span>
-                        <span className="text-sm ml-1" style={{ color: 'var(--text-dim)' }}>/unit</span>
-                    </div>
-                </div>
+            {(() => {
+                const weight = resolveWeight(stack.weight_per_bale, stack.bale_size);
+                const tons = balesToTons(stack.total_stock, weight);
+                return (
+                    <div className="glass-card">
+                        <div className="grid grid-cols-2 gap-4">
+                            <div>
+                                <span className="text-xs block" style={{ color: 'var(--text-dim)' }}>TOTAL INVENTORY</span>
+                                <span className="text-2xl font-bold" style={{ color: 'var(--accent)' }}>
+                                    {stack.total_stock.toLocaleString()}
+                                </span>
+                                <span className="text-sm ml-1" style={{ color: 'var(--text-dim)' }}>Bales</span>
+                                <p className="text-sm" style={{ color: 'var(--text-dim)' }}>
+                                    {tons.toFixed(2)} tons
+                                </p>
+                            </div>
+                            <div>
+                                <span className="text-xs block" style={{ color: 'var(--text-dim)' }}>BASE PRICE</span>
+                                <span className="text-2xl font-bold" style={{ color: 'var(--accent)' }}>
+                                    ${parseFloat(stack.base_price).toFixed(2)}
+                                </span>
+                                <span className="text-sm ml-1" style={{ color: 'var(--text-dim)' }}>/{stack.price_unit || 'bale'}</span>
+                            </div>
+                        </div>
 
-                {/* Badges */}
-                <div className="flex flex-wrap gap-2 text-xs mt-4 pt-4" style={{ borderTop: '1px solid var(--glass-border)' }}>
-                    <span className="px-2 py-1 rounded" style={{ background: 'var(--bg-surface)', color: 'var(--text-dim)' }}>
-                        {stack.quality || 'N/A'}
-                    </span>
-                    <span className="px-2 py-1 rounded" style={{ background: 'var(--bg-surface)', color: 'var(--text-dim)' }}>
-                        {stack.bale_size || 'N/A'}
-                    </span>
-                </div>
-            </div>
+                        {/* Weight and Size Info */}
+                        <div className="grid grid-cols-3 gap-4 mt-4 pt-4 text-sm" style={{ borderTop: '1px solid var(--glass-border)' }}>
+                            <div>
+                                <span className="text-xs block" style={{ color: 'var(--text-dim)' }}>WEIGHT/BALE</span>
+                                <span style={{ color: 'var(--accent)' }}>{weight.toLocaleString()} lbs</span>
+                            </div>
+                            <div>
+                                <span className="text-xs block" style={{ color: 'var(--text-dim)' }}>BALE SIZE</span>
+                                <span style={{ color: 'var(--accent)' }}>{stack.bale_size || 'N/A'}</span>
+                            </div>
+                            <div>
+                                <span className="text-xs block" style={{ color: 'var(--text-dim)' }}>QUALITY</span>
+                                <span style={{ color: 'var(--accent)' }}>{stack.quality || 'N/A'}</span>
+                            </div>
+                        </div>
+                    </div>
+                );
+            })()}
 
             {/* Location Breakdown */}
             {stack.locations.length > 0 && (

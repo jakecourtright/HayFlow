@@ -4,6 +4,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Pencil } from "lucide-react";
 import StackActions from "./StackActions";
+import { balesToTons, resolveWeight } from "@/lib/units";
 
 async function getStacksWithInventory(orgId: string) {
     const client = await pool.connect();
@@ -117,12 +118,21 @@ export default async function StacksPage() {
                             </div>
 
                             {/* Total Inventory */}
-                            <div className="mt-4 mb-3">
-                                <span className="text-xs block" style={{ color: 'var(--text-dim)' }}>TOTAL INVENTORY</span>
-                                <span className="text-xl font-semibold" style={{ color: 'var(--accent)' }}>
-                                    {stack.current_stock.toLocaleString()} Bales
-                                </span>
-                            </div>
+                            {(() => {
+                                const weight = resolveWeight(stack.weight_per_bale, stack.bale_size);
+                                const tons = balesToTons(stack.current_stock, weight);
+                                return (
+                                    <div className="mt-4 mb-3">
+                                        <span className="text-xs block" style={{ color: 'var(--text-dim)' }}>TOTAL INVENTORY</span>
+                                        <span className="text-xl font-semibold" style={{ color: 'var(--accent)' }}>
+                                            {stack.current_stock.toLocaleString()} Bales
+                                        </span>
+                                        <span className="text-sm ml-2" style={{ color: 'var(--text-dim)' }}>
+                                            ({tons.toFixed(2)} tons)
+                                        </span>
+                                    </div>
+                                );
+                            })()}
 
                             {/* Location Breakdown */}
                             {stack.location_breakdown.length > 0 && (
@@ -145,10 +155,10 @@ export default async function StacksPage() {
                                     {stack.quality}
                                 </span>
                                 <span className="px-2 py-1 rounded" style={{ background: 'var(--bg-surface)', color: 'var(--text-dim)' }}>
-                                    {stack.bale_size}
+                                    {stack.bale_size} {stack.weight_per_bale && `(${stack.weight_per_bale} lbs)`}
                                 </span>
                                 <span className="px-2 py-1 rounded" style={{ background: 'var(--bg-surface)', color: 'var(--text-dim)' }}>
-                                    ${stack.base_price}/unit
+                                    ${parseFloat(stack.base_price).toFixed(2)}/{stack.price_unit || 'bale'}
                                 </span>
                             </div>
                         </div>
