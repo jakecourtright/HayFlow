@@ -2,7 +2,7 @@
 
 import { createContext, useContext, useEffect, useState } from "react";
 
-type Theme = "sunset" | "forest" | "strawberry";
+type Theme = "sunset" | "forest" | "strawberry" | "midnight" | "ember" | "ocean" | "slate" | "moss" | "sand" | "cloud" | "mint" | "blush" | "arctic";
 
 interface ThemeContextType {
   theme: Theme;

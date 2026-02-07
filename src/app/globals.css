@@ -66,31 +66,185 @@
 /* Strawberry Theme - Teal & Red */
 :root[data-theme="strawberry"] {
   --bg-deep: #203838;
-  /* Dark Teal */
   --bg-surface: #2F5656;
-  /* Lighter Teal */
   --primary: #FF4D6D;
-  /* Bright Red-Pink */
   --primary-light: #FF8FA3;
-  /* Soft Pink */
   --primary-glow: rgba(255, 77, 109, 0.5);
   --accent: #FFE5D9;
-  /* Peach */
   --text-main: #FFF0F5;
-  /* Lavender Blush */
   --text-dim: #FFB3C1;
-  /* Muted Pink */
   --glass-bg: rgba(32, 56, 56, 0.8);
   --glass-border: rgba(255, 77, 109, 0.2);
   --glass-blur: blur(24px);
   --error: #fb7185;
 }
 
+/* ===== NEW DARK THEMES ===== */
+
+/* Midnight - Deep purples & electric blue */
+:root[data-theme="midnight"] {
+  --bg-deep: #13111C;
+  --bg-surface: #1E1B2E;
+  --primary: #7C3AED;
+  --primary-light: #A78BFA;
+  --primary-glow: rgba(124, 58, 237, 0.4);
+  --accent: #E0D4FC;
+  --text-main: #F5F3FF;
+  --text-dim: #8B83A8;
+  --glass-bg: rgba(19, 17, 28, 0.75);
+  --glass-border: rgba(167, 139, 250, 0.15);
+  --glass-blur: blur(24px);
+  --error: #F87171;
+}
+
+/* Ember - Warm charcoal & golden orange */
+:root[data-theme="ember"] {
+  --bg-deep: #1C1410;
+  --bg-surface: #2D2118;
+  --primary: #EA580C;
+  --primary-light: #FB923C;
+  --primary-glow: rgba(234, 88, 12, 0.4);
+  --accent: #FED7AA;
+  --text-main: #FFF7ED;
+  --text-dim: #A18072;
+  --glass-bg: rgba(28, 20, 16, 0.75);
+  --glass-border: rgba(251, 146, 60, 0.15);
+  --glass-blur: blur(24px);
+  --error: #F87171;
+}
+
+/* Ocean - Deep navy & aqua */
+:root[data-theme="ocean"] {
+  --bg-deep: #0B1526;
+  --bg-surface: #152038;
+  --primary: #0891B2;
+  --primary-light: #22D3EE;
+  --primary-glow: rgba(8, 145, 178, 0.4);
+  --accent: #CFFAFE;
+  --text-main: #ECFEFF;
+  --text-dim: #6B9DAD;
+  --glass-bg: rgba(11, 21, 38, 0.75);
+  --glass-border: rgba(34, 211, 238, 0.12);
+  --glass-blur: blur(24px);
+  --error: #F87171;
+}
+
+/* Slate - Minimal dark gray & cool blue */
+:root[data-theme="slate"] {
+  --bg-deep: #18181B;
+  --bg-surface: #27272A;
+  --primary: #3B82F6;
+  --primary-light: #60A5FA;
+  --primary-glow: rgba(59, 130, 246, 0.35);
+  --accent: #E2E8F0;
+  --text-main: #F4F4F5;
+  --text-dim: #71717A;
+  --glass-bg: rgba(24, 24, 27, 0.8);
+  --glass-border: rgba(244, 244, 245, 0.08);
+  --glass-blur: blur(24px);
+  --error: #F87171;
+}
+
+/* Moss - Earthy dark green & lime */
+:root[data-theme="moss"] {
+  --bg-deep: #141E14;
+  --bg-surface: #1F2E1F;
+  --primary: #65A30D;
+  --primary-light: #84CC16;
+  --primary-glow: rgba(101, 163, 13, 0.35);
+  --accent: #ECFCCB;
+  --text-main: #F7FEE7;
+  --text-dim: #7C9A5E;
+  --glass-bg: rgba(20, 30, 20, 0.75);
+  --glass-border: rgba(132, 204, 22, 0.12);
+  --glass-blur: blur(24px);
+  --error: #F87171;
+}
+
+/* ===== NEW LIGHT THEMES ===== */
+
+/* Sand - Warm cream & terracotta */
+:root[data-theme="sand"] {
+  --bg-deep: #F5F0EB;
+  --bg-surface: #FFFFFF;
+  --primary: #C2410C;
+  --primary-light: #EA580C;
+  --primary-glow: rgba(194, 65, 12, 0.2);
+  --accent: #292524;
+  --text-main: #1C1917;
+  --text-dim: #78716C;
+  --glass-bg: rgba(255, 255, 255, 0.85);
+  --glass-border: rgba(28, 25, 23, 0.1);
+  --glass-blur: blur(24px);
+  --error: #DC2626;
+}
+
+/* Cloud - Soft gray & indigo */
+:root[data-theme="cloud"] {
+  --bg-deep: #F1F5F9;
+  --bg-surface: #FFFFFF;
+  --primary: #4F46E5;
+  --primary-light: #6366F1;
+  --primary-glow: rgba(79, 70, 229, 0.2);
+  --accent: #1E293B;
+  --text-main: #0F172A;
+  --text-dim: #64748B;
+  --glass-bg: rgba(255, 255, 255, 0.85);
+  --glass-border: rgba(15, 23, 42, 0.08);
+  --glass-blur: blur(24px);
+  --error: #DC2626;
+}
+
+/* Mint - Fresh white & green */
+:root[data-theme="mint"] {
+  --bg-deep: #F0FDF4;
+  --bg-surface: #FFFFFF;
+  --primary: #059669;
+  --primary-light: #10B981;
+  --primary-glow: rgba(5, 150, 105, 0.2);
+  --accent: #14532D;
+  --text-main: #052E16;
+  --text-dim: #6B7280;
+  --glass-bg: rgba(255, 255, 255, 0.85);
+  --glass-border: rgba(5, 46, 22, 0.08);
+  --glass-blur: blur(24px);
+  --error: #DC2626;
+}
+
+/* Blush - Soft pink & rose */
+:root[data-theme="blush"] {
+  --bg-deep: #FFF1F2;
+  --bg-surface: #FFFFFF;
+  --primary: #E11D48;
+  --primary-light: #FB7185;
+  --primary-glow: rgba(225, 29, 72, 0.2);
+  --accent: #4C1D2F;
+  --text-main: #1A1A2E;
+  --text-dim: #9CA3AF;
+  --glass-bg: rgba(255, 255, 255, 0.85);
+  --glass-border: rgba(26, 26, 46, 0.08);
+  --glass-blur: blur(24px);
+  --error: #DC2626;
+}
+
+/* Arctic - Ice white & cool teal */
+:root[data-theme="arctic"] {
+  --bg-deep: #F0FDFA;
+  --bg-surface: #FFFFFF;
+  --primary: #0D9488;
+  --primary-light: #14B8A6;
+  --primary-glow: rgba(13, 148, 136, 0.2);
+  --accent: #134E4A;
+  --text-main: #042F2E;
+  --text-dim: #6B7280;
+  --glass-bg: rgba(255, 255, 255, 0.85);
+  --glass-border: rgba(4, 47, 46, 0.08);
+  --glass-blur: blur(24px);
+  --error: #DC2626;
+}
+
 body {
   background-color: var(--bg-deep);
-  background-image:
-    radial-gradient(at 0% 0%, var(--primary-glow) 0px, transparent 50%),
-    radial-gradient(at 100% 100%, rgba(255, 255, 255, 0.05) 0px, transparent 50%);
   color: var(--text-main);
   min-height: 100vh;
   transition: background-color 0.3s ease, color 0.3s ease;
