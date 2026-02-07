@@ -39,9 +39,6 @@ export default function RootLayout({
                         }
                       }}
                     />
-                    <Link href="/settings" className="p-2 rounded-xl hover:bg-[var(--bg-surface)] transition-colors">
-                      <Settings size={20} style={{ color: 'var(--text-dim)' }} />
-                    </Link>
                     <UserButton
                       appearance={{
                         elements: {
@@ -49,6 +46,9 @@ export default function RootLayout({
                         }
                       }}
                     />
+                    <Link href="/settings" className="p-2 rounded-xl hover:bg-[var(--bg-surface)] transition-colors">
+                      <Settings size={20} style={{ color: 'var(--text-dim)' }} />
+                    </Link>
                   </SignedIn>
                 </div>
               </div>
