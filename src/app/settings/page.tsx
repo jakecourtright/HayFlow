@@ -2,6 +2,7 @@
 
 import { useTheme } from "../contexts/theme-context";
 import { Check } from "lucide-react";
+import { OrganizationProfile, OrganizationSwitcher, Protect } from "@clerk/nextjs";
 
 const THEMES = [
     // Dark Themes
@@ -153,6 +154,47 @@ export default function SettingsPage() {
         <div className="space-y-6">
             <h1 className="text-2xl font-bold" style={{ color: 'var(--accent)' }}>Settings</h1>
 
+            {/* Organization Switcher */}
+            <div className="glass-card">
+                <h2 className="text-lg font-bold mb-3" style={{ color: 'var(--text-main)' }}>Organization</h2>
+                <p className="text-sm mb-4" style={{ color: 'var(--text-dim)' }}>
+                    Switch between your organizations or create a new one.
+                </p>
+                <OrganizationSwitcher
+                    hidePersonal
+                    appearance={{
+                        elements: {
+                            rootBox: "w-full",
+                            organizationSwitcherTrigger: "w-full py-3 px-4 rounded-xl border transition-colors text-[var(--text-main)]",
+                        }
+                    }}
+                />
+            </div>
+
+            {/* Team Management — only visible to users with manage permission */}
+            <Protect permission="org:users:manage">
+                <div className="glass-card">
+                    <h2 className="text-lg font-bold mb-3" style={{ color: 'var(--text-main)' }}>Team Management</h2>
+                    <p className="text-sm mb-4" style={{ color: 'var(--text-dim)' }}>
+                        Invite members, assign roles, and manage your team.
+                    </p>
+                    <OrganizationProfile
+                        appearance={{
+                            elements: {
+                                rootBox: "w-full",
+                                cardBox: "shadow-none w-full",
+                                card: "shadow-none border-0 bg-transparent w-full",
+                                navbar: "hidden",
+                                headerTitle: "hidden",
+                                headerSubtitle: "hidden",
+                            }
+                        }}
+                        routing="hash"
+                    />
+                </div>
+            </Protect>
+
+            {/* Theme Selection */}
             <div className="glass-card">
                 <h2 className="text-lg font-bold mb-2" style={{ color: 'var(--text-main)' }}>Theme</h2>
 
@@ -227,3 +269,4 @@ export default function SettingsPage() {
         </div>
     );
 }
+

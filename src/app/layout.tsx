@@ -4,7 +4,6 @@ import {
   SignUpButton,
   SignedIn,
   SignedOut,
-  OrganizationSwitcher,
   UserButton,
 } from "@clerk/nextjs";
 import Link from "next/link";
@@ -46,13 +45,6 @@ export default async function RootLayout({
                 </Link>
                 <div className="flex items-center gap-4">
                   <SignedIn>
-                    <OrganizationSwitcher
-                      appearance={{
-                        elements: {
-                          organizationSwitcherTrigger: "py-2 px-3 rounded-xl hover:bg-[var(--bg-surface)] text-[var(--text-main)]",
-                        }
-                      }}
-                    />
                     <UserButton
                       appearance={{
                         elements: {
