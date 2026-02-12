@@ -3,6 +3,19 @@
 import { useOrganization } from '@clerk/nextjs';
 import { useState } from 'react';
 import { Users, Mail, Trash2, Shield } from 'lucide-react';
+import CustomSelect from '@/components/CustomSelect';
+
+const ROLE_OPTIONS = [
+    { value: 'org:admin', label: 'Admin' },
+    { value: 'org:bookkeeper', label: 'Bookkeeper / Dispatcher' },
+    { value: 'org:driver', label: 'Driver' },
+    { value: 'org:member', label: 'Member' },
+];
+
+function roleLabel(role: string) {
+    const found = ROLE_OPTIONS.find(r => r.value === role);
+    return found?.label || role.replace('org:', '');
+}
 
 export default function TeamManagement() {
     const { organization, memberships, invitations } = useOrganization({
@@ -15,6 +28,7 @@ export default function TeamManagement() {
     const [inviting, setInviting] = useState(false);
     const [error, setError] = useState('');
     const [success, setSuccess] = useState('');
+    const [editingMemberId, setEditingMemberId] = useState<string | null>(null);
 
     if (!organization) return null;
 
@@ -32,6 +46,19 @@ export default function TeamManagement() {
             setError(err?.errors?.[0]?.message || 'Failed to send invitation');
         } finally {
             setInviting(false);
+        }
+    };
+
+    const handleUpdateRole = async (userId: string, newRole: string) => {
+        setError('');
+        try {
+            await organization.updateMember({ userId, role: newRole });
+            memberships?.revalidate?.();
+            setEditingMemberId(null);
+            setSuccess('Role updated successfully');
+            setTimeout(() => setSuccess(''), 3000);
+        } catch (err: any) {
+            setError(err?.errors?.[0]?.message || 'Failed to update role');
         }
     };
 
@@ -58,14 +85,6 @@ export default function TeamManagement() {
         }
     };
 
-    const roleLabel = (role: string) => {
-        if (role === 'org:admin') return 'Admin';
-        if (role === 'org:bookkeeper') return 'Bookkeeper';
-        if (role === 'org:driver') return 'Driver';
-        if (role === 'org:member') return 'Member';
-        return role.replace('org:', '');
-    };
-
     return (
         <div className="space-y-5">
             {/* Invite Form */}
@@ -83,16 +102,13 @@ export default function TeamManagement() {
                 </div>
                 <div>
                     <label className="label-modern">Role</label>
-                    <select
+                    <CustomSelect
+                        name="invite-role"
+                        options={ROLE_OPTIONS}
                         value={role}
-                        onChange={(e) => setRole(e.target.value)}
-                        className="input-modern"
-                    >
-                        <option value="org:admin">Admin</option>
-                        <option value="org:bookkeeper">Bookkeeper / Dispatcher</option>
-                        <option value="org:driver">Driver</option>
-                        <option value="org:member">Member</option>
-                    </select>
+                        onChange={setRole}
+                        placeholder="Select a role..."
+                    />
                 </div>
                 <button
                     type="submit"
@@ -121,57 +137,79 @@ export default function TeamManagement() {
                     <Users size={12} className="inline mr-1" /> Members ({memberships?.data?.length || 0})
                 </h3>
                 <div className="space-y-2">
-                    {memberships?.data?.map((membership: any) => (
-                        <div
-                            key={membership.id}
-                            className="flex items-center justify-between p-3 rounded-xl"
-                            style={{ background: 'var(--bg-surface)' }}
-                        >
-                            <div className="flex items-center gap-3 min-w-0">
-                                {membership.publicUserData?.imageUrl ? (
-                                    <img
-                                        src={membership.publicUserData.imageUrl}
-                                        alt=""
-                                        className="w-8 h-8 rounded-full flex-shrink-0"
-                                    />
-                                ) : (
-                                    <div
-                                        className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0"
-                                        style={{ background: 'var(--primary)', color: 'white' }}
-                                    >
-                                        {(membership.publicUserData?.firstName?.[0] || '?').toUpperCase()}
+                    {memberships?.data?.map((membership: any) => {
+                        const userId = membership.publicUserData?.userId;
+                        const isEditing = editingMemberId === membership.id;
+
+                        return (
+                            <div
+                                key={membership.id}
+                                className="p-3 rounded-xl"
+                                style={{ background: 'var(--bg-surface)' }}
+                            >
+                                <div className="flex items-center justify-between">
+                                    <div className="flex items-center gap-3 min-w-0">
+                                        {membership.publicUserData?.imageUrl ? (
+                                            <img
+                                                src={membership.publicUserData.imageUrl}
+                                                alt=""
+                                                className="w-8 h-8 rounded-full flex-shrink-0"
+                                            />
+                                        ) : (
+                                            <div
+                                                className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0"
+                                                style={{ background: 'var(--primary)', color: 'white' }}
+                                            >
+                                                {(membership.publicUserData?.firstName?.[0] || '?').toUpperCase()}
+                                            </div>
+                                        )}
+                                        <div className="min-w-0">
+                                            <p className="font-medium text-sm truncate" style={{ color: 'var(--text-main)' }}>
+                                                {membership.publicUserData?.firstName} {membership.publicUserData?.lastName}
+                                            </p>
+                                            <p className="text-xs truncate" style={{ color: 'var(--text-dim)' }}>
+                                                {membership.publicUserData?.identifier}
+                                            </p>
+                                        </div>
+                                    </div>
+                                    <div className="flex items-center gap-2 flex-shrink-0">
+                                        <button
+                                            onClick={() => setEditingMemberId(isEditing ? null : membership.id)}
+                                            className="text-xs font-bold px-2 py-1 rounded-lg flex items-center gap-1 transition-colors hover:brightness-110"
+                                            style={{ background: 'var(--bg-deep)', color: 'var(--primary-light)' }}
+                                            title="Click to change role"
+                                        >
+                                            <Shield size={10} />
+                                            {roleLabel(membership.role)}
+                                        </button>
+                                        {membership.role !== 'org:admin' && (
+                                            <button
+                                                onClick={() => handleRemoveMember(userId)}
+                                                className="p-1.5 rounded-lg transition-colors hover:bg-red-500/10"
+                                                style={{ color: '#ef4444' }}
+                                                title="Remove member"
+                                            >
+                                                <Trash2 size={14} />
+                                            </button>
+                                        )}
+                                    </div>
+                                </div>
+
+                                {/* Role Editor */}
+                                {isEditing && (
+                                    <div className="mt-3 pt-3" style={{ borderTop: '1px solid var(--glass-border)' }}>
+                                        <label className="label-modern">Change Role</label>
+                                        <CustomSelect
+                                            name={`role-${membership.id}`}
+                                            options={ROLE_OPTIONS}
+                                            value={membership.role}
+                                            onChange={(newRole) => handleUpdateRole(userId, newRole)}
+                                        />
                                     </div>
                                 )}
-                                <div className="min-w-0">
-                                    <p className="font-medium text-sm truncate" style={{ color: 'var(--text-main)' }}>
-                                        {membership.publicUserData?.firstName} {membership.publicUserData?.lastName}
-                                    </p>
-                                    <p className="text-xs truncate" style={{ color: 'var(--text-dim)' }}>
-                                        {membership.publicUserData?.identifier}
-                                    </p>
-                                </div>
                             </div>
-                            <div className="flex items-center gap-2 flex-shrink-0">
-                                <span
-                                    className="text-xs font-bold px-2 py-1 rounded-lg flex items-center gap-1"
-                                    style={{ background: 'var(--bg-deep)', color: 'var(--primary-light)' }}
-                                >
-                                    <Shield size={10} />
-                                    {roleLabel(membership.role)}
-                                </span>
-                                {membership.role !== 'org:admin' && (
-                                    <button
-                                        onClick={() => handleRemoveMember(membership.publicUserData.userId)}
-                                        className="p-1.5 rounded-lg transition-colors hover:bg-red-500/10"
-                                        style={{ color: '#ef4444' }}
-                                        title="Remove member"
-                                    >
-                                        <Trash2 size={14} />
-                                    </button>
-                                )}
-                            </div>
-                        </div>
-                    ))}
+                        );
+                    })}
                 </div>
             </div>
 

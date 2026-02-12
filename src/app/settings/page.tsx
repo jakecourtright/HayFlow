@@ -166,7 +166,12 @@ export default function SettingsPage() {
                     appearance={{
                         elements: {
                             rootBox: "w-full",
-                            organizationSwitcherTrigger: "w-full py-3 px-4 rounded-xl border transition-colors text-[var(--text-main)]",
+                            organizationSwitcherTrigger: `
+                                w-full py-3 px-4 rounded-xl transition-colors
+                                bg-[var(--bg-surface)] text-[var(--text-main)]
+                                border border-[var(--glass-border)]
+                                hover:border-[var(--primary)]
+                            `,
                         }
                     }}
                 />
