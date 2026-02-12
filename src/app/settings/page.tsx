@@ -178,24 +178,43 @@ export default function SettingsPage() {
                     <p className="text-sm mb-4" style={{ color: 'var(--text-dim)' }}>
                         Invite members, assign roles, and manage your team.
                     </p>
-                    <OrganizationProfile
-                        appearance={{
-                            elements: {
-                                rootBox: "w-full",
-                                cardBox: "shadow-none w-full max-w-full",
-                                card: "shadow-none border-0 bg-transparent w-full max-w-full",
-                                navbar: "hidden",
-                                navbarMobileMenuButton: "hidden",
-                                headerTitle: "hidden",
-                                headerSubtitle: "hidden",
-                                pageScrollBox: "p-0",
-                                page: "w-full",
-                                profileSection__organizationProfile: "hidden",
-                                profileSection__organizationDanger: "hidden",
+                    <div className="clerk-org-profile-wrapper">
+                        <style>{`
+                            .clerk-org-profile-wrapper .cl-organizationProfile-root {
+                                width: 100%;
+                                max-width: 100%;
                             }
-                        }}
-                        routing="hash"
-                    />
+                            .clerk-org-profile-wrapper .cl-card {
+                                box-shadow: none;
+                                border: none;
+                                background: transparent;
+                                width: 100%;
+                                max-width: 100%;
+                            }
+                            .clerk-org-profile-wrapper .cl-navbar {
+                                display: none !important;
+                            }
+                            .clerk-org-profile-wrapper .cl-navbarMobileMenuButton {
+                                display: none !important;
+                            }
+                            .clerk-org-profile-wrapper .cl-headerTitle,
+                            .clerk-org-profile-wrapper .cl-headerSubtitle {
+                                display: none !important;
+                            }
+                            .clerk-org-profile-wrapper .cl-pageScrollBox {
+                                padding: 0;
+                                overflow: visible;
+                            }
+                            .clerk-org-profile-wrapper .cl-profileSection__organizationProfile,
+                            .clerk-org-profile-wrapper .cl-profileSection__organizationDanger {
+                                display: none !important;
+                            }
+                            .clerk-org-profile-wrapper .cl-footer {
+                                display: none !important;
+                            }
+                        `}</style>
+                        <OrganizationProfile routing="hash" />
+                    </div>
                 </div>
             </Protect>
 
