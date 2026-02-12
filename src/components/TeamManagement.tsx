@@ -48,21 +48,17 @@ export default function TeamManagement() {
         }
     };
 
-    const handleUpdateRole = async (userId: string, newRole: string) => {
+    const handleUpdateRole = async (membership: any, newRole: string) => {
         setError('');
         try {
-            await organization.updateMember({ userId, role: newRole });
+            await membership.update({ role: newRole });
             memberships?.revalidate?.();
             setEditingMemberId(null);
             setSuccess('Role updated successfully');
             setTimeout(() => setSuccess(''), 3000);
         } catch (err: any) {
             const msg = err?.errors?.[0]?.message || err?.message || 'Failed to update role';
-            if (msg.toLowerCase().includes('not found') || msg.toLowerCase().includes('not_found')) {
-                setError('Role not found. Make sure custom roles (admin, bookkeeper, driver) are created in your Clerk Dashboard → Organizations → Roles.');
-            } else {
-                setError(msg);
-            }
+            setError(msg);
         }
     };
 
@@ -207,7 +203,7 @@ export default function TeamManagement() {
                                             name={`role-${membership.id}`}
                                             options={ROLE_OPTIONS}
                                             value={membership.role}
-                                            onChange={(newRole) => handleUpdateRole(userId, newRole)}
+                                            onChange={(newRole) => handleUpdateRole(membership, newRole)}
                                         />
                                     </div>
                                 )}
