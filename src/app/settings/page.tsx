@@ -182,11 +182,16 @@ export default function SettingsPage() {
                         appearance={{
                             elements: {
                                 rootBox: "w-full",
-                                cardBox: "shadow-none w-full",
-                                card: "shadow-none border-0 bg-transparent w-full",
+                                cardBox: "shadow-none w-full max-w-full",
+                                card: "shadow-none border-0 bg-transparent w-full max-w-full",
                                 navbar: "hidden",
+                                navbarMobileMenuButton: "hidden",
                                 headerTitle: "hidden",
                                 headerSubtitle: "hidden",
+                                pageScrollBox: "p-0",
+                                page: "w-full",
+                                profileSection__organizationProfile: "hidden",
+                                profileSection__organizationDanger: "hidden",
                             }
                         }}
                         routing="hash"
