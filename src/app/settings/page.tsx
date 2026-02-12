@@ -2,7 +2,8 @@
 
 import { useTheme } from "../contexts/theme-context";
 import { Check } from "lucide-react";
-import { OrganizationProfile, OrganizationSwitcher, Protect } from "@clerk/nextjs";
+import { OrganizationSwitcher, Protect } from "@clerk/nextjs";
+import TeamManagement from "@/components/TeamManagement";
 
 const THEMES = [
     // Dark Themes
@@ -178,43 +179,7 @@ export default function SettingsPage() {
                     <p className="text-sm mb-4" style={{ color: 'var(--text-dim)' }}>
                         Invite members, assign roles, and manage your team.
                     </p>
-                    <div className="clerk-org-profile-wrapper">
-                        <style>{`
-                            .clerk-org-profile-wrapper .cl-organizationProfile-root {
-                                width: 100%;
-                                max-width: 100%;
-                            }
-                            .clerk-org-profile-wrapper .cl-card {
-                                box-shadow: none;
-                                border: none;
-                                background: transparent;
-                                width: 100%;
-                                max-width: 100%;
-                            }
-                            .clerk-org-profile-wrapper .cl-navbar {
-                                display: none !important;
-                            }
-                            .clerk-org-profile-wrapper .cl-navbarMobileMenuButton {
-                                display: none !important;
-                            }
-                            .clerk-org-profile-wrapper .cl-headerTitle,
-                            .clerk-org-profile-wrapper .cl-headerSubtitle {
-                                display: none !important;
-                            }
-                            .clerk-org-profile-wrapper .cl-pageScrollBox {
-                                padding: 0;
-                                overflow: visible;
-                            }
-                            .clerk-org-profile-wrapper .cl-profileSection__organizationProfile,
-                            .clerk-org-profile-wrapper .cl-profileSection__organizationDanger {
-                                display: none !important;
-                            }
-                            .clerk-org-profile-wrapper .cl-footer {
-                                display: none !important;
-                            }
-                        `}</style>
-                        <OrganizationProfile routing="hash" />
-                    </div>
+                    <TeamManagement />
                 </div>
             </Protect>
 
