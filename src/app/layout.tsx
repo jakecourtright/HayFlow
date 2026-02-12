@@ -42,15 +42,6 @@ export default async function RootLayout({
           colorInputText: 'var(--text-main)',
           borderRadius: '0.75rem',
         },
-        elements: {
-          card: 'shadow-none',
-          userButtonPopoverCard: 'border border-[var(--glass-border)] bg-[var(--bg-deep)]',
-          userButtonPopoverActionButton: 'text-[var(--text-main)] hover:bg-[var(--bg-surface)]',
-          userButtonPopoverFooter: 'hidden',
-          organizationSwitcherPopoverCard: 'border border-[var(--glass-border)] bg-[var(--bg-deep)]',
-          organizationSwitcherPopoverActionButton: 'text-[var(--text-main)] hover:bg-[var(--bg-surface)]',
-          organizationSwitcherPopoverFooter: 'hidden',
-        }
       }}
     >
       <html lang="en">

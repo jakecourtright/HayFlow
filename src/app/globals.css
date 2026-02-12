@@ -521,3 +521,74 @@ body {
   background: rgba(var(--primary-rgb, 100, 100, 255), 0.05);
   transform: scale(1.01);
 }
+
+/* ===== Clerk Component Overrides ===== */
+
+/* UserButton popover */
+.cl-userButtonPopoverCard,
+.cl-organizationSwitcherPopoverCard {
+  background: var(--bg-deep) !important;
+  border: 1px solid var(--glass-border) !important;
+  border-radius: 1rem !important;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.3) !important;
+}
+
+.cl-userButtonPopoverActionButton,
+.cl-organizationSwitcherPopoverActionButton,
+.cl-organizationSwitcherPopoverActionButton__manageOrganization,
+.cl-organizationSwitcherPopoverActionButton__createOrganization {
+  color: var(--text-main) !important;
+  border-radius: 0.5rem !important;
+}
+
+.cl-userButtonPopoverActionButton:hover,
+.cl-organizationSwitcherPopoverActionButton:hover,
+.cl-organizationSwitcherPopoverActionButton__manageOrganization:hover,
+.cl-organizationSwitcherPopoverActionButton__createOrganization:hover {
+  background: var(--bg-surface) !important;
+}
+
+.cl-userButtonPopoverActionButtonText,
+.cl-organizationSwitcherPopoverActionButtonText {
+  color: var(--text-main) !important;
+}
+
+.cl-userButtonPopoverActionButtonIcon,
+.cl-organizationSwitcherPopoverActionButtonIcon {
+  color: var(--text-dim) !important;
+}
+
+/* Hide Clerk footer branding */
+.cl-userButtonPopoverFooter,
+.cl-organizationSwitcherPopoverFooter,
+.cl-footer {
+  display: none !important;
+}
+
+/* Organization switcher trigger text */
+.cl-organizationSwitcherTrigger {
+  color: var(--text-main) !important;
+}
+
+/* User preview text inside popovers */
+.cl-userPreview .cl-userPreviewMainIdentifier {
+  color: var(--text-main) !important;
+}
+
+.cl-userPreview .cl-userPreviewSecondaryIdentifier {
+  color: var(--text-dim) !important;
+}
+
+/* Organization preview text */
+.cl-organizationPreview .cl-organizationPreviewMainIdentifier {
+  color: var(--text-main) !important;
+}
+
+.cl-organizationPreview .cl-organizationPreviewSecondaryIdentifier {
+  color: var(--text-dim) !important;
+}
+
+/* Active org highlight */
+.cl-organizationSwitcherPopoverActionButton[data-active="true"] {
+  background: var(--bg-surface) !important;
+}

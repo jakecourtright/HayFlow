@@ -9,7 +9,6 @@ const ROLE_OPTIONS = [
     { value: 'org:admin', label: 'Admin' },
     { value: 'org:bookkeeper', label: 'Bookkeeper / Dispatcher' },
     { value: 'org:driver', label: 'Driver' },
-    { value: 'org:member', label: 'Member' },
 ];
 
 function roleLabel(role: string) {
@@ -24,7 +23,7 @@ export default function TeamManagement() {
     });
 
     const [email, setEmail] = useState('');
-    const [role, setRole] = useState('org:member');
+    const [role, setRole] = useState('org:driver');
     const [inviting, setInviting] = useState(false);
     const [error, setError] = useState('');
     const [success, setSuccess] = useState('');
