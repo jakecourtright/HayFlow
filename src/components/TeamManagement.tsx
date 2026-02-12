@@ -57,7 +57,12 @@ export default function TeamManagement() {
             setSuccess('Role updated successfully');
             setTimeout(() => setSuccess(''), 3000);
         } catch (err: any) {
-            setError(err?.errors?.[0]?.message || 'Failed to update role');
+            const msg = err?.errors?.[0]?.message || err?.message || 'Failed to update role';
+            if (msg.toLowerCase().includes('not found') || msg.toLowerCase().includes('not_found')) {
+                setError('Role not found. Make sure custom roles (admin, bookkeeper, driver) are created in your Clerk Dashboard → Organizations → Roles.');
+            } else {
+                setError(msg);
+            }
         }
     };
 
