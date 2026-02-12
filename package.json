@@ -9,7 +9,8 @@
     "lint": "eslint",
     "migrate": "node scripts/migrate.js",
     "migrate:userid": "node scripts/migrate-user-id.js",
-    "migrate:dualunits": "node scripts/migrate-dual-units.js"
+    "migrate:dualunits": "node scripts/migrate-dual-units.js",
+    "migrate:tickets": "node scripts/migrate-tickets.js"
   },
   "dependencies": {
     "@clerk/nextjs": "^6.36.10",

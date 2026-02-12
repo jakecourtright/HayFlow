@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { Pencil } from "lucide-react";
 import StackActions from "./StackActions";
 import { balesToTons, resolveWeight } from "@/lib/units";
+import { getPermissionFlags } from "@/lib/permissions";
 
 async function getStacksWithInventory(orgId: string) {
     const client = await pool.connect();
@@ -77,14 +78,17 @@ export default async function StacksPage() {
     if (!userId || !orgId) redirect("/sign-in");
 
     const stacks = await getStacksWithInventory(orgId);
+    const perms = await getPermissionFlags();
 
     return (
         <div className="space-y-6">
             <div className="flex justify-between items-center">
                 <h1 className="text-xl font-bold" style={{ color: 'var(--accent)' }}>Product Definitions (Stacks)</h1>
-                <Link href="/stacks/new" className="btn btn-primary">
-                    + New Stack
-                </Link>
+                {perms.canWriteInventory && (
+                    <Link href="/stacks/new" className="btn btn-primary">
+                        + New Stack
+                    </Link>
+                )}
             </div>
 
             <div className="grid gap-4">
@@ -105,16 +109,18 @@ export default async function StacksPage() {
                                         {stack.commodity}
                                     </span>
                                 </Link>
-                                <div className="flex gap-2">
-                                    <Link
-                                        href={`/stacks/${stack.id}/edit`}
-                                        className="p-2 rounded-lg transition-colors"
-                                        style={{ background: 'var(--bg-surface)' }}
-                                    >
-                                        <Pencil size={14} style={{ color: 'var(--text-dim)' }} />
-                                    </Link>
-                                    <StackActions stackId={stack.id} />
-                                </div>
+                                {perms.canWriteInventory && (
+                                    <div className="flex gap-2">
+                                        <Link
+                                            href={`/stacks/${stack.id}/edit`}
+                                            className="p-2 rounded-lg transition-colors"
+                                            style={{ background: 'var(--bg-surface)' }}
+                                        >
+                                            <Pencil size={14} style={{ color: 'var(--text-dim)' }} />
+                                        </Link>
+                                        {perms.canDeleteStacks && <StackActions stackId={stack.id} />}
+                                    </div>
+                                )}
                             </div>
 
                             {/* Total Inventory */}
@@ -157,9 +163,11 @@ export default async function StacksPage() {
                                 <span className="px-2 py-1 rounded" style={{ background: 'var(--bg-surface)', color: 'var(--text-dim)' }}>
                                     {stack.bale_size} {stack.weight_per_bale && `(${stack.weight_per_bale} lbs)`}
                                 </span>
-                                <span className="px-2 py-1 rounded" style={{ background: 'var(--bg-surface)', color: 'var(--text-dim)' }}>
-                                    ${parseFloat(stack.base_price).toFixed(2)}/{stack.price_unit || 'bale'}
-                                </span>
+                                {perms.canWriteInventory && (
+                                    <span className="px-2 py-1 rounded" style={{ background: 'var(--bg-surface)', color: 'var(--text-dim)' }}>
+                                        ${parseFloat(stack.base_price).toFixed(2)}/{stack.price_unit || 'bale'}
+                                    </span>
+                                )}
                             </div>
                         </div>
                     ))

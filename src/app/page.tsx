@@ -4,6 +4,7 @@ import { SignedIn, SignedOut, SignInButton, SignUpButton } from "@clerk/nextjs";
 import { Tractor, Banknote } from 'lucide-react';
 import { getDashboardLayout } from "./actions";
 import DashboardGrid from "./dashboard/DashboardGrid";
+import { getPermissionFlags } from "@/lib/permissions";
 
 async function getStats(orgId: string) {
   const client = await pool.connect();
@@ -150,7 +151,7 @@ export default async function Dashboard() {
       </SignedOut>
 
       <SignedIn>
-        <DashboardGrid stats={stats} layout={layout} />
+        <DashboardGrid stats={stats} layout={layout} canWriteInventory={(await getPermissionFlags()).canWriteInventory} />
       </SignedIn>
     </>
   );

@@ -17,6 +17,7 @@ interface DashboardStats {
 interface DashboardGridProps {
     stats: DashboardStats;
     layout: DashboardLayout;
+    canWriteInventory: boolean;
 }
 
 const ALL_CARDS = [
@@ -28,7 +29,7 @@ const ALL_CARDS = [
     { id: 'recent-activity', label: 'Recent Activity' },
 ];
 
-export default function DashboardGrid({ stats, layout: initialLayout }: DashboardGridProps) {
+export default function DashboardGrid({ stats, layout: initialLayout, canWriteInventory }: DashboardGridProps) {
     const [layout, setLayout] = useState<DashboardLayout>(initialLayout);
     const [editMode, setEditMode] = useState(false);
     const [draggedId, setDraggedId] = useState<string | null>(null);
@@ -163,6 +164,7 @@ export default function DashboardGrid({ stats, layout: initialLayout }: Dashboar
                 );
 
             case 'sales-this-month':
+                if (!canWriteInventory) return null;
                 return (
                     <StatCard
                         label="Sales This Month"
@@ -182,6 +184,18 @@ export default function DashboardGrid({ stats, layout: initialLayout }: Dashboar
                 );
 
             case 'action-cards':
+                if (!canWriteInventory) {
+                    // Drivers see a simplified set of actions
+                    return (
+                        <div className="grid grid-cols-2 gap-4">
+                            <Link href="/tickets/new" className="glass-card flex flex-col items-center justify-center p-6 hover:brightness-110 transition-all active:scale-95 text-center group border-2 border-transparent hover:border-[var(--primary)] aspect-square">
+                                <Banknote size={52} style={{ color: 'var(--primary)', marginBottom: '14px' }} />
+                                <span className="font-bold text-2xl" style={{ color: 'var(--text-main)' }}>Ticket</span>
+                                <span className="text-sm mt-1 opacity-80" style={{ color: 'var(--text-dim)' }}>New Ticket</span>
+                            </Link>
+                        </div>
+                    );
+                }
                 return (
                     <div className="grid grid-cols-2 gap-4">
                         <Link href="/log?type=production" className="glass-card flex flex-col items-center justify-center p-6 hover:brightness-110 transition-all active:scale-95 text-center group border-2 border-transparent hover:border-[var(--primary)] aspect-square">

@@ -4,6 +4,7 @@ import { redirect, notFound } from "next/navigation";
 import { updateLocation } from "@/app/actions";
 import DeleteButton from "./DeleteButton";
 import UnitSelect from "@/components/UnitSelect";
+import { getPermissionFlags } from "@/lib/permissions";
 
 async function getLocation(locationId: string, orgId: string) {
     const client = await pool.connect();
@@ -24,6 +25,7 @@ export default async function EditLocationPage({ params }: { params: Promise<{ i
 
     const { id } = await params;
     const location = await getLocation(id, orgId);
+    const perms = await getPermissionFlags();
 
     if (!location) {
         notFound();
@@ -69,9 +71,11 @@ export default async function EditLocationPage({ params }: { params: Promise<{ i
                 </button>
             </form>
 
-            <div className="mt-6">
-                <DeleteButton locationId={id} />
-            </div>
+            {perms.canDeleteLocations && (
+                <div className="mt-6">
+                    <DeleteButton locationId={id} />
+                </div>
+            )}
         </div>
     );
 }

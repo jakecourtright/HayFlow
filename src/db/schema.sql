@@ -62,3 +62,49 @@ CREATE TABLE IF NOT EXISTS user_preferences (
 
 CREATE INDEX IF NOT EXISTS idx_user_preferences_lookup 
 ON user_preferences(user_id, org_id, preference_key);
+
+-- Tickets: Driver-created removal requests staged for invoicing
+CREATE TABLE IF NOT EXISTS tickets (
+  id SERIAL PRIMARY KEY,
+  stack_id INTEGER REFERENCES stacks(id) ON DELETE SET NULL,
+  location_id INTEGER REFERENCES locations(id) ON DELETE SET NULL,
+  amount DECIMAL(10, 2) NOT NULL,       -- bales (canonical)
+  customer VARCHAR(255),                 -- who it's going to
+  notes TEXT,
+  status VARCHAR(50) DEFAULT 'pending',  -- pending, approved, rejected, invoiced
+  invoice_id INTEGER,                    -- NULL until added to an invoice
+  transaction_id INTEGER,                -- Links to the sale transaction created on approval
+  driver_id VARCHAR(255) NOT NULL,       -- Clerk user ID of creating driver
+  org_id VARCHAR(255) NOT NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Invoices: Bookkeeper-compiled collections of approved tickets
+CREATE TABLE IF NOT EXISTS invoices (
+  id SERIAL PRIMARY KEY,
+  invoice_number VARCHAR(100),
+  customer VARCHAR(255),
+  status VARCHAR(50) DEFAULT 'draft',    -- draft, sent, paid
+  total_amount DECIMAL(12, 2) DEFAULT 0,
+  notes TEXT,
+  created_by VARCHAR(255) NOT NULL,
+  org_id VARCHAR(255) NOT NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- FK: tickets -> invoices
+ALTER TABLE tickets ADD CONSTRAINT fk_tickets_invoice
+  FOREIGN KEY (invoice_id) REFERENCES invoices(id) ON DELETE SET NULL;
+
+-- FK: tickets -> transactions  
+ALTER TABLE tickets ADD CONSTRAINT fk_tickets_transaction
+  FOREIGN KEY (transaction_id) REFERENCES transactions(id) ON DELETE SET NULL;
+
+CREATE INDEX IF NOT EXISTS idx_tickets_org_id ON tickets(org_id);
+CREATE INDEX IF NOT EXISTS idx_tickets_status ON tickets(status, org_id);
+CREATE INDEX IF NOT EXISTS idx_tickets_driver ON tickets(driver_id, org_id);
+CREATE INDEX IF NOT EXISTS idx_tickets_invoice ON tickets(invoice_id);
+CREATE INDEX IF NOT EXISTS idx_invoices_org_id ON invoices(org_id);
+CREATE INDEX IF NOT EXISTS idx_invoices_status ON invoices(status, org_id);
