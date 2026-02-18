@@ -4,6 +4,7 @@ import { createTicket } from "@/app/actions";
 import { useState } from "react";
 import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
+import CustomSelect from "@/components/CustomSelect";
 
 interface TicketFormProps {
     stacks: any[];
@@ -29,6 +30,22 @@ export default function TicketForm({ stacks, locations, inventory }: TicketFormP
             .filter((inv: any) => inv.stack_id?.toString() === selectedStack && parseFloat(inv.quantity) > 0)
             .map((inv: any) => inv.location_id?.toString())
         : [];
+
+    // Build options for stack select
+    const stackOptions = stacks.map((s: any) => ({
+        value: s.id.toString(),
+        label: `${s.name} — ${s.commodity}`,
+    }));
+
+    // Build options for location select (with disabled for no-stock)
+    const locationOptions = locations.map((l: any) => {
+        const hasStock = locationsWithStock.includes(l.id.toString());
+        return {
+            value: l.id.toString(),
+            label: `${l.name}${selectedStack && !hasStock ? ' (no stock)' : ''}`,
+            disabled: selectedStack ? !hasStock : false,
+        };
+    });
 
     async function handleSubmit(formData: FormData) {
         try {
@@ -58,23 +75,17 @@ export default function TicketForm({ stacks, locations, inventory }: TicketFormP
                     <label className="block text-sm font-semibold mb-1" style={{ color: 'var(--text-dim)' }}>
                         Product (Stack) *
                     </label>
-                    <select
+                    <CustomSelect
                         name="stackId"
                         required
                         value={selectedStack}
-                        onChange={(e) => {
-                            setSelectedStack(e.target.value);
+                        onChange={(val) => {
+                            setSelectedStack(val);
                             setSelectedLocation('');
                         }}
-                        className="input-field"
-                    >
-                        <option value="">Select a stack...</option>
-                        {stacks.map((s: any) => (
-                            <option key={s.id} value={s.id}>
-                                {s.name} — {s.commodity}
-                            </option>
-                        ))}
-                    </select>
+                        options={stackOptions}
+                        placeholder="Select a stack..."
+                    />
                 </div>
 
                 {/* Location Selection */}
@@ -82,23 +93,14 @@ export default function TicketForm({ stacks, locations, inventory }: TicketFormP
                     <label className="block text-sm font-semibold mb-1" style={{ color: 'var(--text-dim)' }}>
                         Pick-up Location *
                     </label>
-                    <select
+                    <CustomSelect
                         name="locationId"
                         required
                         value={selectedLocation}
-                        onChange={(e) => setSelectedLocation(e.target.value)}
-                        className="input-field"
-                    >
-                        <option value="">Select location...</option>
-                        {locations.map((l: any) => {
-                            const hasStock = locationsWithStock.includes(l.id.toString());
-                            return (
-                                <option key={l.id} value={l.id} disabled={selectedStack ? !hasStock : false}>
-                                    {l.name}{selectedStack && !hasStock ? ' (no stock)' : ''}
-                                </option>
-                            );
-                        })}
-                    </select>
+                        onChange={(val) => setSelectedLocation(val)}
+                        options={locationOptions}
+                        placeholder="Select location..."
+                    />
                     {availableStock && (
                         <p className="text-xs mt-1" style={{ color: 'var(--primary-light)' }}>
                             Available: {parseFloat(availableStock.quantity).toLocaleString()} bales

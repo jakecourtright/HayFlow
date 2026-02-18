@@ -6,6 +6,7 @@ import { ChevronDown, Check } from 'lucide-react';
 export interface SelectOption {
     value: string;
     label: string;
+    disabled?: boolean;
 }
 
 interface CustomSelectProps {
@@ -93,9 +94,10 @@ export default function CustomSelect({
                         <button
                             key={option.value}
                             type="button"
-                            onClick={() => handleSelect(option.value)}
+                            onClick={() => !option.disabled && handleSelect(option.value)}
                             className={`custom-select-option ${option.value === currentValue ? 'selected' : ''
-                                }`}
+                                } ${option.disabled ? 'disabled' : ''}`}
+                            style={option.disabled ? { opacity: 0.4, cursor: 'not-allowed' } : undefined}
                         >
                             <span>{option.label}</span>
                             {option.value === currentValue && (

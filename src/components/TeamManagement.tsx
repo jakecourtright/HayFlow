@@ -31,6 +31,18 @@ export default function TeamManagement() {
 
     if (!organization) return null;
 
+    function extractClerkError(err: any, fallback: string): string {
+        const clerkError = err?.errors?.[0];
+        if (clerkError) {
+            // Check for "not found" which typically means a role doesn't exist in the dashboard
+            if (clerkError.code === 'not_found' || clerkError.message === 'not found') {
+                return `Role not found. Please verify the role exists in your Clerk Dashboard under "Roles & Permissions."`;
+            }
+            return clerkError.longMessage || clerkError.message || fallback;
+        }
+        return err?.message || fallback;
+    }
+
     const handleInvite = async (e: React.FormEvent) => {
         e.preventDefault();
         setError('');
@@ -42,23 +54,22 @@ export default function TeamManagement() {
             setEmail('');
             invitations?.revalidate?.();
         } catch (err: any) {
-            setError(err?.errors?.[0]?.message || 'Failed to send invitation');
+            setError(extractClerkError(err, 'Failed to send invitation'));
         } finally {
             setInviting(false);
         }
     };
 
-    const handleUpdateRole = async (membership: any, newRole: string) => {
+    const handleUpdateRole = async (userId: string, newRole: string) => {
         setError('');
         try {
-            await membership.update({ role: newRole });
+            await organization.updateMember({ userId, role: newRole });
             memberships?.revalidate?.();
             setEditingMemberId(null);
             setSuccess('Role updated successfully');
             setTimeout(() => setSuccess(''), 3000);
         } catch (err: any) {
-            const msg = err?.errors?.[0]?.message || err?.message || 'Failed to update role';
-            setError(msg);
+            setError(extractClerkError(err, 'Failed to update role'));
         }
     };
 
@@ -203,7 +214,7 @@ export default function TeamManagement() {
                                             name={`role-${membership.id}`}
                                             options={ROLE_OPTIONS}
                                             value={membership.role}
-                                            onChange={(newRole) => handleUpdateRole(membership, newRole)}
+                                            onChange={(newRole) => handleUpdateRole(userId, newRole)}
                                         />
                                     </div>
                                 )}
