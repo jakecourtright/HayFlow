@@ -788,3 +788,82 @@ export async function updateInvoiceStatus(id: string, status: string) {
     revalidatePath('/dispatch/invoices');
     revalidatePath(`/dispatch/invoices/${id}`);
 }
+
+export async function deleteInvoice(id: string) {
+    const { userId, orgId, has } = await auth();
+    if (!userId || !orgId) throw new Error("Unauthorized");
+
+    if (!has({ permission: Permissions.INVOICES_MANAGE } as any)) {
+        throw new Error("You do not have permission to manage invoices");
+    }
+
+    const client = await pool.connect();
+    try {
+        // Un-link tickets — set them back to 'approved' status
+        await client.query(`
+            UPDATE tickets SET invoice_id = NULL, status = 'approved', updated_at = CURRENT_TIMESTAMP
+            WHERE invoice_id = $1 AND org_id = $2
+        `, [id, orgId]);
+
+        // Delete the invoice
+        await client.query(
+            'DELETE FROM invoices WHERE id = $1 AND org_id = $2',
+            [id, orgId]
+        );
+    } finally {
+        client.release();
+    }
+
+    revalidatePath('/tickets');
+    revalidatePath('/dispatch');
+    revalidatePath('/dispatch/invoices');
+    redirect('/dispatch/invoices');
+}
+
+export async function updateInvoice(id: string, formData: FormData) {
+    const { userId, orgId, has } = await auth();
+    if (!userId || !orgId) throw new Error("Unauthorized");
+
+    if (!has({ permission: Permissions.INVOICES_MANAGE } as any)) {
+        throw new Error("You do not have permission to manage invoices");
+    }
+
+    const customer = formData.get('customer') as string;
+    const notes = formData.get('notes') as string;
+    const pricePerUnitStr = formData.get('pricePerUnit') as string;
+    const priceUnit = (formData.get('priceUnit') as string) || 'ton';
+    const pricePerUnit = parseFloat(pricePerUnitStr) || 0;
+
+    const client = await pool.connect();
+    try {
+        // Get linked tickets to recalculate total
+        const ticketsRes = await client.query(
+            'SELECT amount, net_lbs FROM tickets WHERE invoice_id = $1 AND org_id = $2',
+            [id, orgId]
+        );
+
+        let totalAmount = 0;
+        if (pricePerUnit > 0) {
+            if (priceUnit === 'ton') {
+                const totalNetLbs = ticketsRes.rows.reduce((sum: number, t: any) => sum + (parseFloat(t.net_lbs) || 0), 0);
+                totalAmount = (totalNetLbs / 2000) * pricePerUnit;
+            } else {
+                const totalBales = ticketsRes.rows.reduce((sum: number, t: any) => sum + parseFloat(t.amount), 0);
+                totalAmount = totalBales * pricePerUnit;
+            }
+        }
+
+        await client.query(`
+            UPDATE invoices 
+            SET customer = $1, notes = $2, price_per_unit = $3, price_unit = $4, total_amount = $5, updated_at = CURRENT_TIMESTAMP
+            WHERE id = $6 AND org_id = $7
+        `, [customer || null, notes || null, pricePerUnit || null, priceUnit, totalAmount, id, orgId]);
+    } finally {
+        client.release();
+    }
+
+    revalidatePath('/dispatch');
+    revalidatePath('/dispatch/invoices');
+    revalidatePath(`/dispatch/invoices/${id}`);
+    redirect(`/dispatch/invoices/${id}`);
+}

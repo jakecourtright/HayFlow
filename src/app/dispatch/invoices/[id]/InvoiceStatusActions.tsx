@@ -1,8 +1,9 @@
 'use client';
 
-import { updateInvoiceStatus } from "@/app/actions";
+import { updateInvoiceStatus, deleteInvoice } from "@/app/actions";
 import { useState } from "react";
-import { Send, CheckCircle, RotateCcw } from "lucide-react";
+import { Send, CheckCircle, RotateCcw, Pencil, Trash2 } from "lucide-react";
+import Link from "next/link";
 
 interface InvoiceStatusActionsProps {
     invoiceId: number;
@@ -12,6 +13,7 @@ interface InvoiceStatusActionsProps {
 export default function InvoiceStatusActions({ invoiceId, currentStatus }: InvoiceStatusActionsProps) {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
+    const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
     async function handleStatusChange(newStatus: string) {
         setLoading(true);
@@ -25,6 +27,19 @@ export default function InvoiceStatusActions({ invoiceId, currentStatus }: Invoi
         }
     }
 
+    async function handleDelete() {
+        setLoading(true);
+        setError('');
+        try {
+            await deleteInvoice(invoiceId.toString());
+        } catch (e: any) {
+            if (e?.digest?.startsWith('NEXT_REDIRECT')) throw e;
+            setError(e.message || 'Failed to delete invoice');
+        } finally {
+            setLoading(false);
+        }
+    }
+
     return (
         <div className="space-y-2">
             {error && (
@@ -33,6 +48,7 @@ export default function InvoiceStatusActions({ invoiceId, currentStatus }: Invoi
                 </div>
             )}
 
+            {/* Status Actions */}
             {currentStatus === 'draft' && (
                 <button
                     onClick={() => handleStatusChange('sent')}
@@ -72,6 +88,45 @@ export default function InvoiceStatusActions({ invoiceId, currentStatus }: Invoi
                     </p>
                 </div>
             )}
+
+            {/* Edit & Delete — always visible */}
+            <div className="flex gap-3 pt-2">
+                <Link
+                    href={`/dispatch/invoices/${invoiceId}/edit`}
+                    className="btn btn-secondary flex-1 flex items-center justify-center gap-2"
+                    style={{ background: 'var(--bg-surface)' }}
+                >
+                    <Pencil size={16} />
+                    Edit
+                </Link>
+                {!showDeleteConfirm ? (
+                    <button
+                        onClick={() => setShowDeleteConfirm(true)}
+                        className="btn btn-secondary flex items-center justify-center gap-2"
+                        style={{ background: 'rgba(239, 68, 68, 0.15)', color: '#ef4444' }}
+                    >
+                        <Trash2 size={16} />
+                    </button>
+                ) : (
+                    <div className="flex gap-2">
+                        <button
+                            onClick={handleDelete}
+                            disabled={loading}
+                            className="btn text-sm px-3 py-2"
+                            style={{ background: 'rgba(239, 68, 68, 0.3)', color: '#ef4444' }}
+                        >
+                            Confirm Delete
+                        </button>
+                        <button
+                            onClick={() => setShowDeleteConfirm(false)}
+                            className="btn btn-secondary text-sm px-3 py-2"
+                            style={{ background: 'var(--bg-surface)' }}
+                        >
+                            Cancel
+                        </button>
+                    </div>
+                )}
+            </div>
         </div>
     );
 }
