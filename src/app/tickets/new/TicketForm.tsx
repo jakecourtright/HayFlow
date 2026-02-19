@@ -12,9 +12,16 @@ interface TicketFormProps {
     inventory: any[];
 }
 
+const TICKET_TYPES = [
+    { value: 'sale', label: 'Sale' },
+    { value: 'barn_to_barn', label: 'Barn to Barn' },
+];
+
 export default function TicketForm({ stacks, locations, inventory }: TicketFormProps) {
+    const [ticketType, setTicketType] = useState('sale');
     const [selectedStack, setSelectedStack] = useState('');
     const [selectedLocation, setSelectedLocation] = useState('');
+    const [selectedDestination, setSelectedDestination] = useState('');
     const [error, setError] = useState('');
 
     // Get available stock for selected stack/location
@@ -37,7 +44,7 @@ export default function TicketForm({ stacks, locations, inventory }: TicketFormP
         label: `${s.name} — ${s.commodity}`,
     }));
 
-    // Build options for location select (with disabled for no-stock)
+    // Build options for source location (with disabled for no-stock)
     const locationOptions = locations.map((l: any) => {
         const hasStock = locationsWithStock.includes(l.id.toString());
         return {
@@ -46,6 +53,14 @@ export default function TicketForm({ stacks, locations, inventory }: TicketFormP
             disabled: selectedStack ? !hasStock : false,
         };
     });
+
+    // Build options for destination (exclude source location)
+    const destinationOptions = locations
+        .filter((l: any) => l.id.toString() !== selectedLocation)
+        .map((l: any) => ({
+            value: l.id.toString(),
+            label: l.name,
+        }));
 
     async function handleSubmit(formData: FormData) {
         try {
@@ -70,6 +85,22 @@ export default function TicketForm({ stacks, locations, inventory }: TicketFormP
             )}
 
             <form action={handleSubmit} className="glass-card space-y-4">
+                {/* Ticket Type Selector */}
+                <div>
+                    <label className="block text-sm font-semibold mb-1" style={{ color: 'var(--text-dim)' }}>
+                        Ticket Type *
+                    </label>
+                    <CustomSelect
+                        name="type"
+                        value={ticketType}
+                        onChange={(val) => {
+                            setTicketType(val);
+                            setSelectedDestination('');
+                        }}
+                        options={TICKET_TYPES}
+                    />
+                </div>
+
                 {/* Stack Selection */}
                 <div>
                     <label className="block text-sm font-semibold mb-1" style={{ color: 'var(--text-dim)' }}>
@@ -82,22 +113,26 @@ export default function TicketForm({ stacks, locations, inventory }: TicketFormP
                         onChange={(val) => {
                             setSelectedStack(val);
                             setSelectedLocation('');
+                            setSelectedDestination('');
                         }}
                         options={stackOptions}
                         placeholder="Select a stack..."
                     />
                 </div>
 
-                {/* Location Selection */}
+                {/* Source Location */}
                 <div>
                     <label className="block text-sm font-semibold mb-1" style={{ color: 'var(--text-dim)' }}>
-                        Pick-up Location *
+                        {ticketType === 'barn_to_barn' ? 'Source Location *' : 'Pick-up Location *'}
                     </label>
                     <CustomSelect
                         name="locationId"
                         required
                         value={selectedLocation}
-                        onChange={(val) => setSelectedLocation(val)}
+                        onChange={(val) => {
+                            setSelectedLocation(val);
+                            setSelectedDestination('');
+                        }}
                         options={locationOptions}
                         placeholder="Select location..."
                     />
@@ -107,6 +142,23 @@ export default function TicketForm({ stacks, locations, inventory }: TicketFormP
                         </p>
                     )}
                 </div>
+
+                {/* Destination Location (B2B only) */}
+                {ticketType === 'barn_to_barn' && (
+                    <div>
+                        <label className="block text-sm font-semibold mb-1" style={{ color: 'var(--text-dim)' }}>
+                            Destination Location *
+                        </label>
+                        <CustomSelect
+                            name="destinationId"
+                            required
+                            value={selectedDestination}
+                            onChange={setSelectedDestination}
+                            options={destinationOptions}
+                            placeholder="Select destination..."
+                        />
+                    </div>
+                )}
 
                 {/* Amount */}
                 <div>
@@ -124,34 +176,57 @@ export default function TicketForm({ stacks, locations, inventory }: TicketFormP
                     />
                 </div>
 
-                {/* Customer */}
-                <div>
-                    <label className="block text-sm font-semibold mb-1" style={{ color: 'var(--text-dim)' }}>
-                        Customer
-                    </label>
-                    <input
-                        type="text"
-                        name="customer"
-                        placeholder="Customer name (optional)"
-                        className="input-field"
-                    />
-                </div>
+                {/* Net Lbs (Sale only) */}
+                {ticketType === 'sale' && (
+                    <div>
+                        <label className="block text-sm font-semibold mb-1" style={{ color: 'var(--text-dim)' }}>
+                            Net Lbs
+                        </label>
+                        <input
+                            type="number"
+                            name="netLbs"
+                            min="0"
+                            step="0.01"
+                            placeholder="Total net weight (optional)"
+                            className="input-field"
+                        />
+                    </div>
+                )}
 
-                {/* Notes */}
+                {/* Customer (Sale only, required) */}
+                {ticketType === 'sale' && (
+                    <div>
+                        <label className="block text-sm font-semibold mb-1" style={{ color: 'var(--text-dim)' }}>
+                            Customer *
+                        </label>
+                        <input
+                            type="text"
+                            name="customer"
+                            required
+                            placeholder="Customer name"
+                            className="input-field"
+                        />
+                    </div>
+                )}
+
+                {/* Notes / Comments */}
                 <div>
                     <label className="block text-sm font-semibold mb-1" style={{ color: 'var(--text-dim)' }}>
-                        Notes
+                        {ticketType === 'barn_to_barn' ? 'Comments' : 'Notes'}
                     </label>
                     <textarea
                         name="notes"
                         rows={3}
-                        placeholder="Delivery notes, truck #, etc. (optional)"
+                        placeholder={ticketType === 'barn_to_barn'
+                            ? "Transfer notes, reason, etc. (optional)"
+                            : "Delivery notes, truck #, etc. (optional)"
+                        }
                         className="input-field"
                     />
                 </div>
 
                 <button type="submit" className="btn btn-primary w-full">
-                    Create Ticket
+                    Create {ticketType === 'sale' ? 'Sale' : 'Barn to Barn'} Ticket
                 </button>
             </form>
         </div>

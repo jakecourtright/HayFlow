@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { House, MapPin, Box, BarChart3, Ticket, ClipboardList } from 'lucide-react';
+import { House, MapPin, Box, BarChart3, Ticket, Receipt } from 'lucide-react';
 
 interface RoleNavProps {
     isDriver: boolean;
@@ -13,7 +13,7 @@ export default function RoleNav({ isDriver, canManageTickets }: RoleNavProps) {
     const pathname = usePathname();
 
     // Drivers: only Locations, Stacks, Tickets
-    // Admin/Bookkeeper: Home, Locations, Stacks, Tickets, Dispatch, Reports
+    // Admin/Bookkeeper: Home, Locations, Stacks, Tickets, Invoicing, Reports
     const navItems = isDriver
         ? [
             { href: '/locations', icon: <MapPin size={20} />, label: 'Locations' },
@@ -25,7 +25,7 @@ export default function RoleNav({ isDriver, canManageTickets }: RoleNavProps) {
             { href: '/locations', icon: <MapPin size={20} />, label: 'Locations' },
             { href: '/stacks', icon: <Box size={20} />, label: 'Stacks' },
             { href: '/tickets', icon: <Ticket size={20} />, label: 'Tickets' },
-            ...(canManageTickets ? [{ href: '/dispatch', icon: <ClipboardList size={20} />, label: 'Dispatch' }] : []),
+            ...(canManageTickets ? [{ href: '/dispatch', icon: <Receipt size={20} />, label: 'Invoicing' }] : []),
             { href: '/reports', icon: <BarChart3 size={20} />, label: 'Reports' },
         ];
 

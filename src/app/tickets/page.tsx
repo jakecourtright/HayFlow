@@ -2,13 +2,18 @@ import { auth } from "@clerk/nextjs/server";
 import pool from "@/lib/db";
 import { redirect } from "next/navigation";
 import Link from "next/link";
-import { Plus, Ticket, Package, MapPin } from "lucide-react";
+import { Plus, Ticket, Package, MapPin, ArrowRight } from "lucide-react";
 
 const STATUS_STYLES: Record<string, { bg: string; text: string; label: string }> = {
     pending: { bg: 'rgba(245, 158, 11, 0.2)', text: '#f59e0b', label: 'Pending' },
     approved: { bg: 'rgba(34, 197, 94, 0.2)', text: '#22c55e', label: 'Approved' },
     rejected: { bg: 'rgba(239, 68, 68, 0.2)', text: '#ef4444', label: 'Rejected' },
     invoiced: { bg: 'rgba(59, 130, 246, 0.2)', text: '#3b82f6', label: 'Invoiced' },
+};
+
+const TYPE_STYLES: Record<string, { bg: string; text: string; label: string }> = {
+    sale: { bg: 'rgba(34, 197, 94, 0.15)', text: '#22c55e', label: 'Sale' },
+    barn_to_barn: { bg: 'rgba(139, 92, 246, 0.15)', text: '#8b5cf6', label: 'B2B' },
 };
 
 async function getTickets(orgId: string, userId: string) {
@@ -19,10 +24,12 @@ async function getTickets(orgId: string, userId: string) {
                 tk.*,
                 s.name as stack_name,
                 s.commodity,
-                l.name as location_name
+                l.name as location_name,
+                dl.name as destination_name
             FROM tickets tk
             LEFT JOIN stacks s ON s.id = tk.stack_id
             LEFT JOIN locations l ON l.id = tk.location_id
+            LEFT JOIN locations dl ON dl.id = tk.destination_id
             WHERE tk.org_id = $1
             ORDER BY tk.created_at DESC
         `, [orgId]);
@@ -60,6 +67,7 @@ export default async function TicketsPage() {
                 <div className="space-y-3">
                     {tickets.map((ticket: any) => {
                         const style = STATUS_STYLES[ticket.status] || STATUS_STYLES.pending;
+                        const typeStyle = TYPE_STYLES[ticket.type] || TYPE_STYLES.sale;
                         return (
                             <Link key={ticket.id} href={`/tickets/${ticket.id}`} className="block">
                                 <div className="glass-card p-4 hover:brightness-110 transition-all">
@@ -68,6 +76,12 @@ export default async function TicketsPage() {
                                             <div className="flex items-center gap-2 mb-1">
                                                 <span className="font-bold" style={{ color: 'var(--accent)' }}>
                                                     Ticket #{ticket.id}
+                                                </span>
+                                                <span
+                                                    className="text-xs font-bold px-2 py-0.5 rounded-full"
+                                                    style={{ background: typeStyle.bg, color: typeStyle.text }}
+                                                >
+                                                    {typeStyle.label}
                                                 </span>
                                                 <span
                                                     className="text-xs font-bold px-2 py-0.5 rounded-full"
@@ -81,11 +95,20 @@ export default async function TicketsPage() {
                                                     <Package size={12} />
                                                     {ticket.stack_name || 'Unknown'}
                                                 </span>
-                                                {ticket.location_name && (
+                                                {ticket.type === 'barn_to_barn' ? (
                                                     <span className="flex items-center gap-1">
                                                         <MapPin size={12} />
-                                                        {ticket.location_name}
+                                                        {ticket.location_name || '?'}
+                                                        <ArrowRight size={12} />
+                                                        {ticket.destination_name || '?'}
                                                     </span>
+                                                ) : (
+                                                    ticket.location_name && (
+                                                        <span className="flex items-center gap-1">
+                                                            <MapPin size={12} />
+                                                            {ticket.location_name}
+                                                        </span>
+                                                    )
                                                 )}
                                             </div>
                                             {ticket.customer && (

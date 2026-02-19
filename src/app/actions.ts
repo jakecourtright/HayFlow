@@ -463,47 +463,67 @@ export async function createTicket(formData: FormData) {
     const { userId, orgId } = await auth();
     if (!userId || !orgId) throw new Error("Unauthorized");
 
+    const ticketType = (formData.get('type') as string) || 'sale';
     const stackId = formData.get('stackId') as string;
     const locationId = formData.get('locationId') as string;
     const amount = formData.get('amount') as string;
     const customer = formData.get('customer') as string;
     const notes = formData.get('notes') as string;
+    const netLbs = formData.get('netLbs') as string;
+    const destinationId = formData.get('destinationId') as string;
 
     if (!stackId || !amount) throw new Error("Stack and amount are required");
+    if (!locationId || locationId === 'none') throw new Error("Source location is required");
+
+    if (ticketType === 'sale' && !customer?.trim()) {
+        throw new Error("Customer is required for sale tickets");
+    }
+    if (ticketType === 'barn_to_barn' && (!destinationId || destinationId === 'none')) {
+        throw new Error("Destination location is required for barn-to-barn tickets");
+    }
+    if (ticketType === 'barn_to_barn' && destinationId === locationId) {
+        throw new Error("Source and destination locations must be different");
+    }
 
     const amountNum = parseFloat(amount);
     if (isNaN(amountNum) || amountNum <= 0) throw new Error("Amount must be a positive number");
 
+    const netLbsNum = netLbs ? parseFloat(netLbs) : null;
+    if (netLbs && (isNaN(netLbsNum!) || netLbsNum! <= 0)) {
+        throw new Error("Net lbs must be a positive number");
+    }
+
     const client = await pool.connect();
     try {
-        // Verify stock exists at this location
-        if (locationId && locationId !== 'none') {
-            const inventoryRes = await client.query(`
-                SELECT 
-                    SUM(CASE 
-                        WHEN type IN ('production', 'purchase') THEN amount 
-                        WHEN type IN ('sale') THEN -amount 
-                        ELSE 0 
-                    END) as quantity
-                FROM transactions
-                WHERE stack_id = $1 AND location_id = $2 AND org_id = $3
-            `, [stackId, locationId, orgId]);
+        // Verify stock exists at source location
+        const inventoryRes = await client.query(`
+            SELECT 
+                SUM(CASE 
+                    WHEN type IN ('production', 'purchase') THEN amount 
+                    WHEN type IN ('sale') THEN -amount 
+                    ELSE 0 
+                END) as quantity
+            FROM transactions
+            WHERE stack_id = $1 AND location_id = $2 AND org_id = $3
+        `, [stackId, locationId, orgId]);
 
-            const currentStock = parseFloat(inventoryRes.rows[0]?.quantity || '0');
-            if (currentStock < amountNum) {
-                throw new Error(`Insufficient stock. Available: ${currentStock} bales, Requested: ${amountNum} bales`);
-            }
+        const currentStock = parseFloat(inventoryRes.rows[0]?.quantity || '0');
+        if (currentStock < amountNum) {
+            throw new Error(`Insufficient stock. Available: ${currentStock} bales, Requested: ${amountNum} bales`);
         }
 
         await client.query(`
-            INSERT INTO tickets (stack_id, location_id, amount, customer, notes, status, driver_id, org_id)
-            VALUES ($1, $2, $3, $4, $5, 'pending', $6, $7)
+            INSERT INTO tickets (type, stack_id, location_id, amount, customer, notes, net_lbs, destination_id, status, driver_id, org_id)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'pending', $9, $10)
         `, [
+            ticketType,
             stackId,
-            locationId === 'none' ? null : locationId,
+            locationId,
             amountNum,
-            customer || null,
+            ticketType === 'sale' ? (customer || null) : null,
             notes || null,
+            ticketType === 'sale' ? netLbsNum : null,
+            ticketType === 'barn_to_barn' ? (destinationId || null) : null,
             userId,
             orgId
         ]);
@@ -536,22 +556,53 @@ export async function approveTicket(id: string) {
         }
 
         const ticket = ticketRes.rows[0];
+        let transactionId: number;
 
-        // Create a sale transaction to deduct inventory
-        const txRes = await client.query(`
-            INSERT INTO transactions (type, stack_id, location_id, amount, unit, entity, price, user_id, org_id)
-            VALUES ('sale', $1, $2, $3, 'bales', $4, 0, $5, $6)
-            RETURNING id
-        `, [
-            ticket.stack_id,
-            ticket.location_id,
-            ticket.amount,
-            ticket.customer || 'Ticket #' + id,
-            userId,
-            orgId
-        ]);
+        if (ticket.type === 'barn_to_barn') {
+            // Barn to Barn: create a sale (deduct from source) and a purchase (add to destination)
+            const saleRes = await client.query(`
+                INSERT INTO transactions (type, stack_id, location_id, amount, unit, entity, price, user_id, org_id)
+                VALUES ('sale', $1, $2, $3, 'bales', $4, 0, $5, $6)
+                RETURNING id
+            `, [
+                ticket.stack_id,
+                ticket.location_id,
+                ticket.amount,
+                'Transfer to destination',
+                userId,
+                orgId
+            ]);
 
-        const transactionId = txRes.rows[0].id;
+            await client.query(`
+                INSERT INTO transactions (type, stack_id, location_id, amount, unit, entity, price, user_id, org_id)
+                VALUES ('purchase', $1, $2, $3, 'bales', $4, 0, $5, $6)
+            `, [
+                ticket.stack_id,
+                ticket.destination_id,
+                ticket.amount,
+                'Transfer from source',
+                userId,
+                orgId
+            ]);
+
+            transactionId = saleRes.rows[0].id;
+        } else {
+            // Sale: create a sale transaction to deduct inventory
+            const txRes = await client.query(`
+                INSERT INTO transactions (type, stack_id, location_id, amount, unit, entity, price, user_id, org_id)
+                VALUES ('sale', $1, $2, $3, 'bales', $4, 0, $5, $6)
+                RETURNING id
+            `, [
+                ticket.stack_id,
+                ticket.location_id,
+                ticket.amount,
+                ticket.customer || 'Ticket #' + id,
+                userId,
+                orgId
+            ]);
+
+            transactionId = txRes.rows[0].id;
+        }
 
         // Update ticket status and link transaction
         await client.query(`

@@ -19,7 +19,7 @@ async function getDispatchData(orgId: string) {
             FROM tickets tk
             LEFT JOIN stacks s ON s.id = tk.stack_id
             LEFT JOIN locations l ON l.id = tk.location_id
-            WHERE tk.org_id = $1 AND tk.status IN ('pending', 'approved')
+            WHERE tk.org_id = $1 AND tk.status IN ('pending', 'approved') AND tk.type = 'sale'
             ORDER BY 
                 CASE tk.status WHEN 'pending' THEN 0 WHEN 'approved' THEN 1 END,
                 tk.created_at DESC
@@ -60,7 +60,7 @@ export default async function DispatchPage() {
     return (
         <div className="space-y-6">
             <div className="flex justify-between items-center">
-                <h1 className="text-xl font-bold" style={{ color: 'var(--accent)' }}>Dispatch</h1>
+                <h1 className="text-xl font-bold" style={{ color: 'var(--accent)' }}>Invoicing</h1>
                 <Link href="/dispatch/invoices" className="btn btn-secondary flex items-center gap-2">
                     <FileText size={16} />
                     Invoices
