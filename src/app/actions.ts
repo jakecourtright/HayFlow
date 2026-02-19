@@ -6,6 +6,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { tonsToBales, getDefaultWeight, normalizePrice } from "@/lib/units";
 import { Permissions } from "@/lib/permissions";
+import crypto from 'crypto';
 
 export async function submitTransaction(formData: FormData) {
     const { userId, orgId } = await auth();
@@ -740,12 +741,13 @@ export async function createInvoice(formData: FormData) {
             }
         }
 
-        // Create invoice
+        // Create invoice with share token
+        const shareToken = crypto.randomBytes(32).toString('hex');
         const invoiceRes = await client.query(`
-            INSERT INTO invoices (invoice_number, customer, status, total_amount, price_per_unit, price_unit, notes, created_by, org_id)
-            VALUES ($1, $2, 'draft', $3, $4, $5, $6, $7, $8)
+            INSERT INTO invoices (invoice_number, customer, status, total_amount, price_per_unit, price_unit, notes, share_token, created_by, org_id)
+            VALUES ($1, $2, 'draft', $3, $4, $5, $6, $7, $8, $9)
             RETURNING id
-        `, [invoiceNumber, customer || null, totalAmount, pricePerUnit || null, priceUnit, notes || null, userId, orgId]);
+        `, [invoiceNumber, customer || null, totalAmount, pricePerUnit || null, priceUnit, notes || null, shareToken, userId, orgId]);
 
         const invoiceId = invoiceRes.rows[0].id;
 
@@ -866,4 +868,113 @@ export async function updateInvoice(id: string, formData: FormData) {
     revalidatePath('/dispatch/invoices');
     revalidatePath(`/dispatch/invoices/${id}`);
     redirect(`/dispatch/invoices/${id}`);
+}
+
+export async function quickSale(formData: FormData) {
+    const { userId, orgId } = await auth();
+    if (!userId || !orgId) throw new Error("Unauthorized");
+
+    const stackId = formData.get('stackId') as string;
+    const locationId = formData.get('locationId') as string;
+    const amount = formData.get('amount') as string;
+    const customer = formData.get('customer') as string;
+    const netLbs = formData.get('netLbs') as string;
+    const notes = formData.get('notes') as string;
+    const pricePerUnitStr = formData.get('pricePerUnit') as string;
+    const priceUnit = (formData.get('priceUnit') as string) || 'ton';
+
+    if (!stackId || !amount) throw new Error("Stack and amount are required");
+    if (!locationId || locationId === 'none') throw new Error("Location is required");
+    if (!customer?.trim()) throw new Error("Customer is required");
+
+    const amountNum = parseFloat(amount);
+    if (isNaN(amountNum) || amountNum <= 0) throw new Error("Amount must be a positive number");
+
+    const netLbsNum = netLbs ? parseFloat(netLbs) : null;
+    const pricePerUnit = parseFloat(pricePerUnitStr) || 0;
+
+    const client = await pool.connect();
+    let invoiceId: number;
+
+    try {
+        // Verify stock at location
+        const inventoryRes = await client.query(`
+            SELECT 
+                SUM(CASE 
+                    WHEN type IN ('production', 'purchase') THEN amount 
+                    WHEN type IN ('sale') THEN -amount 
+                    ELSE 0 
+                END) as quantity
+            FROM transactions
+            WHERE stack_id = $1 AND location_id = $2 AND org_id = $3
+        `, [stackId, locationId, orgId]);
+
+        const currentStock = parseFloat(inventoryRes.rows[0]?.quantity || '0');
+        if (currentStock < amountNum) {
+            throw new Error(`Insufficient stock. Available: ${currentStock} bales`);
+        }
+
+        // 1. Create ticket (auto-approved)
+        const ticketRes = await client.query(`
+            INSERT INTO tickets (type, stack_id, location_id, amount, customer, notes, net_lbs, status, driver_id, org_id)
+            VALUES ('sale', $1, $2, $3, $4, $5, $6, 'approved', $7, $8)
+            RETURNING id
+        `, [stackId, locationId, amountNum, customer, notes || null, netLbsNum, userId, orgId]);
+
+        const ticketId = ticketRes.rows[0].id;
+
+        // 2. Create sale transaction (deduct inventory)
+        const txRes = await client.query(`
+            INSERT INTO transactions (type, stack_id, location_id, amount, unit, entity, price, user_id, org_id)
+            VALUES ('sale', $1, $2, $3, 'bales', $4, 0, $5, $6)
+            RETURNING id
+        `, [stackId, locationId, amountNum, customer, userId, orgId]);
+
+        // Link transaction to ticket
+        await client.query(
+            'UPDATE tickets SET transaction_id = $1 WHERE id = $2',
+            [txRes.rows[0].id, ticketId]
+        );
+
+        // 3. Create invoice
+        const countRes = await client.query(
+            'SELECT COUNT(*) FROM invoices WHERE org_id = $1',
+            [orgId]
+        );
+        const invoiceNumber = `INV-${String(parseInt(countRes.rows[0].count) + 1).padStart(4, '0')}`;
+        const shareToken = crypto.randomBytes(32).toString('hex');
+
+        let totalAmount = 0;
+        if (pricePerUnit > 0) {
+            if (priceUnit === 'ton' && netLbsNum) {
+                totalAmount = (netLbsNum / 2000) * pricePerUnit;
+            } else if (priceUnit === 'bale') {
+                totalAmount = amountNum * pricePerUnit;
+            }
+        }
+
+        const invoiceRes = await client.query(`
+            INSERT INTO invoices (invoice_number, customer, status, total_amount, price_per_unit, price_unit, notes, share_token, created_by, org_id)
+            VALUES ($1, $2, 'draft', $3, $4, $5, $6, $7, $8, $9)
+            RETURNING id
+        `, [invoiceNumber, customer, totalAmount, pricePerUnit || null, priceUnit, notes || null, shareToken, userId, orgId]);
+
+        invoiceId = invoiceRes.rows[0].id;
+
+        // 4. Link ticket to invoice
+        await client.query(
+            'UPDATE tickets SET invoice_id = $1, status = $2 WHERE id = $3',
+            [invoiceId, 'invoiced', ticketId]
+        );
+    } finally {
+        client.release();
+    }
+
+    revalidatePath('/tickets');
+    revalidatePath('/dispatch');
+    revalidatePath('/dispatch/invoices');
+    revalidatePath('/');
+    revalidatePath('/inventory');
+    revalidatePath('/locations');
+    redirect(`/dispatch/invoices/${invoiceId}`);
 }

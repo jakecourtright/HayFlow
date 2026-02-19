@@ -2,18 +2,20 @@
 
 import { updateInvoiceStatus, deleteInvoice } from "@/app/actions";
 import { useState } from "react";
-import { Send, CheckCircle, RotateCcw, Pencil, Trash2 } from "lucide-react";
+import { Send, CheckCircle, RotateCcw, Pencil, Trash2, Share2, Check } from "lucide-react";
 import Link from "next/link";
 
 interface InvoiceStatusActionsProps {
     invoiceId: number;
     currentStatus: string;
+    shareToken: string;
 }
 
-export default function InvoiceStatusActions({ invoiceId, currentStatus }: InvoiceStatusActionsProps) {
+export default function InvoiceStatusActions({ invoiceId, currentStatus, shareToken }: InvoiceStatusActionsProps) {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+    const [copied, setCopied] = useState(false);
 
     async function handleStatusChange(newStatus: string) {
         setLoading(true);
@@ -40,6 +42,24 @@ export default function InvoiceStatusActions({ invoiceId, currentStatus }: Invoi
         }
     }
 
+    async function handleShare() {
+        const url = `${window.location.origin}/invoice/${shareToken}`;
+        try {
+            if (navigator.share) {
+                await navigator.share({ title: 'Invoice', url });
+            } else {
+                await navigator.clipboard.writeText(url);
+                setCopied(true);
+                setTimeout(() => setCopied(false), 2000);
+            }
+        } catch {
+            // Fallback: copy to clipboard
+            await navigator.clipboard.writeText(url);
+            setCopied(true);
+            setTimeout(() => setCopied(false), 2000);
+        }
+    }
+
     return (
         <div className="space-y-2">
             {error && (
@@ -47,6 +67,16 @@ export default function InvoiceStatusActions({ invoiceId, currentStatus }: Invoi
                     {error}
                 </div>
             )}
+
+            {/* Share Button */}
+            <button
+                onClick={handleShare}
+                className="btn w-full flex items-center justify-center gap-2"
+                style={{ background: 'var(--bg-surface)', color: copied ? '#22c55e' : 'var(--text-main)' }}
+            >
+                {copied ? <Check size={16} /> : <Share2 size={16} />}
+                {copied ? 'Link Copied!' : 'Share Invoice'}
+            </button>
 
             {/* Status Actions */}
             {currentStatus === 'draft' && (

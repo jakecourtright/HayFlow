@@ -208,7 +208,7 @@ export default function DashboardGrid({ stats, layout: initialLayout, canWriteIn
                             <span className="font-bold text-2xl" style={{ color: 'var(--text-main)' }}>Buy</span>
                             <span className="text-sm mt-1 opacity-80" style={{ color: 'var(--text-dim)' }}>Purchase</span>
                         </Link>
-                        <Link href="/log?type=sale" className="glass-card flex flex-col items-center justify-center p-6 hover:brightness-110 transition-all active:scale-95 text-center group border-2 border-transparent hover:border-[var(--primary)] aspect-square">
+                        <Link href="/sell" className="glass-card flex flex-col items-center justify-center p-6 hover:brightness-110 transition-all active:scale-95 text-center group border-2 border-transparent hover:border-[var(--primary)] aspect-square">
                             <Banknote size={52} style={{ color: 'var(--primary)', marginBottom: '14px' }} />
                             <span className="font-bold text-2xl" style={{ color: 'var(--text-main)' }}>Sell</span>
                             <span className="text-sm mt-1 opacity-80" style={{ color: 'var(--text-dim)' }}>Sale</span>

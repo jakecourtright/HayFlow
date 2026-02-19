@@ -146,7 +146,7 @@ export default async function InvoiceDetailPage({ params }: { params: Promise<{ 
             </div>
 
             {/* Status Actions */}
-            <InvoiceStatusActions invoiceId={invoice.id} currentStatus={invoice.status} />
+            <InvoiceStatusActions invoiceId={invoice.id} currentStatus={invoice.status} shareToken={invoice.share_token} />
 
             {/* Line Items (Tickets) */}
             <div>
