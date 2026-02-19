@@ -166,7 +166,7 @@ export default function TicketForm({ stacks, locations, inventory }: TicketFormP
 
                 {/* Amount */}
                 <div>
-                    <label className="block text-sm font-semibold mb-1" style={{ color: 'var(--text-dim)' }}>
+                    <label className="label-modern">
                         Bales *
                     </label>
                     <input
@@ -176,14 +176,14 @@ export default function TicketForm({ stacks, locations, inventory }: TicketFormP
                         min="1"
                         step="1"
                         placeholder="Number of bales"
-                        className="input-field"
+                        className="input-modern"
                     />
                 </div>
 
                 {/* Net Lbs (Sale only) */}
                 {ticketType === 'sale' && (
                     <div>
-                        <label className="block text-sm font-semibold mb-1" style={{ color: 'var(--text-dim)' }}>
+                        <label className="label-modern">
                             Net Lbs
                         </label>
                         <input
@@ -192,7 +192,7 @@ export default function TicketForm({ stacks, locations, inventory }: TicketFormP
                             min="0"
                             step="0.01"
                             placeholder="Total net weight (optional)"
-                            className="input-field"
+                            className="input-modern"
                         />
                     </div>
                 )}
@@ -200,7 +200,7 @@ export default function TicketForm({ stacks, locations, inventory }: TicketFormP
                 {/* Customer (Sale only, required) */}
                 {ticketType === 'sale' && (
                     <div>
-                        <label className="block text-sm font-semibold mb-1" style={{ color: 'var(--text-dim)' }}>
+                        <label className="label-modern">
                             Customer *
                         </label>
                         <input
@@ -208,14 +208,14 @@ export default function TicketForm({ stacks, locations, inventory }: TicketFormP
                             name="customer"
                             required
                             placeholder="Customer name"
-                            className="input-field"
+                            className="input-modern"
                         />
                     </div>
                 )}
 
                 {/* Notes / Comments */}
                 <div>
-                    <label className="block text-sm font-semibold mb-1" style={{ color: 'var(--text-dim)' }}>
+                    <label className="label-modern">
                         {ticketType === 'barn_to_barn' ? 'Comments' : 'Notes'}
                     </label>
                     <textarea
@@ -225,7 +225,7 @@ export default function TicketForm({ stacks, locations, inventory }: TicketFormP
                             ? "Transfer notes, reason, etc. (optional)"
                             : "Delivery notes, truck #, etc. (optional)"
                         }
-                        className="input-field"
+                        className="input-modern"
                     />
                 </div>
 

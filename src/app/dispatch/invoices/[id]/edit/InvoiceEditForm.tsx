@@ -59,33 +59,33 @@ export default function InvoiceEditForm({ invoice, totalBales, totalNetLbs }: In
 
             <form action={handleSubmit} className="glass-card space-y-4">
                 <div>
-                    <label className="block text-sm font-semibold mb-1" style={{ color: 'var(--text-dim)' }}>Customer</label>
+                    <label className="label-modern">Customer</label>
                     <input
                         type="text"
                         name="customer"
                         value={customer}
                         onChange={(e) => setCustomer(e.target.value)}
                         placeholder="Customer name"
-                        className="input-field"
+                        className="input-modern"
                     />
                 </div>
 
                 {/* Pricing */}
                 <div className="grid grid-cols-2 gap-3">
                     <div>
-                        <label className="block text-sm font-semibold mb-1" style={{ color: 'var(--text-dim)' }}>Price Per</label>
+                        <label className="label-modern">Price Per</label>
                         <select
                             name="priceUnit"
                             value={priceUnit}
                             onChange={(e) => setPriceUnit(e.target.value)}
-                            className="input-field"
+                            className="select-modern"
                         >
                             <option value="ton">$ / Ton</option>
                             <option value="bale">$ / Bale</option>
                         </select>
                     </div>
                     <div>
-                        <label className="block text-sm font-semibold mb-1" style={{ color: 'var(--text-dim)' }}>Amount</label>
+                        <label className="label-modern">Amount</label>
                         <input
                             type="number"
                             name="pricePerUnit"
@@ -94,7 +94,7 @@ export default function InvoiceEditForm({ invoice, totalBales, totalNetLbs }: In
                             placeholder="0.00"
                             min="0"
                             step="0.01"
-                            className="input-field"
+                            className="input-modern"
                         />
                     </div>
                 </div>
@@ -119,14 +119,14 @@ export default function InvoiceEditForm({ invoice, totalBales, totalNetLbs }: In
                 </div>
 
                 <div>
-                    <label className="block text-sm font-semibold mb-1" style={{ color: 'var(--text-dim)' }}>Notes</label>
+                    <label className="label-modern">Notes</label>
                     <textarea
                         name="notes"
                         value={notes}
                         onChange={(e) => setNotes(e.target.value)}
                         rows={3}
                         placeholder="Invoice notes (optional)"
-                        className="input-field"
+                        className="input-modern"
                     />
                 </div>
 

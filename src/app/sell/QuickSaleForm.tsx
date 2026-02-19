@@ -74,7 +74,7 @@ export default function QuickSaleForm({ stacks, locations, inventory }: QuickSal
             <form action={handleSubmit} className="glass-card space-y-4">
                 {/* Stack */}
                 <div>
-                    <label className="block text-sm font-semibold mb-1" style={{ color: 'var(--text-dim)' }}>Lot (Stack)</label>
+                    <label className="label-modern">Lot (Stack)</label>
                     <CustomSelect
                         name="stackId"
                         options={stacks.map((s: any) => ({
@@ -90,7 +90,7 @@ export default function QuickSaleForm({ stacks, locations, inventory }: QuickSal
 
                 {/* Location */}
                 <div>
-                    <label className="block text-sm font-semibold mb-1" style={{ color: 'var(--text-dim)' }}>Location</label>
+                    <label className="label-modern">Location</label>
                     {stackId ? (
                         availableLocations.length > 0 ? (
                             <CustomSelect
@@ -117,7 +117,7 @@ export default function QuickSaleForm({ stacks, locations, inventory }: QuickSal
 
                 {/* Customer */}
                 <div>
-                    <label className="block text-sm font-semibold mb-1" style={{ color: 'var(--text-dim)' }}>Customer *</label>
+                    <label className="label-modern">Customer *</label>
                     <input
                         type="text"
                         name="customer"
@@ -125,13 +125,13 @@ export default function QuickSaleForm({ stacks, locations, inventory }: QuickSal
                         onChange={(e) => setCustomer(e.target.value)}
                         placeholder="Customer name"
                         required
-                        className="input-field"
+                        className="input-modern"
                     />
                 </div>
 
                 {/* Amount (bales) */}
                 <div>
-                    <label className="block text-sm font-semibold mb-1" style={{ color: 'var(--text-dim)' }}>Bales</label>
+                    <label className="label-modern">Bales</label>
                     <input
                         type="number"
                         name="amount"
@@ -140,13 +140,13 @@ export default function QuickSaleForm({ stacks, locations, inventory }: QuickSal
                         placeholder="Number of bales"
                         min="1"
                         required
-                        className="input-field"
+                        className="input-modern"
                     />
                 </div>
 
                 {/* Net Lbs */}
                 <div>
-                    <label className="block text-sm font-semibold mb-1" style={{ color: 'var(--text-dim)' }}>Net Lbs (scale weight)</label>
+                    <label className="label-modern">Net Lbs (scale weight)</label>
                     <input
                         type="number"
                         name="netLbs"
@@ -154,26 +154,26 @@ export default function QuickSaleForm({ stacks, locations, inventory }: QuickSal
                         onChange={(e) => setNetLbs(e.target.value)}
                         placeholder="Net weight in pounds"
                         min="0"
-                        className="input-field"
+                        className="input-modern"
                     />
                 </div>
 
                 {/* Pricing */}
                 <div className="grid grid-cols-2 gap-3">
                     <div>
-                        <label className="block text-sm font-semibold mb-1" style={{ color: 'var(--text-dim)' }}>Price Per</label>
+                        <label className="label-modern">Price Per</label>
                         <select
                             name="priceUnit"
                             value={priceUnit}
                             onChange={(e) => setPriceUnit(e.target.value)}
-                            className="input-field"
+                            className="select-modern"
                         >
                             <option value="ton">$ / Ton</option>
                             <option value="bale">$ / Bale</option>
                         </select>
                     </div>
                     <div>
-                        <label className="block text-sm font-semibold mb-1" style={{ color: 'var(--text-dim)' }}>Amount</label>
+                        <label className="label-modern">Amount</label>
                         <input
                             type="number"
                             name="pricePerUnit"
@@ -182,7 +182,7 @@ export default function QuickSaleForm({ stacks, locations, inventory }: QuickSal
                             placeholder="0.00"
                             min="0"
                             step="0.01"
-                            className="input-field"
+                            className="input-modern"
                         />
                     </div>
                 </div>
@@ -204,14 +204,14 @@ export default function QuickSaleForm({ stacks, locations, inventory }: QuickSal
 
                 {/* Notes */}
                 <div>
-                    <label className="block text-sm font-semibold mb-1" style={{ color: 'var(--text-dim)' }}>Notes</label>
+                    <label className="label-modern">Notes</label>
                     <textarea
                         name="notes"
                         value={notes}
                         onChange={(e) => setNotes(e.target.value)}
                         rows={2}
                         placeholder="Optional notes"
-                        className="input-field"
+                        className="input-modern"
                     />
                 </div>
 

@@ -108,31 +108,31 @@ export default function DispatchQueue({ approvedTickets }: DispatchQueueProps) {
                 <div className="glass-card mb-4 space-y-3" style={{ borderLeft: '3px solid #3b82f6' }}>
                     <h3 className="font-bold text-sm" style={{ color: '#3b82f6' }}>Create Invoice</h3>
                     <div>
-                        <label className="block text-xs font-semibold mb-1" style={{ color: 'var(--text-dim)' }}>Customer</label>
+                        <label className="label-modern">Customer</label>
                         <input
                             type="text"
                             value={customer}
                             onChange={(e) => setCustomer(e.target.value)}
                             placeholder="Customer name"
-                            className="input-field"
+                            className="input-modern"
                         />
                     </div>
 
                     {/* Pricing */}
                     <div className="grid grid-cols-2 gap-3">
                         <div>
-                            <label className="block text-xs font-semibold mb-1" style={{ color: 'var(--text-dim)' }}>Price Per</label>
+                            <label className="label-modern">Price Per</label>
                             <select
                                 value={priceUnit}
                                 onChange={(e) => setPriceUnit(e.target.value)}
-                                className="input-field"
+                                className="select-modern"
                             >
                                 <option value="ton">$ / Ton</option>
                                 <option value="bale">$ / Bale</option>
                             </select>
                         </div>
                         <div>
-                            <label className="block text-xs font-semibold mb-1" style={{ color: 'var(--text-dim)' }}>Amount</label>
+                            <label className="label-modern">Amount</label>
                             <input
                                 type="number"
                                 value={pricePerUnit}
@@ -140,7 +140,7 @@ export default function DispatchQueue({ approvedTickets }: DispatchQueueProps) {
                                 placeholder="0.00"
                                 min="0"
                                 step="0.01"
-                                className="input-field"
+                                className="input-modern"
                             />
                         </div>
                     </div>
@@ -171,13 +171,13 @@ export default function DispatchQueue({ approvedTickets }: DispatchQueueProps) {
                     </div>
 
                     <div>
-                        <label className="block text-xs font-semibold mb-1" style={{ color: 'var(--text-dim)' }}>Notes</label>
+                        <label className="label-modern">Notes</label>
                         <textarea
                             value={notes}
                             onChange={(e) => setNotes(e.target.value)}
                             rows={2}
                             placeholder="Invoice notes (optional)"
-                            className="input-field"
+                            className="input-modern"
                         />
                     </div>
                     <button
