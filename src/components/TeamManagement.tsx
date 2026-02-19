@@ -32,13 +32,10 @@ export default function TeamManagement() {
     if (!organization) return null;
 
     function extractClerkError(err: any, fallback: string): string {
+        console.error('[Clerk Error] Full error:', JSON.stringify(err?.errors || err, null, 2));
         const clerkError = err?.errors?.[0];
         if (clerkError) {
-            // Check for "not found" which typically means a role doesn't exist in the dashboard
-            if (clerkError.code === 'not_found' || clerkError.message === 'not found') {
-                return `Role not found. Please verify the role exists in your Clerk Dashboard under "Roles & Permissions."`;
-            }
-            return clerkError.longMessage || clerkError.message || fallback;
+            return clerkError.longMessage || clerkError.message || clerkError.code || fallback;
         }
         return err?.message || fallback;
     }
@@ -62,6 +59,11 @@ export default function TeamManagement() {
 
     const handleUpdateRole = async (userId: string, newRole: string) => {
         setError('');
+        if (!userId) {
+            setError('Cannot update role: user ID is missing.');
+            return;
+        }
+        console.log('[Role Update] userId:', userId, 'newRole:', newRole, 'orgId:', organization.id);
         try {
             await organization.updateMember({ userId, role: newRole });
             memberships?.revalidate?.();
