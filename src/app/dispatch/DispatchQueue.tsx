@@ -12,6 +12,8 @@ export default function DispatchQueue({ approvedTickets }: DispatchQueueProps) {
     const [selected, setSelected] = useState<Set<number>>(new Set());
     const [customer, setCustomer] = useState('');
     const [notes, setNotes] = useState('');
+    const [pricePerUnit, setPricePerUnit] = useState('');
+    const [priceUnit, setPriceUnit] = useState('ton');
     const [error, setError] = useState('');
     const [showInvoiceForm, setShowInvoiceForm] = useState(false);
 
@@ -33,6 +35,18 @@ export default function DispatchQueue({ approvedTickets }: DispatchQueueProps) {
         }
     }
 
+    // Calculate totals for selected tickets
+    const selectedTickets = approvedTickets.filter((t: any) => selected.has(t.id));
+    const totalBales = selectedTickets.reduce((sum: number, t: any) => sum + parseFloat(t.amount), 0);
+    const totalNetLbs = selectedTickets.reduce((sum: number, t: any) => sum + (parseFloat(t.net_lbs) || 0), 0);
+    const totalTons = totalNetLbs / 2000;
+
+    // Calculate dollar total
+    const price = parseFloat(pricePerUnit) || 0;
+    const dollarTotal = priceUnit === 'ton'
+        ? price * totalTons
+        : price * totalBales;
+
     async function handleCreateInvoice() {
         if (selected.size === 0) return;
 
@@ -40,11 +54,16 @@ export default function DispatchQueue({ approvedTickets }: DispatchQueueProps) {
         formData.set('ticketIds', Array.from(selected).join(','));
         formData.set('customer', customer);
         formData.set('notes', notes);
+        formData.set('pricePerUnit', pricePerUnit);
+        formData.set('priceUnit', priceUnit);
 
         try {
             setError('');
             await createInvoice(formData);
         } catch (e: any) {
+            if (e?.digest?.startsWith('NEXT_REDIRECT')) {
+                throw e;
+            }
             setError(e.message || 'Failed to create invoice');
         }
     }
@@ -98,6 +117,59 @@ export default function DispatchQueue({ approvedTickets }: DispatchQueueProps) {
                             className="input-field"
                         />
                     </div>
+
+                    {/* Pricing */}
+                    <div className="grid grid-cols-2 gap-3">
+                        <div>
+                            <label className="block text-xs font-semibold mb-1" style={{ color: 'var(--text-dim)' }}>Price Per</label>
+                            <select
+                                value={priceUnit}
+                                onChange={(e) => setPriceUnit(e.target.value)}
+                                className="input-field"
+                            >
+                                <option value="ton">$ / Ton</option>
+                                <option value="bale">$ / Bale</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label className="block text-xs font-semibold mb-1" style={{ color: 'var(--text-dim)' }}>Amount</label>
+                            <input
+                                type="number"
+                                value={pricePerUnit}
+                                onChange={(e) => setPricePerUnit(e.target.value)}
+                                placeholder="0.00"
+                                min="0"
+                                step="0.01"
+                                className="input-field"
+                            />
+                        </div>
+                    </div>
+
+                    {/* Summary */}
+                    <div className="p-3 rounded-lg" style={{ background: 'var(--bg-surface)' }}>
+                        <div className="flex justify-between text-xs mb-1" style={{ color: 'var(--text-dim)' }}>
+                            <span>{selected.size} ticket{selected.size > 1 ? 's' : ''}</span>
+                            <span>{totalBales.toLocaleString()} bales</span>
+                        </div>
+                        {totalNetLbs > 0 && (
+                            <div className="flex justify-between text-xs mb-1" style={{ color: 'var(--text-dim)' }}>
+                                <span>Net weight</span>
+                                <span>{totalNetLbs.toLocaleString()} lbs ({totalTons.toFixed(2)} tons)</span>
+                            </div>
+                        )}
+                        {price > 0 && (
+                            <div className="flex justify-between text-sm font-bold mt-2 pt-2" style={{ borderTop: '1px solid var(--glass-border)', color: 'var(--primary-light)' }}>
+                                <span>Total</span>
+                                <span>${dollarTotal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                            </div>
+                        )}
+                        {priceUnit === 'ton' && totalNetLbs === 0 && price > 0 && (
+                            <p className="text-xs mt-1" style={{ color: '#f59e0b' }}>
+                                ⚠ No net lbs on these tickets — total will be $0 when priced per ton
+                            </p>
+                        )}
+                    </div>
+
                     <div>
                         <label className="block text-xs font-semibold mb-1" style={{ color: 'var(--text-dim)' }}>Notes</label>
                         <textarea
@@ -108,14 +180,6 @@ export default function DispatchQueue({ approvedTickets }: DispatchQueueProps) {
                             className="input-field"
                         />
                     </div>
-                    <p className="text-xs" style={{ color: 'var(--text-dim)' }}>
-                        {selected.size} ticket{selected.size > 1 ? 's' : ''} • Total: {
-                            approvedTickets
-                                .filter((t: any) => selected.has(t.id))
-                                .reduce((sum: number, t: any) => sum + parseFloat(t.amount), 0)
-                                .toLocaleString()
-                        } bales
-                    </p>
                     <button
                         onClick={handleCreateInvoice}
                         className="btn btn-primary w-full"
@@ -171,6 +235,11 @@ export default function DispatchQueue({ approvedTickets }: DispatchQueueProps) {
                                     {parseFloat(ticket.amount).toLocaleString()}
                                 </span>
                                 <span className="text-xs ml-1" style={{ color: 'var(--text-dim)' }}>bales</span>
+                                {ticket.net_lbs && (
+                                    <p className="text-xs" style={{ color: 'var(--text-dim)' }}>
+                                        {parseFloat(ticket.net_lbs).toLocaleString()} lbs
+                                    </p>
+                                )}
                             </div>
                         </div>
                         {ticket.customer && (

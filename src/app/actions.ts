@@ -697,11 +697,15 @@ export async function createInvoice(formData: FormData) {
     const ticketIdsRaw = formData.get('ticketIds') as string;
     const customer = formData.get('customer') as string;
     const notes = formData.get('notes') as string;
+    const pricePerUnitStr = formData.get('pricePerUnit') as string;
+    const priceUnit = (formData.get('priceUnit') as string) || 'ton';
 
     if (!ticketIdsRaw) throw new Error("No tickets selected");
 
     const ticketIds = ticketIdsRaw.split(',').map(id => parseInt(id.trim())).filter(id => !isNaN(id));
     if (ticketIds.length === 0) throw new Error("No valid tickets selected");
+
+    const pricePerUnit = parseFloat(pricePerUnitStr) || 0;
 
     const client = await pool.connect();
     try {
@@ -722,15 +726,26 @@ export async function createInvoice(formData: FormData) {
         );
         const invoiceNumber = `INV-${String(parseInt(countRes.rows[0].count) + 1).padStart(4, '0')}`;
 
-        // Calculate total (sum of ticket amounts - in bales for now, pricing TBD)
-        const totalAmount = ticketsRes.rows.reduce((sum: number, t: any) => sum + parseFloat(t.amount), 0);
+        // Calculate total amount in dollars
+        let totalAmount = 0;
+        if (pricePerUnit > 0) {
+            if (priceUnit === 'ton') {
+                // Sum net_lbs across tickets, convert to tons, multiply by price
+                const totalNetLbs = ticketsRes.rows.reduce((sum: number, t: any) => sum + (parseFloat(t.net_lbs) || 0), 0);
+                totalAmount = (totalNetLbs / 2000) * pricePerUnit;
+            } else {
+                // Sum bales across tickets, multiply by price
+                const totalBales = ticketsRes.rows.reduce((sum: number, t: any) => sum + parseFloat(t.amount), 0);
+                totalAmount = totalBales * pricePerUnit;
+            }
+        }
 
         // Create invoice
         const invoiceRes = await client.query(`
-            INSERT INTO invoices (invoice_number, customer, status, total_amount, notes, created_by, org_id)
-            VALUES ($1, $2, 'draft', $3, $4, $5, $6)
+            INSERT INTO invoices (invoice_number, customer, status, total_amount, price_per_unit, price_unit, notes, created_by, org_id)
+            VALUES ($1, $2, 'draft', $3, $4, $5, $6, $7, $8)
             RETURNING id
-        `, [invoiceNumber, customer || null, totalAmount, notes || null, userId, orgId]);
+        `, [invoiceNumber, customer || null, totalAmount, pricePerUnit || null, priceUnit, notes || null, userId, orgId]);
 
         const invoiceId = invoiceRes.rows[0].id;
 

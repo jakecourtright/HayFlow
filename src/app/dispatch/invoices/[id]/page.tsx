@@ -2,7 +2,7 @@ import { auth } from "@clerk/nextjs/server";
 import pool from "@/lib/db";
 import { redirect, notFound } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, Package, MapPin, Clock } from "lucide-react";
+import { ArrowLeft, Package, MapPin, Scale } from "lucide-react";
 import { Permissions } from "@/lib/permissions";
 import InvoiceStatusActions from "./InvoiceStatusActions";
 
@@ -56,6 +56,10 @@ export default async function InvoiceDetailPage({ params }: { params: Promise<{ 
     };
 
     const style = STATUS_STYLES[invoice.status] || STATUS_STYLES.draft;
+    const totalBales = invoice.tickets.reduce((sum: number, t: any) => sum + parseFloat(t.amount), 0);
+    const totalNetLbs = invoice.tickets.reduce((sum: number, t: any) => sum + (parseFloat(t.net_lbs) || 0), 0);
+    const hasPricing = invoice.price_per_unit && parseFloat(invoice.price_per_unit) > 0;
+    const totalAmount = parseFloat(invoice.total_amount) || 0;
 
     return (
         <div className="space-y-6">
@@ -94,11 +98,13 @@ export default async function InvoiceDetailPage({ params }: { params: Promise<{ 
                         <p className="font-semibold" style={{ color: 'var(--accent)' }}>{invoice.customer}</p>
                     </div>
                 )}
-                <div className="flex justify-between items-center">
+
+                {/* Pricing & Totals */}
+                <div className="grid grid-cols-2 gap-4 mb-3">
                     <div>
-                        <p className="text-xs" style={{ color: 'var(--text-dim)' }}>Total</p>
+                        <p className="text-xs" style={{ color: 'var(--text-dim)' }}>Bales</p>
                         <p className="text-2xl font-bold" style={{ color: 'var(--primary-light)' }}>
-                            {parseFloat(invoice.total_amount).toLocaleString()} bales
+                            {totalBales.toLocaleString()}
                         </p>
                     </div>
                     <div className="text-right">
@@ -108,6 +114,29 @@ export default async function InvoiceDetailPage({ params }: { params: Promise<{ 
                         </p>
                     </div>
                 </div>
+
+                {totalNetLbs > 0 && (
+                    <div className="flex items-center gap-2 mb-3 text-sm" style={{ color: 'var(--text-dim)' }}>
+                        <Scale size={14} />
+                        <span>{totalNetLbs.toLocaleString()} lbs ({(totalNetLbs / 2000).toFixed(2)} tons)</span>
+                    </div>
+                )}
+
+                {hasPricing && (
+                    <div className="pt-3" style={{ borderTop: '1px solid var(--glass-border)' }}>
+                        <div className="flex justify-between text-sm mb-1" style={{ color: 'var(--text-dim)' }}>
+                            <span>Rate</span>
+                            <span>${parseFloat(invoice.price_per_unit).toFixed(2)} / {invoice.price_unit}</span>
+                        </div>
+                        <div className="flex justify-between items-baseline">
+                            <span className="text-xs" style={{ color: 'var(--text-dim)' }}>Total</span>
+                            <span className="text-2xl font-bold" style={{ color: 'var(--primary-light)' }}>
+                                ${totalAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                            </span>
+                        </div>
+                    </div>
+                )}
+
                 {invoice.notes && (
                     <div className="mt-3 pt-3" style={{ borderTop: '1px solid var(--glass-border)' }}>
                         <p className="text-xs" style={{ color: 'var(--text-dim)' }}>Notes</p>
@@ -142,9 +171,17 @@ export default async function InvoiceDetailPage({ params }: { params: Promise<{ 
                                             </span>
                                         )}
                                     </div>
-                                    <span className="font-bold" style={{ color: 'var(--primary-light)' }}>
-                                        {parseFloat(ticket.amount).toLocaleString()}
-                                    </span>
+                                    <div className="text-right">
+                                        <span className="font-bold" style={{ color: 'var(--primary-light)' }}>
+                                            {parseFloat(ticket.amount).toLocaleString()}
+                                        </span>
+                                        <span className="text-xs ml-1" style={{ color: 'var(--text-dim)' }}>bales</span>
+                                        {ticket.net_lbs && (
+                                            <p className="text-xs" style={{ color: 'var(--text-dim)' }}>
+                                                {parseFloat(ticket.net_lbs).toLocaleString()} lbs
+                                            </p>
+                                        )}
+                                    </div>
                                 </div>
                             </div>
                         </Link>

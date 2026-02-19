@@ -86,9 +86,11 @@ export default async function InvoicesPage() {
                                         </div>
                                         <div className="text-right">
                                             <span className="text-lg font-bold" style={{ color: 'var(--primary-light)' }}>
-                                                {parseFloat(inv.total_amount).toLocaleString()}
+                                                {parseFloat(inv.total_amount) > 0 && inv.price_per_unit
+                                                    ? `$${parseFloat(inv.total_amount).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+                                                    : `${parseFloat(inv.total_amount).toLocaleString()} bales`
+                                                }
                                             </span>
-                                            <span className="text-xs ml-1" style={{ color: 'var(--text-dim)' }}>bales</span>
                                             <p className="text-xs" style={{ color: 'var(--text-dim)' }}>
                                                 {inv.ticket_count} ticket{inv.ticket_count !== 1 ? 's' : ''}
                                             </p>
