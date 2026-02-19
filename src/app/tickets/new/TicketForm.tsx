@@ -67,6 +67,10 @@ export default function TicketForm({ stacks, locations, inventory }: TicketFormP
             setError('');
             await createTicket(formData);
         } catch (e: any) {
+            // Next.js redirect() works by throwing – let it propagate
+            if (e?.digest?.startsWith('NEXT_REDIRECT')) {
+                throw e;
+            }
             setError(e.message || 'Failed to create ticket');
         }
     }
