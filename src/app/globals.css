@@ -592,3 +592,35 @@ body {
 .cl-organizationSwitcherPopoverActionButton[data-active="true"] {
   background: var(--bg-surface) !important;
 }
+
+/* ===== Print Styles ===== */
+@media print {
+
+  .print-hide,
+  nav,
+  .bottom-nav {
+    display: none !important;
+  }
+
+  body {
+    background: white !important;
+    color: #1a1a1a !important;
+    font-size: 14px;
+  }
+
+  .glass-card {
+    background: white !important;
+    border: 1px solid #e5e5e5 !important;
+    backdrop-filter: none !important;
+    box-shadow: none !important;
+    border-radius: 0 !important;
+  }
+
+  .glass-card::before {
+    display: none;
+  }
+
+  * {
+    color: #1a1a1a !important;
+  }
+}
