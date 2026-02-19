@@ -21,10 +21,12 @@ export default async function RootLayout({
 }>) {
   // Get permission flags for navigation visibility
   let canManageTickets = false;
+  let isDriver = false;
   try {
     const { has, userId } = await auth();
     if (userId) {
       canManageTickets = has({ permission: Permissions.TICKETS_MANAGE } as any);
+      isDriver = has({ role: 'org:driver' } as any);
     }
   } catch {
     // Not authenticated — will use defaults
@@ -79,7 +81,7 @@ export default async function RootLayout({
 
             {/* Bottom Navigation */}
             <SignedIn>
-              <RoleNav canManageTickets={canManageTickets} />
+              <RoleNav isDriver={isDriver} canManageTickets={canManageTickets} />
             </SignedIn>
           </ThemeProvider>
         </body>
