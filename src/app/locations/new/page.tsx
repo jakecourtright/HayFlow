@@ -2,6 +2,8 @@ import { auth } from "@clerk/nextjs/server";
 import { redirect } from "next/navigation";
 import { createLocation } from "@/app/actions";
 import UnitSelect from "@/components/UnitSelect";
+import PageHeader from "@/components/ui/PageHeader";
+import SubmitButton from "@/components/ui/SubmitButton";
 
 export default async function NewLocationPage() {
     const { userId, orgId } = await auth();
@@ -9,17 +11,24 @@ export default async function NewLocationPage() {
 
     return (
         <div>
-            <h1 className="text-xl font-bold mb-6">New Location</h1>
+            <PageHeader
+                eyebrow="New location"
+                title="Add a place to store bales"
+                subtitle="Barn, yard, field — anywhere you track inventory."
+                backHref="/locations"
+                backLabel="Locations"
+            />
 
-            <form action={createLocation} className="glass-card space-y-5">
+            <form action={createLocation} className="surface-card space-y-5">
                 <div>
-                    <label className="label-modern">Location Name</label>
+                    <label className="label-modern">Location name</label>
                     <input
                         type="text"
                         name="name"
                         required
-                        placeholder="e.g., Barn A"
+                        placeholder="e.g. Barn A, North Field"
                         className="input-modern"
+                        autoFocus
                     />
                 </div>
 
@@ -30,6 +39,8 @@ export default async function NewLocationPage() {
                             type="number"
                             name="capacity"
                             required
+                            min="1"
+                            inputMode="numeric"
                             placeholder="2000"
                             className="input-modern"
                         />
@@ -40,9 +51,13 @@ export default async function NewLocationPage() {
                     </div>
                 </div>
 
-                <button type="submit" className="btn btn-primary w-full mt-4">
-                    Create Location
-                </button>
+                <SubmitButton className="w-full" pendingLabel="Creating location…">
+                    Create location
+                </SubmitButton>
+
+                <p className="text-xs text-center" style={{ color: 'var(--text-dim)' }}>
+                    Capacity helps you see how full each location is — you can update it anytime.
+                </p>
             </form>
         </div>
     );

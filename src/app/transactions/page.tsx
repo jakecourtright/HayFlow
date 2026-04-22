@@ -2,14 +2,16 @@ import { auth } from "@clerk/nextjs/server";
 import pool from "@/lib/db";
 import { redirect } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, Tractor, ShoppingCart, Banknote, Wrench } from "lucide-react";
+import { Tractor, ShoppingCart, Banknote, Wrench, History } from "lucide-react";
 import { balesToTons, getDefaultWeight } from "@/lib/units";
+import PageHeader from "@/components/ui/PageHeader";
+import EmptyState from "@/components/ui/EmptyState";
 
 async function getAllTransactions(orgId: string) {
     const client = await pool.connect();
     try {
         const result = await client.query(`
-            SELECT 
+            SELECT
                 t.*,
                 s.name as stack_name,
                 s.commodity,
@@ -54,7 +56,6 @@ export default async function TransactionsPage() {
 
     const transactions = await getAllTransactions(orgId);
 
-    // Group transactions by date
     const groupedByDate: Record<string, typeof transactions> = {};
     transactions.forEach(tx => {
         const dateKey = new Date(tx.date).toLocaleDateString('en-US', {
@@ -62,90 +63,81 @@ export default async function TransactionsPage() {
             month: 'long',
             day: 'numeric'
         });
-        if (!groupedByDate[dateKey]) {
-            groupedByDate[dateKey] = [];
-        }
+        if (!groupedByDate[dateKey]) groupedByDate[dateKey] = [];
         groupedByDate[dateKey].push(tx);
     });
 
     return (
-        <div className="space-y-6">
-            {/* Header */}
-            <div className="flex items-center gap-4">
-                <Link
-                    href="/"
-                    className="p-2 rounded-xl transition-colors"
-                    style={{ background: 'var(--bg-surface)' }}
-                >
-                    <ArrowLeft size={20} style={{ color: 'var(--text-dim)' }} />
-                </Link>
-                <div className="flex-1">
-                    <h1 className="text-xl font-bold" style={{ color: 'var(--accent)' }}>
-                        All Transactions
-                    </h1>
-                    <p className="text-sm" style={{ color: 'var(--text-dim)' }}>
-                        {transactions.length} total transactions
-                    </p>
-                </div>
-            </div>
+        <div>
+            <PageHeader
+                eyebrow="Ledger"
+                title="Transactions"
+                subtitle={`${transactions.length} recorded movement${transactions.length === 1 ? '' : 's'}.`}
+                backHref="/"
+                backLabel="Home"
+            />
 
-            {/* Transactions grouped by date */}
             {Object.keys(groupedByDate).length === 0 ? (
-                <div className="glass-card text-center py-12" style={{ color: 'var(--text-dim)' }}>
-                    No transactions yet
-                </div>
+                <EmptyState
+                    icon={<History size={28} />}
+                    title="No transactions yet"
+                    body="Record your first baling, purchase, or sale ticket and it'll show up here."
+                    cta={{ href: "/tickets/new", label: "New ticket" }}
+                />
             ) : (
-                Object.entries(groupedByDate).map(([date, txList]) => (
-                    <div key={date}>
-                        <h2 className="text-sm font-bold mb-3 uppercase" style={{ color: 'var(--text-dim)' }}>
-                            {date}
-                        </h2>
-                        <div className="space-y-2">
-                            {txList.map((tx: any) => {
-                                const amount = parseFloat(tx.amount);
-                                const weight = tx.weight_per_bale || getDefaultWeight(tx.bale_size || '3x4');
-                                const tons = balesToTons(amount, weight);
-                                const txColor = tx.type === 'sale' ? '#ef4444' : 'var(--primary-light)';
+                <div className="space-y-6">
+                    {Object.entries(groupedByDate).map(([date, txList]) => (
+                        <section key={date}>
+                            <h2 className="text-eyebrow mb-3">{date}</h2>
+                            <ul className="space-y-2" role="list">
+                                {txList.map((tx: any) => {
+                                    const amount = parseFloat(tx.amount);
+                                    const weight = tx.weight_per_bale || getDefaultWeight(tx.bale_size || '3x4');
+                                    const tons = balesToTons(amount, weight);
+                                    const isSale = tx.type === 'sale';
+                                    const tintColor = isSale ? 'var(--error)' : 'var(--primary-light)';
+                                    const tintBg = isSale
+                                        ? 'color-mix(in srgb, var(--error) 16%, transparent)'
+                                        : 'color-mix(in srgb, var(--primary) 18%, transparent)';
 
-                                return (
-                                    <Link key={tx.id} href={`/transactions/${tx.id}`} className="block">
-                                        <div className="glass-card p-4 hover:brightness-110 transition-all">
-                                            <div className="flex justify-between items-start">
-                                                <div className="flex items-center gap-3">
-                                                    <div
-                                                        className="p-2 rounded-lg"
-                                                        style={{
-                                                            background: tx.type === 'sale' ? 'rgba(239, 68, 68, 0.2)' : 'rgba(var(--primary-rgb), 0.2)',
-                                                            color: txColor
-                                                        }}
-                                                    >
-                                                        {getTransactionIcon(tx.type)}
+                                    return (
+                                        <li key={tx.id}>
+                                            <Link href={`/transactions/${tx.id}`} className="glass-card-link p-4 block">
+                                                <div className="flex justify-between items-start gap-3">
+                                                    <div className="flex items-center gap-3 min-w-0">
+                                                        <div
+                                                            className="p-2 rounded-lg shrink-0"
+                                                            style={{ background: tintBg, color: tintColor }}
+                                                            aria-hidden
+                                                        >
+                                                            {getTransactionIcon(tx.type)}
+                                                        </div>
+                                                        <div className="min-w-0">
+                                                            <p className="font-semibold truncate" style={{ color: 'var(--accent)' }}>
+                                                                {getTransactionLabel(tx.type)}: {tx.stack_name || 'Unknown'}
+                                                            </p>
+                                                            <p className="text-xs truncate" style={{ color: 'var(--text-dim)' }}>
+                                                                {tx.location_name || 'No location'}{tx.entity ? ` • ${tx.entity}` : ''}
+                                                            </p>
+                                                        </div>
                                                     </div>
-                                                    <div>
-                                                        <p className="font-semibold" style={{ color: 'var(--accent)' }}>
-                                                            {getTransactionLabel(tx.type)}: {tx.stack_name || 'Unknown'}
+                                                    <div className="text-right shrink-0">
+                                                        <p className="text-display-sm" style={{ color: tintColor }}>
+                                                            {isSale ? '−' : '+'}{amount.toLocaleString()}
                                                         </p>
                                                         <p className="text-xs" style={{ color: 'var(--text-dim)' }}>
-                                                            {tx.location_name || 'No location'} {tx.entity && `• ${tx.entity}`}
+                                                            {tons.toFixed(2)} tons
                                                         </p>
                                                     </div>
                                                 </div>
-                                                <div className="text-right">
-                                                    <p className="font-bold text-lg" style={{ color: txColor }}>
-                                                        {tx.type === 'sale' ? '−' : '+'}{amount.toLocaleString()}
-                                                    </p>
-                                                    <p className="text-xs" style={{ color: 'var(--text-dim)' }}>
-                                                        {tons.toFixed(2)} tons
-                                                    </p>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </Link>
-                                );
-                            })}
-                        </div>
-                    </div>
-                ))
+                                            </Link>
+                                        </li>
+                                    );
+                                })}
+                            </ul>
+                        </section>
+                    ))}
+                </div>
             )}
         </div>
     );

@@ -2,9 +2,10 @@ import { auth } from "@clerk/nextjs/server";
 import pool from "@/lib/db";
 import { redirect, notFound } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft } from "lucide-react";
 import { Permissions } from "@/lib/permissions";
 import InvoiceStatusActions from "./InvoiceStatusActions";
+import PageHeader from "@/components/ui/PageHeader";
+import StatusChip from "@/components/ui/StatusChip";
 
 async function getInvoice(invoiceId: string, orgId: string) {
     const client = await pool.connect();
@@ -16,7 +17,7 @@ async function getInvoice(invoiceId: string, orgId: string) {
         if (invoiceRes.rows.length === 0) return null;
 
         const ticketsRes = await client.query(`
-            SELECT 
+            SELECT
                 tk.*,
                 s.name as stack_name,
                 s.commodity,
@@ -49,13 +50,6 @@ export default async function InvoiceDetailPage({ params }: { params: Promise<{ 
     const invoice = await getInvoice(id, orgId);
     if (!invoice) notFound();
 
-    const STATUS_STYLES: Record<string, { bg: string; text: string }> = {
-        draft: { bg: 'rgba(245, 158, 11, 0.2)', text: '#f59e0b' },
-        sent: { bg: 'rgba(59, 130, 246, 0.2)', text: '#3b82f6' },
-        paid: { bg: 'rgba(34, 197, 94, 0.2)', text: '#22c55e' },
-    };
-
-    const statusStyle = STATUS_STYLES[invoice.status] || STATUS_STYLES.draft;
     const totalBales = invoice.tickets.reduce((sum: number, t: any) => sum + parseFloat(t.amount), 0);
     const totalNetLbs = invoice.tickets.reduce((sum: number, t: any) => sum + (parseFloat(t.net_lbs) || 0), 0);
     const hasPricing = invoice.price_per_unit && parseFloat(invoice.price_per_unit) > 0;
@@ -67,52 +61,35 @@ export default async function InvoiceDetailPage({ params }: { params: Promise<{ 
     });
 
     return (
-        <div className="space-y-4">
-            {/* Back nav */}
-            <div className="flex items-center gap-4">
-                <Link
-                    href="/dispatch/invoices"
-                    className="p-2 rounded-xl transition-colors"
-                    style={{ background: 'var(--bg-surface)' }}
-                >
-                    <ArrowLeft size={20} style={{ color: 'var(--text-dim)' }} />
-                </Link>
-                <div className="flex-1 flex items-center gap-2">
-                    <h1 className="text-xl font-bold" style={{ color: 'var(--accent)' }}>
-                        {invoice.invoice_number}
-                    </h1>
-                    <span
-                        className="text-xs font-bold px-2 py-0.5 rounded-full uppercase"
-                        style={{ background: statusStyle.bg, color: statusStyle.text }}
-                    >
-                        {invoice.status}
-                    </span>
-                </div>
-            </div>
+        <div>
+            <PageHeader
+                eyebrow="Invoice"
+                title={invoice.invoice_number}
+                subtitle={invoice.customer || 'No customer'}
+                backHref="/dispatch/invoices"
+                backLabel="Invoices"
+                actions={<StatusChip status={invoice.status} />}
+            />
 
-            {/* Invoice Document */}
-            <div className="glass-card space-y-5">
-                {/* Invoice Header: Number + Date / Bill To */}
+            <article className="glass-card space-y-5">
                 <div className="flex justify-between items-start gap-4">
                     <div>
-                        <p className="text-xs font-bold uppercase tracking-wider" style={{ color: 'var(--text-dim)' }}>Invoice</p>
-                        <p className="text-lg font-bold" style={{ color: 'var(--accent)' }}>{invoice.invoice_number}</p>
+                        <p className="text-eyebrow">Invoice</p>
+                        <p className="text-display-sm" style={{ color: 'var(--accent)' }}>{invoice.invoice_number}</p>
                     </div>
                     <div className="text-right">
-                        <p className="text-xs font-bold uppercase tracking-wider" style={{ color: 'var(--text-dim)' }}>Date</p>
+                        <p className="text-eyebrow">Date</p>
                         <p className="text-sm font-medium" style={{ color: 'var(--text-main)' }}>{invoiceDate}</p>
                     </div>
                 </div>
 
-                {/* Bill To */}
                 {invoice.customer && (
                     <div>
-                        <p className="text-xs font-bold uppercase tracking-wider mb-0.5" style={{ color: 'var(--text-dim)' }}>Bill To</p>
+                        <p className="text-eyebrow mb-0.5">Bill to</p>
                         <p className="font-semibold" style={{ color: 'var(--text-main)' }}>{invoice.customer}</p>
                     </div>
                 )}
 
-                {/* Line Items Table */}
                 <div>
                     <div className="grid grid-cols-12 gap-2 text-xs font-bold uppercase tracking-wider pb-2 mb-1"
                         style={{ color: 'var(--text-dim)', borderBottom: '2px solid var(--glass-border)' }}>
@@ -133,14 +110,14 @@ export default async function InvoiceDetailPage({ params }: { params: Promise<{ 
                         }
 
                         return (
-                            <Link key={ticket.id} href={`/tickets/${ticket.id}`} className="block">
-                                <div className="grid grid-cols-12 gap-2 py-2.5 hover:brightness-110 transition-all items-center"
+                            <Link key={ticket.id} href={`/tickets/${ticket.id}`} className="block hover:brightness-110 transition-all">
+                                <div className="grid grid-cols-12 gap-2 py-2.5 items-center"
                                     style={{ borderBottom: '1px solid var(--glass-border)' }}>
-                                    <div className="col-span-5">
-                                        <p className="text-sm font-medium" style={{ color: 'var(--text-main)' }}>
+                                    <div className="col-span-5 min-w-0">
+                                        <p className="text-sm font-medium truncate" style={{ color: 'var(--text-main)' }}>
                                             {ticket.stack_name}
                                         </p>
-                                        <p className="text-xs" style={{ color: 'var(--text-dim)' }}>
+                                        <p className="text-xs truncate" style={{ color: 'var(--text-dim)' }}>
                                             {ticket.commodity}{ticket.location_name ? ` • ${ticket.location_name}` : ''}
                                         </p>
                                     </div>
@@ -175,16 +152,14 @@ export default async function InvoiceDetailPage({ params }: { params: Promise<{ 
                     })}
                 </div>
 
-                {/* Summary / Totals */}
                 <div className="space-y-2 pt-1">
-                    {/* Subtotals */}
                     <div className="flex justify-between text-sm" style={{ color: 'var(--text-dim)' }}>
-                        <span>Total Bales</span>
+                        <span>Total bales</span>
                         <span className="font-medium">{totalBales.toLocaleString()}</span>
                     </div>
                     {totalNetLbs > 0 && (
                         <div className="flex justify-between text-sm" style={{ color: 'var(--text-dim)' }}>
-                            <span>Total Weight</span>
+                            <span>Total weight</span>
                             <span className="font-medium">{totalNetLbs.toLocaleString()} lbs ({(totalNetLbs / 2000).toFixed(2)} tons)</span>
                         </div>
                     )}
@@ -195,29 +170,28 @@ export default async function InvoiceDetailPage({ params }: { params: Promise<{ 
                         </div>
                     )}
 
-                    {/* Grand Total */}
                     {hasPricing && (
                         <div className="flex justify-between items-baseline pt-3 mt-1"
                             style={{ borderTop: '2px solid var(--glass-border)' }}>
-                            <span className="text-sm font-bold uppercase" style={{ color: 'var(--text-dim)' }}>Total Due</span>
-                            <span className="text-2xl font-bold" style={{ color: 'var(--primary-light)' }}>
+                            <span className="text-eyebrow">Total due</span>
+                            <span className="text-display-md" style={{ color: 'var(--primary-light)' }}>
                                 ${totalAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                             </span>
                         </div>
                     )}
                 </div>
 
-                {/* Notes */}
                 {invoice.notes && (
                     <div className="pt-3" style={{ borderTop: '1px solid var(--glass-border)' }}>
-                        <p className="text-xs font-bold uppercase tracking-wider mb-1" style={{ color: 'var(--text-dim)' }}>Notes</p>
+                        <p className="text-eyebrow mb-1">Notes</p>
                         <p className="text-sm" style={{ color: 'var(--text-main)' }}>{invoice.notes}</p>
                     </div>
                 )}
-            </div>
+            </article>
 
-            {/* Actions (Share, Status, Edit, Delete) */}
-            <InvoiceStatusActions invoiceId={invoice.id} currentStatus={invoice.status} shareToken={invoice.share_token} />
+            <div className="mt-4">
+                <InvoiceStatusActions invoiceId={invoice.id} currentStatus={invoice.status} shareToken={invoice.share_token} />
+            </div>
         </div>
     );
 }

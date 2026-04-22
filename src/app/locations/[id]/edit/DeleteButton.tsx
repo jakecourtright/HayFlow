@@ -1,26 +1,50 @@
 'use client';
 
 import { deleteLocation } from "@/app/actions";
+import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { Trash2 } from "lucide-react";
+import ConfirmDialog from "@/components/ui/ConfirmDialog";
+import { useToast } from "@/components/ui/Toast";
 
 export default function DeleteButton({ locationId }: { locationId: string }) {
+    const [open, setOpen] = useState(false);
+    const [busy, setBusy] = useState(false);
+    const toast = useToast();
+    const router = useRouter();
+
     async function handleDelete() {
-        if (confirm('Are you sure you want to delete this location? This cannot be undone.')) {
-            try {
-                await deleteLocation(locationId);
-            } catch (error: any) {
-                alert(error.message || 'Failed to delete location');
-            }
+        setBusy(true);
+        try {
+            await deleteLocation(locationId);
+            toast.success('Location deleted');
+            router.push('/locations');
+        } catch (error: any) {
+            toast.error(error.message || 'Failed to delete location');
+            setBusy(false);
+            setOpen(false);
         }
     }
 
     return (
-        <button
-            onClick={handleDelete}
-            className="w-full p-3 rounded-xl border border-red-500/30 text-red-400 hover:bg-red-500/10 transition-colors flex items-center justify-center gap-2"
-        >
-            <Trash2 size={16} />
-            Delete Location
-        </button>
+        <>
+            <button
+                onClick={() => setOpen(true)}
+                className="btn btn-danger w-full"
+            >
+                <Trash2 size={16} />
+                Delete location
+            </button>
+            <ConfirmDialog
+                open={open}
+                tone="danger"
+                title="Delete this location?"
+                description="You can only delete empty locations — move any bales out first. This cannot be undone."
+                confirmLabel="Delete location"
+                busy={busy}
+                onCancel={() => setOpen(false)}
+                onConfirm={handleDelete}
+            />
+        </>
     );
 }

@@ -1,5 +1,6 @@
 import {
   ClerkProvider,
+  OrganizationSwitcher,
   SignedIn,
   UserButton,
 } from "@clerk/nextjs";
@@ -11,6 +12,7 @@ import { ThemeProvider } from "./contexts/theme-context";
 import { auth } from "@clerk/nextjs/server";
 import RoleNav from "@/components/RoleNav";
 import { Permissions } from "@/lib/permissions";
+import { ToastProvider } from "@/components/ui/Toast";
 
 const fraunces = Fraunces({
   subsets: ['latin'],
@@ -65,41 +67,58 @@ export default async function RootLayout({
       <html lang="en" data-theme="harvest" className={`${fraunces.variable} ${geist.variable}`}>
         <body className="antialiased pb-24 transition-colors duration-300">
           <ThemeProvider>
-            {/* Header */}
-            <header className="sticky top-0 z-50 border-b bg-[var(--bg-deep)]/85 backdrop-blur-xl" style={{ borderColor: 'var(--glass-border)' }}>
-              <div className="container mx-auto px-6 py-4 flex justify-between items-center">
-                <Link href="/" className="hover:opacity-85 transition-opacity">
-                  <span className="wordmark text-2xl">
-                    <span className="wordmark-hay">Hay</span>
-                    <span className="wordmark-flow">Flow</span>
-                  </span>
-                </Link>
-                <div className="flex items-center gap-4">
-                  <SignedIn>
-                    <UserButton
-                      appearance={{
-                        elements: {
-                          avatarBox: "w-9 h-9 border-2 border-[var(--primary)]"
-                        }
-                      }}
-                    />
-                    <Link href="/settings" className="p-2 rounded-xl hover:bg-[var(--bg-surface)] transition-colors">
-                      <Settings size={20} style={{ color: 'var(--text-dim)' }} />
-                    </Link>
-                  </SignedIn>
+            <ToastProvider>
+              {/* Header */}
+              <header className="sticky top-0 z-50 border-b bg-[var(--bg-deep)]/85 backdrop-blur-xl" style={{ borderColor: 'var(--glass-border)' }}>
+                <div className="container mx-auto px-6 py-4 flex justify-between items-center max-w-3xl">
+                  <Link href="/" className="hover:opacity-85 transition-opacity">
+                    <span className="wordmark text-2xl">
+                      <span className="wordmark-hay">Hay</span>
+                      <span className="wordmark-flow">Flow</span>
+                    </span>
+                  </Link>
+                  <div className="flex items-center gap-2 sm:gap-3">
+                    <SignedIn>
+                      <div className="hidden sm:block">
+                        <OrganizationSwitcher
+                          hidePersonal
+                          appearance={{
+                            elements: {
+                              organizationSwitcherTrigger:
+                                "rounded-lg px-2 py-1.5 gap-2 hover:bg-[var(--bg-surface)] transition-colors",
+                            },
+                          }}
+                        />
+                      </div>
+                      <Link
+                        href="/settings"
+                        aria-label="Settings"
+                        className="icon-button"
+                      >
+                        <Settings size={18} />
+                      </Link>
+                      <UserButton
+                        appearance={{
+                          elements: {
+                            avatarBox: "w-9 h-9 border-2 border-[var(--primary)]"
+                          }
+                        }}
+                      />
+                    </SignedIn>
+                  </div>
                 </div>
-              </div>
-            </header>
+              </header>
 
-            {/* Main Content */}
-            <main className="container mx-auto px-6 py-6 max-w-2xl">
-              {children}
-            </main>
+              {/* Main Content */}
+              <main className="container mx-auto px-6 py-6 max-w-2xl">
+                {children}
+              </main>
 
-            {/* Bottom Navigation */}
-            <SignedIn>
-              <RoleNav isDriver={isDriver} canManageTickets={canManageTickets} />
-            </SignedIn>
+              {/* Bottom Navigation */}
+              <SignedIn>
+                <RoleNav isDriver={isDriver} canManageTickets={canManageTickets} />
+              </SignedIn>
+            </ToastProvider>
           </ThemeProvider>
         </body>
       </html>

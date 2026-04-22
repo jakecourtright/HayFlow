@@ -2,8 +2,11 @@ import { auth } from "@clerk/nextjs/server";
 import pool from "@/lib/db";
 import { redirect } from "next/navigation";
 import Link from "next/link";
+import { Plus, MapPin } from "lucide-react";
 import LocationCard from "./LocationCard";
 import { getDefaultWeight } from "@/lib/units";
+import PageHeader from "@/components/ui/PageHeader";
+import EmptyState from "@/components/ui/EmptyState";
 
 async function getLocationsWithInventory(orgId: string) {
     const client = await pool.connect();
@@ -13,15 +16,14 @@ async function getLocationsWithInventory(orgId: string) {
             [orgId]
         );
 
-        // Get inventory with weight info for tonnage calculation
         const inventoryQuery = await client.query(`
-            SELECT 
+            SELECT
                 t.location_id,
                 t.stack_id,
                 s.weight_per_bale,
                 s.bale_size,
                 COALESCE(SUM(
-                    CASE 
+                    CASE
                         WHEN t.type IN ('production', 'purchase') THEN t.amount
                         WHEN t.type = 'sale' THEN -t.amount
                         ELSE 0
@@ -33,7 +35,6 @@ async function getLocationsWithInventory(orgId: string) {
             GROUP BY t.location_id, t.stack_id, s.weight_per_bale, s.bale_size
         `, [orgId]);
 
-        // Aggregate by location with tonnage
         const inventoryMap: Record<string, { total_stock: number; stack_count: number; total_tons: number }> = {};
         inventoryQuery.rows.forEach((row: any) => {
             const locId = row.location_id;
@@ -53,7 +54,7 @@ async function getLocationsWithInventory(orgId: string) {
             ...loc,
             total_stock: inventoryMap[loc.id]?.total_stock || 0,
             stack_count: inventoryMap[loc.id]?.stack_count || 0,
-            total_tons: inventoryMap[loc.id]?.total_tons || 0
+            total_tons: inventoryMap[loc.id]?.total_tons || 0,
         }));
     } finally {
         client.release();
@@ -68,20 +69,26 @@ export default async function LocationsPage() {
 
     return (
         <div>
-            <div className="flex justify-between items-center mb-6">
-                <h1 className="text-xl font-bold" style={{ color: 'var(--accent)' }}>Locations</h1>
-                <Link href="/locations/new" className="btn btn-primary">
-                    + Add Location
-                </Link>
-            </div>
+            <PageHeader
+                title="Locations"
+                subtitle="Every barn, yard, or field where inventory lives."
+                actions={
+                    <Link href="/locations/new" className="btn btn-primary btn-sm">
+                        <Plus size={16} />
+                        <span className="hidden sm:inline">Add location</span>
+                        <span className="sm:hidden">Add</span>
+                    </Link>
+                }
+            />
 
             {locations.length === 0 ? (
-                <div className="glass-card text-center py-12">
-                    <p className="mb-4" style={{ color: 'var(--text-dim)' }}>No locations yet</p>
-                    <Link href="/locations/new" className="btn btn-primary">
-                        Create Your First Location
-                    </Link>
-                </div>
+                <EmptyState
+                    icon={<MapPin className="w-7 h-7" />}
+                    title="No locations yet"
+                    body="Locations tell HayFlow where every bale lives. Add your main barn or yard to get started."
+                    ctaHref="/locations/new"
+                    ctaLabel="Add your first location"
+                />
             ) : (
                 <div className="space-y-3">
                     {locations.map((loc: any) => (

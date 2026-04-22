@@ -2,19 +2,21 @@ import { auth } from "@clerk/nextjs/server";
 import pool from "@/lib/db";
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { Pencil } from "lucide-react";
+import { Pencil, Plus, Package } from "lucide-react";
 import StackActions from "./StackActions";
 import { balesToTons, resolveWeight } from "@/lib/units";
 import { getPermissionFlags } from "@/lib/permissions";
+import PageHeader from "@/components/ui/PageHeader";
+import EmptyState from "@/components/ui/EmptyState";
 
 async function getStacksWithInventory(orgId: string) {
     const client = await pool.connect();
     try {
         const stacksResult = await client.query(`
-            SELECT 
+            SELECT
                 s.*,
                 COALESCE(SUM(
-                    CASE 
+                    CASE
                         WHEN t.type IN ('production', 'purchase') THEN t.amount
                         WHEN t.type = 'sale' THEN -t.amount
                         ELSE 0
@@ -28,12 +30,12 @@ async function getStacksWithInventory(orgId: string) {
         `, [orgId]);
 
         const breakdownResult = await client.query(`
-            SELECT 
+            SELECT
                 t.stack_id,
                 l.id as location_id,
                 l.name as location_name,
                 COALESCE(SUM(
-                    CASE 
+                    CASE
                         WHEN t.type IN ('production', 'purchase') THEN t.amount
                         WHEN t.type = 'sale' THEN -t.amount
                         ELSE 0
@@ -44,7 +46,7 @@ async function getStacksWithInventory(orgId: string) {
             WHERE t.org_id = $1 AND t.location_id IS NOT NULL
             GROUP BY t.stack_id, l.id, l.name
             HAVING COALESCE(SUM(
-                CASE 
+                CASE
                     WHEN t.type IN ('production', 'purchase') THEN t.amount
                     WHEN t.type = 'sale' THEN -t.amount
                     ELSE 0
@@ -54,19 +56,17 @@ async function getStacksWithInventory(orgId: string) {
 
         const breakdownMap: Record<number, Array<{ location_name: string; stock: number }>> = {};
         breakdownResult.rows.forEach((row: any) => {
-            if (!breakdownMap[row.stack_id]) {
-                breakdownMap[row.stack_id] = [];
-            }
+            if (!breakdownMap[row.stack_id]) breakdownMap[row.stack_id] = [];
             breakdownMap[row.stack_id].push({
                 location_name: row.location_name,
-                stock: parseFloat(row.stock)
+                stock: parseFloat(row.stock),
             });
         });
 
         return stacksResult.rows.map((stack: any) => ({
             ...stack,
             current_stock: parseFloat(stack.current_stock),
-            location_breakdown: breakdownMap[stack.id] || []
+            location_breakdown: breakdownMap[stack.id] || [],
         }));
     } finally {
         client.release();
@@ -82,97 +82,116 @@ export default async function StacksPage() {
 
     return (
         <div className="space-y-6">
-            <div className="flex justify-between items-center">
-                <h1 className="text-xl font-bold" style={{ color: 'var(--accent)' }}>Product Definitions (Stacks)</h1>
-                {perms.canWriteInventory && (
-                    <Link href="/stacks/new" className="btn btn-primary">
-                        + New Stack
-                    </Link>
-                )}
-            </div>
-
-            <div className="grid gap-4">
-                {stacks.length === 0 ? (
-                    <div className="glass-card text-center py-12">
-                        <p className="mb-4" style={{ color: 'var(--text-dim)' }}>No stacks defined yet</p>
-                        <Link href="/stacks/new" className="btn btn-primary">
-                            Create Your First Stack
+            <PageHeader
+                title="Stacks"
+                subtitle="Every product you track — quality, bale size, and price-per-unit."
+                actions={
+                    perms.canWriteInventory ? (
+                        <Link href="/stacks/new" className="btn btn-primary btn-sm">
+                            <Plus size={16} />
+                            <span className="hidden sm:inline">New stack</span>
+                            <span className="sm:hidden">New</span>
                         </Link>
-                    </div>
-                ) : (
-                    stacks.map((stack: any) => (
-                        <div key={stack.id} className="glass-card">
-                            <div className="flex justify-between items-start">
-                                <Link href={`/stacks/${stack.id}`} className="flex-1 hover:opacity-80 transition-opacity">
-                                    <h3 className="text-lg font-bold" style={{ color: 'var(--accent)' }}>{stack.name}</h3>
-                                    <span className="text-xs font-bold uppercase tracking-wider" style={{ color: 'var(--primary-light)' }}>
-                                        {stack.commodity}
-                                    </span>
-                                </Link>
-                                {perms.canWriteInventory && (
-                                    <div className="flex gap-2">
-                                        <Link
-                                            href={`/stacks/${stack.id}/edit`}
-                                            className="p-2 rounded-lg transition-colors"
+                    ) : null
+                }
+            />
+
+            {stacks.length === 0 ? (
+                <EmptyState
+                    icon={<Package className="w-7 h-7" />}
+                    title="No stacks yet"
+                    body="Stacks are the products you sell — a cutting of alfalfa, a field of oat hay. Define one to start tracking inventory."
+                    ctaHref={perms.canWriteInventory ? "/stacks/new" : undefined}
+                    ctaLabel="Create your first stack"
+                />
+            ) : (
+                <div className="grid gap-4">
+                    {stacks.map((stack: any) => {
+                        const weight = resolveWeight(stack.weight_per_bale, stack.bale_size);
+                        const tons = balesToTons(stack.current_stock, weight);
+                        const isLow = stack.current_stock > 0 && stack.current_stock < 100;
+                        const isEmpty = stack.current_stock <= 0;
+
+                        return (
+                            <div key={stack.id} className="glass-card">
+                                <div className="flex justify-between items-start gap-3 mb-4">
+                                    <Link
+                                        href={`/stacks/${stack.id}`}
+                                        className="flex-1 min-w-0 hover:opacity-80 transition-opacity"
+                                    >
+                                        <h3 className="text-display-sm truncate">{stack.name}</h3>
+                                        <span className="text-eyebrow mt-0.5">{stack.commodity}</span>
+                                    </Link>
+                                    {perms.canWriteInventory && (
+                                        <div className="flex gap-1 flex-shrink-0">
+                                            <Link
+                                                href={`/stacks/${stack.id}/edit`}
+                                                aria-label="Edit stack"
+                                                className="icon-button"
+                                            >
+                                                <Pencil size={14} />
+                                            </Link>
+                                            {perms.canDeleteStacks && <StackActions stackId={stack.id} />}
+                                        </div>
+                                    )}
+                                </div>
+
+                                <div className="mb-3">
+                                    <span className="text-eyebrow">Total inventory</span>
+                                    <div className="flex items-baseline gap-2 mt-0.5">
+                                        <span className="text-2xl font-bold" style={{ color: 'var(--accent)' }}>
+                                            {stack.current_stock.toLocaleString()}
+                                        </span>
+                                        <span className="text-sm" style={{ color: 'var(--text-dim)' }}>
+                                            bales · {tons.toFixed(2)} tons
+                                        </span>
+                                        {isEmpty && <span className="chip chip-sm chip-muted">Out</span>}
+                                        {isLow && <span className="chip chip-sm chip-warning">Low</span>}
+                                    </div>
+                                </div>
+
+                                {stack.location_breakdown.length > 0 && (
+                                    <details className="group" open={stack.location_breakdown.length <= 3}>
+                                        <summary className="cursor-pointer list-none text-eyebrow flex items-center gap-1 select-none py-1">
+                                            <span>By location ({stack.location_breakdown.length})</span>
+                                            <span className="opacity-40 group-open:rotate-90 transition-transform">›</span>
+                                        </summary>
+                                        <div
+                                            className="mt-2 p-3 rounded-xl text-sm space-y-1"
                                             style={{ background: 'var(--bg-surface)' }}
                                         >
-                                            <Pencil size={14} style={{ color: 'var(--text-dim)' }} />
-                                        </Link>
-                                        {perms.canDeleteStacks && <StackActions stackId={stack.id} />}
-                                    </div>
-                                )}
-                            </div>
-
-                            {/* Total Inventory */}
-                            {(() => {
-                                const weight = resolveWeight(stack.weight_per_bale, stack.bale_size);
-                                const tons = balesToTons(stack.current_stock, weight);
-                                return (
-                                    <div className="mt-4 mb-3">
-                                        <span className="text-xs block" style={{ color: 'var(--text-dim)' }}>TOTAL INVENTORY</span>
-                                        <span className="text-xl font-semibold" style={{ color: 'var(--accent)' }}>
-                                            {stack.current_stock.toLocaleString()} Bales
-                                        </span>
-                                        <span className="text-sm ml-2" style={{ color: 'var(--text-dim)' }}>
-                                            ({tons.toFixed(2)} tons)
-                                        </span>
-                                    </div>
-                                );
-                            })()}
-
-                            {/* Location Breakdown */}
-                            {stack.location_breakdown.length > 0 && (
-                                <div className="p-3 rounded-lg mb-4 text-sm" style={{ background: 'var(--bg-surface)' }}>
-                                    <div className="font-semibold text-xs mb-2 pb-1" style={{ color: 'var(--text-dim)', borderBottom: '1px solid var(--glass-border)' }}>
-                                        LOCATION BREAKDOWN
-                                    </div>
-                                    {stack.location_breakdown.map((loc: any, idx: number) => (
-                                        <div key={idx} className="flex justify-between py-1">
-                                            <span style={{ color: 'var(--text-dim)' }}>{loc.location_name}:</span>
-                                            <span className="font-semibold" style={{ color: 'var(--accent)' }}>{loc.stock.toLocaleString()}</span>
+                                            {stack.location_breakdown.map((loc: any, idx: number) => (
+                                                <div key={idx} className="flex justify-between">
+                                                    <span style={{ color: 'var(--text-dim)' }}>{loc.location_name}</span>
+                                                    <span className="font-semibold" style={{ color: 'var(--accent)' }}>
+                                                        {loc.stock.toLocaleString()} bales
+                                                    </span>
+                                                </div>
+                                            ))}
                                         </div>
-                                    ))}
-                                </div>
-                            )}
-
-                            {/* Badges */}
-                            <div className="flex flex-wrap gap-2 text-xs pt-4" style={{ borderTop: '1px solid var(--glass-border)' }}>
-                                <span className="px-2 py-1 rounded" style={{ background: 'var(--bg-surface)', color: 'var(--text-dim)' }}>
-                                    {stack.quality}
-                                </span>
-                                <span className="px-2 py-1 rounded" style={{ background: 'var(--bg-surface)', color: 'var(--text-dim)' }}>
-                                    {stack.bale_size} {stack.weight_per_bale && `(${stack.weight_per_bale} lbs)`}
-                                </span>
-                                {perms.canWriteInventory && (
-                                    <span className="px-2 py-1 rounded" style={{ background: 'var(--bg-surface)', color: 'var(--text-dim)' }}>
-                                        ${parseFloat(stack.base_price).toFixed(2)}/{stack.price_unit || 'bale'}
-                                    </span>
+                                    </details>
                                 )}
+
+                                <div
+                                    className="flex flex-wrap gap-2 text-xs pt-4 mt-3"
+                                    style={{ borderTop: '1px solid var(--glass-border)' }}
+                                >
+                                    <span className="chip chip-sm chip-muted">{stack.quality}</span>
+                                    <span className="chip chip-sm chip-muted">
+                                        {stack.bale_size}
+                                        {stack.weight_per_bale ? ` · ${stack.weight_per_bale} lbs` : ''}
+                                    </span>
+                                    {perms.canWriteInventory && (
+                                        <span className="chip chip-sm chip-info">
+                                            ${parseFloat(stack.base_price).toFixed(2)}/{stack.price_unit || 'bale'}
+                                        </span>
+                                    )}
+                                </div>
                             </div>
-                        </div>
-                    ))
-                )}
-            </div>
+                        );
+                    })}
+                </div>
+            )}
         </div>
     );
 }

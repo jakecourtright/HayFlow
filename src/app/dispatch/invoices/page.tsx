@@ -2,14 +2,11 @@ import { auth } from "@clerk/nextjs/server";
 import pool from "@/lib/db";
 import { redirect } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, FileText } from "lucide-react";
+import { FileText } from "lucide-react";
 import { Permissions } from "@/lib/permissions";
-
-const STATUS_STYLES: Record<string, { bg: string; text: string }> = {
-    draft: { bg: 'rgba(245, 158, 11, 0.2)', text: '#f59e0b' },
-    sent: { bg: 'rgba(59, 130, 246, 0.2)', text: '#3b82f6' },
-    paid: { bg: 'rgba(34, 197, 94, 0.2)', text: '#22c55e' },
-};
+import PageHeader from "@/components/ui/PageHeader";
+import EmptyState from "@/components/ui/EmptyState";
+import StatusChip from "@/components/ui/StatusChip";
 
 async function getInvoices(orgId: string) {
     const client = await pool.connect();
@@ -38,72 +35,64 @@ export default async function InvoicesPage() {
     const invoices = await getInvoices(orgId);
 
     return (
-        <div className="space-y-6">
-            <div className="flex items-center gap-4">
-                <Link
-                    href="/dispatch"
-                    className="p-2 rounded-xl transition-colors"
-                    style={{ background: 'var(--bg-surface)' }}
-                >
-                    <ArrowLeft size={20} style={{ color: 'var(--text-dim)' }} />
-                </Link>
-                <h1 className="text-xl font-bold" style={{ color: 'var(--accent)' }}>Invoices</h1>
-            </div>
+        <div>
+            <PageHeader
+                eyebrow="Billing"
+                title="Invoices"
+                subtitle="Everything you've compiled for customers."
+                backHref="/dispatch"
+                backLabel="Dispatch"
+            />
 
             {invoices.length === 0 ? (
-                <div className="glass-card text-center py-12">
-                    <FileText className="w-12 h-12 mx-auto mb-4" style={{ color: 'var(--text-dim)' }} />
-                    <p style={{ color: 'var(--text-dim)' }}>No invoices yet</p>
-                    <p className="text-sm mt-1" style={{ color: 'var(--text-dim)' }}>
-                        Approve tickets and compile them from the Dispatch page
-                    </p>
-                </div>
+                <EmptyState
+                    icon={<FileText size={28} />}
+                    title="No invoices yet"
+                    body="Approve tickets on the Dispatch queue, then bundle them here into a single invoice."
+                    cta={{ href: "/dispatch", label: "Go to dispatch" }}
+                />
             ) : (
-                <div className="space-y-3">
+                <ul className="space-y-3" role="list">
                     {invoices.map((inv: any) => {
-                        const style = STATUS_STYLES[inv.status] || STATUS_STYLES.draft;
+                        const hasPrice = parseFloat(inv.total_amount) > 0 && inv.price_per_unit;
                         return (
-                            <Link key={inv.id} href={`/dispatch/invoices/${inv.id}`} className="block">
-                                <div className="glass-card p-4 hover:brightness-110 transition-all">
-                                    <div className="flex justify-between items-start">
-                                        <div>
-                                            <div className="flex items-center gap-2">
+                            <li key={inv.id}>
+                                <Link href={`/dispatch/invoices/${inv.id}`} className="glass-card-link p-4 block">
+                                    <div className="flex justify-between items-start gap-3">
+                                        <div className="min-w-0">
+                                            <div className="flex items-center gap-2 flex-wrap">
                                                 <span className="font-bold" style={{ color: 'var(--accent)' }}>
                                                     {inv.invoice_number}
                                                 </span>
-                                                <span
-                                                    className="text-xs font-bold px-2 py-0.5 rounded-full uppercase"
-                                                    style={{ background: style.bg, color: style.text }}
-                                                >
-                                                    {inv.status}
-                                                </span>
+                                                <StatusChip status={inv.status} />
                                             </div>
                                             {inv.customer && (
-                                                <p className="text-sm mt-1" style={{ color: 'var(--text-dim)' }}>
+                                                <p className="text-sm mt-1 truncate" style={{ color: 'var(--text)' }}>
                                                     {inv.customer}
                                                 </p>
                                             )}
-                                        </div>
-                                        <div className="text-right">
-                                            <span className="text-lg font-bold" style={{ color: 'var(--primary-light)' }}>
-                                                {parseFloat(inv.total_amount) > 0 && inv.price_per_unit
-                                                    ? `$${parseFloat(inv.total_amount).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
-                                                    : `${parseFloat(inv.total_amount).toLocaleString()} bales`
-                                                }
-                                            </span>
-                                            <p className="text-xs" style={{ color: 'var(--text-dim)' }}>
-                                                {inv.ticket_count} ticket{inv.ticket_count !== 1 ? 's' : ''}
+                                            <p className="text-xs mt-1" style={{ color: 'var(--text-dim)' }}>
+                                                {new Date(inv.created_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}
+                                                {' · '}
+                                                {inv.ticket_count} ticket{inv.ticket_count !== '1' ? 's' : ''}
                                             </p>
                                         </div>
+                                        <div className="text-right shrink-0">
+                                            <span className="text-display-sm" style={{ color: 'var(--primary-light)' }}>
+                                                {hasPrice
+                                                    ? `$${parseFloat(inv.total_amount).toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`
+                                                    : `${parseFloat(inv.total_amount).toLocaleString()}`}
+                                            </span>
+                                            {!hasPrice && (
+                                                <p className="text-xs" style={{ color: 'var(--text-dim)' }}>bales</p>
+                                            )}
+                                        </div>
                                     </div>
-                                    <p className="text-xs mt-2" style={{ color: 'var(--text-dim)' }}>
-                                        {new Date(inv.created_at).toLocaleDateString()}
-                                    </p>
-                                </div>
-                            </Link>
+                                </Link>
+                            </li>
                         );
                     })}
-                </div>
+                </ul>
             )}
         </div>
     );

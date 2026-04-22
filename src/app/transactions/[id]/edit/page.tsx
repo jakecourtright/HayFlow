@@ -1,9 +1,8 @@
 import { auth } from "@clerk/nextjs/server";
 import pool from "@/lib/db";
 import { redirect, notFound } from "next/navigation";
-import Link from "next/link";
-import { ArrowLeft } from "lucide-react";
 import EditTransactionForm from "./EditTransactionForm";
+import PageHeader from "@/components/ui/PageHeader";
 
 async function getTransaction(transactionId: string, orgId: string) {
     const client = await pool.connect();
@@ -58,25 +57,16 @@ export default async function EditTransactionPage({ params }: { params: Promise<
         getLocations(orgId)
     ]);
 
-    if (!transaction) {
-        notFound();
-    }
+    if (!transaction) notFound();
 
     return (
-        <div className="max-w-md mx-auto">
-            <div className="flex items-center gap-4 mb-6">
-                <Link
-                    href={`/transactions/${id}`}
-                    className="p-2 rounded-xl transition-colors"
-                    style={{ background: 'var(--bg-surface)' }}
-                >
-                    <ArrowLeft size={20} style={{ color: 'var(--text-dim)' }} />
-                </Link>
-                <h1 className="text-xl font-bold" style={{ color: 'var(--accent)' }}>
-                    Edit Transaction
-                </h1>
-            </div>
-
+        <div>
+            <PageHeader
+                eyebrow="Edit transaction"
+                title={`Transaction #${transaction.id}`}
+                backHref={`/transactions/${id}`}
+                backLabel="Transaction"
+            />
             <EditTransactionForm
                 transaction={transaction}
                 stacks={stacks}

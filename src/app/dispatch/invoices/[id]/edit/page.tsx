@@ -3,6 +3,7 @@ import pool from "@/lib/db";
 import { redirect, notFound } from "next/navigation";
 import { Permissions } from "@/lib/permissions";
 import InvoiceEditForm from "./InvoiceEditForm";
+import PageHeader from "@/components/ui/PageHeader";
 
 async function getInvoice(invoiceId: string, orgId: string) {
     const client = await pool.connect();
@@ -41,10 +42,19 @@ export default async function InvoiceEditPage({ params }: { params: Promise<{ id
     if (!data) notFound();
 
     return (
-        <InvoiceEditForm
-            invoice={data.invoice}
-            totalBales={data.totalBales}
-            totalNetLbs={data.totalNetLbs}
-        />
+        <div>
+            <PageHeader
+                eyebrow="Edit invoice"
+                title={data.invoice.invoice_number}
+                subtitle={data.invoice.customer || 'No customer'}
+                backHref={`/dispatch/invoices/${data.invoice.id}`}
+                backLabel="Invoice"
+            />
+            <InvoiceEditForm
+                invoice={data.invoice}
+                totalBales={data.totalBales}
+                totalNetLbs={data.totalNetLbs}
+            />
+        </div>
     );
 }

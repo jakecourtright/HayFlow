@@ -7,6 +7,8 @@ import {
 } from 'recharts';
 import { Calendar, TrendingUp, TrendingDown, DollarSign, Package, Users, MapPin, BarChart3 } from 'lucide-react';
 import type { ReportData } from './page';
+import PageHeader from '@/components/ui/PageHeader';
+import EmptyState from '@/components/ui/EmptyState';
 
 type DateRange = 'this-month' | 'last-30' | 'this-quarter' | 'this-year' | 'all';
 
@@ -106,27 +108,28 @@ export default function ReportsClient({ data }: { data: ReportData }) {
 
     return (
         <div className="space-y-6">
-            {/* Header + Date Filter */}
-            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-                <h1 className="text-xl font-bold" style={{ color: 'var(--accent)' }}>
-                    Financial Reports
-                </h1>
-                <div className="flex gap-1.5 flex-wrap">
-                    {dateRangeOptions.map(opt => (
-                        <button
-                            key={opt.value}
-                            onClick={() => setDateRange(opt.value)}
-                            className="px-3 py-1.5 rounded-lg text-xs font-semibold transition-all"
-                            style={{
-                                background: dateRange === opt.value ? 'var(--primary)' : 'var(--bg-surface)',
-                                color: dateRange === opt.value ? 'white' : 'var(--text-dim)',
-                                border: `1px solid ${dateRange === opt.value ? 'var(--primary)' : 'var(--glass-border)'}`,
-                            }}
-                        >
-                            {opt.label}
-                        </button>
-                    ))}
-                </div>
+            <PageHeader
+                eyebrow="Analytics"
+                title="Financial reports"
+                subtitle="Revenue, cost, and inventory flow across every commodity and location."
+            />
+            <div className="flex flex-wrap gap-1.5">
+                {dateRangeOptions.map(opt => (
+                    <button
+                        key={opt.value}
+                        type="button"
+                        onClick={() => setDateRange(opt.value)}
+                        aria-pressed={dateRange === opt.value}
+                        className="px-3 py-1.5 rounded-lg text-xs font-semibold transition-all"
+                        style={{
+                            background: dateRange === opt.value ? 'var(--primary)' : 'var(--bg-surface)',
+                            color: dateRange === opt.value ? 'white' : 'var(--text-dim)',
+                            border: `1px solid ${dateRange === opt.value ? 'var(--primary)' : 'var(--glass-border)'}`,
+                        }}
+                    >
+                        {opt.label}
+                    </button>
+                ))}
             </div>
 
             {/* ========== KPI Strip ========== */}
@@ -498,13 +501,14 @@ export default function ReportsClient({ data }: { data: ReportData }) {
                 </div>
             )}
 
-            {/* Empty state */}
             {data.monthlyTrends.length === 0 && data.stockByCommodity.length === 0 && (
-                <div className="glass-card py-12 text-center" style={{ color: 'var(--text-dim)' }}>
-                    <BarChart3 size={48} className="mx-auto mb-4 opacity-40" />
-                    <p className="text-lg font-bold">No data yet</p>
-                    <p className="text-sm mt-1">Start logging transactions to see your reports come to life.</p>
-                </div>
+                <EmptyState
+                    icon={<BarChart3 size={28} />}
+                    title="No data yet"
+                    body="Start logging transactions to see revenue, cost, and inventory charts come to life."
+                    cta={{ href: "/tickets/new", label: "New ticket" }}
+                    secondaryCta={{ href: "/stacks/new", label: "Add a stack" }}
+                />
             )}
         </div>
     );

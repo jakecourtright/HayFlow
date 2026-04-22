@@ -2,7 +2,10 @@
 
 import { approveTicket, rejectTicket, deleteTicket } from "@/app/actions";
 import { useState } from "react";
-import { Check, X, Trash2 } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { Check, X, Trash2, AlertCircle } from "lucide-react";
+import ConfirmDialog from "@/components/ui/ConfirmDialog";
+import { useToast } from "@/components/ui/Toast";
 
 interface TicketActionsProps {
     ticketId: number;
@@ -11,54 +14,65 @@ interface TicketActionsProps {
     isOwner: boolean;
 }
 
+type PendingAction = "reject" | "delete" | null;
+
 export default function TicketActions({ ticketId, status, canManage, isOwner }: TicketActionsProps) {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
+    const [pending, setPending] = useState<PendingAction>(null);
+    const toast = useToast();
+    const router = useRouter();
 
-    async function handleAction(action: () => Promise<void>) {
+    async function run(action: () => Promise<void>, successMessage: string) {
         setLoading(true);
         setError('');
         try {
             await action();
+            toast.success(successMessage);
+            router.refresh();
         } catch (e: any) {
-            setError(e.message || 'Action failed');
+            const msg = e.message || 'Action failed';
+            setError(msg);
+            toast.error(msg);
         } finally {
             setLoading(false);
+            setPending(null);
         }
     }
 
-    if (status !== 'pending') {
-        return null;
-    }
+    if (status !== 'pending') return null;
 
     return (
         <div className="space-y-3">
             {error && (
-                <div className="p-3 rounded-lg text-sm" style={{ background: 'rgba(239, 68, 68, 0.2)', color: '#ef4444' }}>
-                    {error}
+                <div
+                    role="alert"
+                    className="flex items-start gap-2 p-3 rounded-xl text-sm"
+                    style={{
+                        background: 'color-mix(in srgb, var(--error) 12%, transparent)',
+                        color: 'var(--error)',
+                    }}
+                >
+                    <AlertCircle size={16} className="flex-shrink-0 mt-0.5" />
+                    <span>{error}</span>
                 </div>
             )}
 
-            {/* Bookkeeper/Admin actions */}
             {canManage && (
-                <div className="flex gap-3">
+                <div className="flex gap-2">
                     <button
-                        onClick={() => handleAction(() => approveTicket(ticketId.toString()))}
+                        onClick={() => run(() => approveTicket(ticketId.toString()), 'Ticket approved')}
                         disabled={loading}
-                        className="btn btn-primary flex-1 flex items-center justify-center gap-2"
+                        aria-busy={loading}
+                        className="btn btn-primary flex-1"
                     >
                         <Check size={16} />
                         Approve
                     </button>
                     <button
-                        onClick={() => {
-                            if (confirm('Reject this ticket?')) {
-                                handleAction(() => rejectTicket(ticketId.toString()));
-                            }
-                        }}
+                        onClick={() => setPending('reject')}
                         disabled={loading}
-                        className="btn btn-secondary flex-1 flex items-center justify-center gap-2"
-                        style={{ background: 'rgba(239, 68, 68, 0.2)', color: '#ef4444', border: '1px solid rgba(239, 68, 68, 0.3)' }}
+                        className="btn btn-danger flex-1"
                     >
                         <X size={16} />
                         Reject
@@ -66,22 +80,38 @@ export default function TicketActions({ ticketId, status, canManage, isOwner }: 
                 </div>
             )}
 
-            {/* Owner or manager can delete pending tickets */}
             {(isOwner || canManage) && (
                 <button
-                    onClick={() => {
-                        if (confirm('Delete this ticket? This cannot be undone.')) {
-                            handleAction(() => deleteTicket(ticketId.toString()));
-                        }
-                    }}
+                    onClick={() => setPending('delete')}
                     disabled={loading}
-                    className="btn w-full flex items-center justify-center gap-2 text-sm"
-                    style={{ background: 'var(--bg-surface)', color: 'var(--text-dim)' }}
+                    className="btn btn-ghost btn-sm w-full"
                 >
                     <Trash2 size={14} />
-                    Delete Ticket
+                    Delete ticket
                 </button>
             )}
+
+            <ConfirmDialog
+                open={pending === 'reject'}
+                tone="danger"
+                title="Reject this ticket?"
+                description="The driver will see it marked as rejected. Inventory will not move."
+                confirmLabel="Reject ticket"
+                busy={loading}
+                onCancel={() => setPending(null)}
+                onConfirm={() => run(() => rejectTicket(ticketId.toString()), 'Ticket rejected')}
+            />
+
+            <ConfirmDialog
+                open={pending === 'delete'}
+                tone="danger"
+                title="Delete this ticket?"
+                description="This cannot be undone. Use reject if you want to keep a record."
+                confirmLabel="Delete permanently"
+                busy={loading}
+                onCancel={() => setPending(null)}
+                onConfirm={() => run(() => deleteTicket(ticketId.toString()), 'Ticket deleted')}
+            />
         </div>
     );
 }

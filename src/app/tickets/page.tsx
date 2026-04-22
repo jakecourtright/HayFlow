@@ -4,17 +4,13 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import { Plus, Ticket, Package, MapPin, ArrowRight } from "lucide-react";
 import { Roles } from "@/lib/permissions";
+import PageHeader from "@/components/ui/PageHeader";
+import EmptyState from "@/components/ui/EmptyState";
+import StatusChip from "@/components/ui/StatusChip";
 
-const STATUS_STYLES: Record<string, { bg: string; text: string; label: string }> = {
-    pending: { bg: 'rgba(180, 83, 9, 0.15)', text: 'var(--warning)', label: 'Pending' },
-    approved: { bg: 'rgba(22, 128, 60, 0.15)', text: 'var(--success)', label: 'Approved' },
-    rejected: { bg: 'rgba(185, 28, 28, 0.15)', text: 'var(--error)', label: 'Rejected' },
-    invoiced: { bg: 'rgba(59, 130, 246, 0.15)', text: '#3b82f6', label: 'Invoiced' },
-};
-
-const TYPE_STYLES: Record<string, { bg: string; text: string; label: string }> = {
-    sale: { bg: 'rgba(22, 128, 60, 0.12)', text: 'var(--success)', label: 'Sale' },
-    barn_to_barn: { bg: 'rgba(139, 92, 246, 0.15)', text: '#8b5cf6', label: 'B2B' },
+const TYPE_LABELS: Record<string, { label: string; variant: "success" | "info" }> = {
+    sale: { label: "Sale", variant: "success" },
+    barn_to_barn: { label: "Transfer", variant: "info" },
 };
 
 async function getTickets(orgId: string, driverIdOrNull: string | null) {
@@ -59,60 +55,55 @@ export default async function TicketsPage() {
 
     return (
         <div className="space-y-6">
-            <div className="flex justify-between items-center">
-                <h1 className="text-xl font-bold" style={{ color: 'var(--accent)' }}>Tickets</h1>
-                <Link href="/tickets/new" className="btn btn-primary flex items-center gap-2">
-                    <Plus size={16} />
-                    New Ticket
-                </Link>
-            </div>
+            <PageHeader
+                title="Tickets"
+                subtitle={isDriver ? "Your tickets — pending approval appear at the top." : "Every sale and transfer recorded by the team."}
+                actions={
+                    <Link href="/tickets/new" className="btn btn-primary btn-sm">
+                        <Plus size={16} />
+                        <span className="hidden sm:inline">New ticket</span>
+                        <span className="sm:hidden">New</span>
+                    </Link>
+                }
+            />
 
             {tickets.length === 0 ? (
-                <div className="glass-card text-center py-12">
-                    <Ticket className="w-12 h-12 mx-auto mb-4" style={{ color: 'var(--text-dim)' }} />
-                    <p className="mb-4" style={{ color: 'var(--text-dim)' }}>No tickets yet</p>
-                    <Link href="/tickets/new" className="btn btn-primary">
-                        Create Your First Ticket
-                    </Link>
-                </div>
+                <EmptyState
+                    icon={<Ticket className="w-7 h-7" />}
+                    title="No tickets yet"
+                    body={isDriver
+                        ? "Record a load out from the field — the office will approve and invoice it."
+                        : "Tickets are the source of every invoice. Create one from the field or bulk-record from the office."}
+                    ctaHref="/tickets/new"
+                    ctaLabel="Create your first ticket"
+                />
             ) : (
                 <div className="space-y-3">
                     {tickets.map((ticket: any) => {
-                        const style = STATUS_STYLES[ticket.status] || STATUS_STYLES.pending;
-                        const typeStyle = TYPE_STYLES[ticket.type] || TYPE_STYLES.sale;
+                        const type = TYPE_LABELS[ticket.type] || TYPE_LABELS.sale;
                         return (
                             <Link key={ticket.id} href={`/tickets/${ticket.id}`} className="block">
-                                <div className="glass-card p-4 hover:brightness-110 transition-all">
-                                    <div className="flex justify-between items-start">
-                                        <div className="flex-1">
-                                            <div className="flex items-center gap-2 mb-1">
-                                                <span className="font-bold" style={{ color: 'var(--accent)' }}>
-                                                    Ticket #{ticket.id}
+                                <div className="glass-card glass-card-link p-4">
+                                    <div className="flex justify-between items-start gap-3">
+                                        <div className="flex-1 min-w-0">
+                                            <div className="flex items-center gap-2 mb-1 flex-wrap">
+                                                <span className="font-bold" style={{ color: "var(--accent)" }}>
+                                                    #{ticket.id}
                                                 </span>
-                                                <span
-                                                    className="text-xs font-bold px-2 py-0.5 rounded-full"
-                                                    style={{ background: typeStyle.bg, color: typeStyle.text }}
-                                                >
-                                                    {typeStyle.label}
-                                                </span>
-                                                <span
-                                                    className="text-xs font-bold px-2 py-0.5 rounded-full"
-                                                    style={{ background: style.bg, color: style.text }}
-                                                >
-                                                    {style.label}
-                                                </span>
+                                                <span className={`chip chip-sm chip-${type.variant}`}>{type.label}</span>
+                                                <StatusChip status={ticket.status} size="sm" />
                                             </div>
-                                            <div className="flex items-center gap-3 text-sm" style={{ color: 'var(--text-dim)' }}>
+                                            <div className="flex items-center gap-3 text-sm flex-wrap" style={{ color: "var(--text-dim)" }}>
                                                 <span className="flex items-center gap-1">
                                                     <Package size={12} />
-                                                    {ticket.stack_name || 'Unknown'}
+                                                    {ticket.stack_name || "Unknown stack"}
                                                 </span>
-                                                {ticket.type === 'barn_to_barn' ? (
+                                                {ticket.type === "barn_to_barn" ? (
                                                     <span className="flex items-center gap-1">
                                                         <MapPin size={12} />
-                                                        {ticket.location_name || '?'}
+                                                        {ticket.location_name || "?"}
                                                         <ArrowRight size={12} />
-                                                        {ticket.destination_name || '?'}
+                                                        {ticket.destination_name || "?"}
                                                     </span>
                                                 ) : (
                                                     ticket.location_name && (
@@ -124,18 +115,25 @@ export default async function TicketsPage() {
                                                 )}
                                             </div>
                                             {ticket.customer && (
-                                                <p className="text-xs mt-1" style={{ color: 'var(--text-dim)' }}>
-                                                    Customer: {ticket.customer}
+                                                <p className="text-xs mt-1" style={{ color: "var(--text-dim)" }}>
+                                                    {ticket.customer}
                                                 </p>
                                             )}
                                         </div>
-                                        <div className="text-right">
-                                            <span className="text-lg font-bold" style={{ color: 'var(--primary-light)' }}>
-                                                {parseFloat(ticket.amount).toLocaleString()}
-                                            </span>
-                                            <span className="text-xs ml-1" style={{ color: 'var(--text-dim)' }}>bales</span>
-                                            <p className="text-xs" style={{ color: 'var(--text-dim)' }}>
-                                                {new Date(ticket.created_at).toLocaleDateString()}
+                                        <div className="text-right flex-shrink-0">
+                                            <div className="flex items-baseline gap-1 justify-end">
+                                                <span className="text-lg font-bold" style={{ color: "var(--primary-light)" }}>
+                                                    {parseFloat(ticket.amount).toLocaleString()}
+                                                </span>
+                                                <span className="text-xs" style={{ color: "var(--text-dim)" }}>
+                                                    bales
+                                                </span>
+                                            </div>
+                                            <p className="text-xs" style={{ color: "var(--text-dim)" }}>
+                                                {new Date(ticket.created_at).toLocaleDateString(undefined, {
+                                                    month: "short",
+                                                    day: "numeric",
+                                                })}
                                             </p>
                                         </div>
                                     </div>

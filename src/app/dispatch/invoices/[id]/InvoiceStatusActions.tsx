@@ -2,8 +2,10 @@
 
 import { updateInvoiceStatus, deleteInvoice } from "@/app/actions";
 import { useState } from "react";
-import { Send, CheckCircle, RotateCcw, Pencil, Trash2, Share2, Check } from "lucide-react";
+import { Send, CheckCircle, RotateCcw, Pencil, Trash2, Share2, Check, AlertCircle } from "lucide-react";
 import Link from "next/link";
+import ConfirmDialog from "@/components/ui/ConfirmDialog";
+import { useToast } from "@/components/ui/Toast";
 
 interface InvoiceStatusActionsProps {
     invoiceId: number;
@@ -12,9 +14,10 @@ interface InvoiceStatusActionsProps {
 }
 
 export default function InvoiceStatusActions({ invoiceId, currentStatus, shareToken }: InvoiceStatusActionsProps) {
+    const toast = useToast();
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
-    const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+    const [confirmDelete, setConfirmDelete] = useState(false);
     const [copied, setCopied] = useState(false);
 
     async function handleStatusChange(newStatus: string) {
@@ -22,8 +25,16 @@ export default function InvoiceStatusActions({ invoiceId, currentStatus, shareTo
         setError('');
         try {
             await updateInvoiceStatus(invoiceId.toString(), newStatus);
+            toast.show(
+                newStatus === 'sent' ? 'Invoice marked as sent' :
+                newStatus === 'paid' ? 'Invoice marked as paid' :
+                'Invoice returned to draft',
+                'success'
+            );
         } catch (e: any) {
-            setError(e.message || 'Failed to update status');
+            const msg = e.message || 'Failed to update status';
+            setError(msg);
+            toast.show(msg, 'error');
         } finally {
             setLoading(false);
         }
@@ -34,11 +45,15 @@ export default function InvoiceStatusActions({ invoiceId, currentStatus, shareTo
         setError('');
         try {
             await deleteInvoice(invoiceId.toString());
+            toast.show('Invoice deleted', 'success');
         } catch (e: any) {
             if (e?.digest?.startsWith('NEXT_REDIRECT')) throw e;
-            setError(e.message || 'Failed to delete invoice');
+            const msg = e.message || 'Failed to delete invoice';
+            setError(msg);
+            toast.show(msg, 'error');
         } finally {
             setLoading(false);
+            setConfirmDelete(false);
         }
     }
 
@@ -47,64 +62,75 @@ export default function InvoiceStatusActions({ invoiceId, currentStatus, shareTo
         try {
             if (navigator.share) {
                 await navigator.share({ title: 'Invoice', url });
-            } else {
-                await navigator.clipboard.writeText(url);
-                setCopied(true);
-                setTimeout(() => setCopied(false), 2000);
+                return;
             }
-        } catch {
-            // Fallback: copy to clipboard
             await navigator.clipboard.writeText(url);
             setCopied(true);
+            toast.show('Invoice link copied', 'success');
             setTimeout(() => setCopied(false), 2000);
+        } catch {
+            try {
+                await navigator.clipboard.writeText(url);
+                setCopied(true);
+                toast.show('Invoice link copied', 'success');
+                setTimeout(() => setCopied(false), 2000);
+            } catch {
+                toast.show('Unable to share invoice', 'error');
+            }
         }
     }
 
     return (
         <div className="space-y-2">
             {error && (
-                <div className="p-3 rounded-lg text-sm" style={{ background: 'rgba(239, 68, 68, 0.2)', color: '#ef4444' }}>
-                    {error}
+                <div role="alert" className="surface-card flex items-start gap-2 p-3" style={{ borderColor: 'var(--error)', color: 'var(--error)' }}>
+                    <AlertCircle size={16} className="shrink-0 mt-0.5" />
+                    <p className="text-sm">{error}</p>
                 </div>
             )}
 
-            {/* Share Button */}
             <button
+                type="button"
                 onClick={handleShare}
-                className="btn w-full flex items-center justify-center gap-2"
-                style={{ background: 'var(--bg-surface)', color: copied ? '#22c55e' : 'var(--text-main)' }}
+                className="btn btn-secondary w-full"
+                style={{ color: copied ? 'var(--success)' : 'var(--text-main)' }}
             >
                 {copied ? <Check size={16} /> : <Share2 size={16} />}
-                {copied ? 'Link Copied!' : 'Share Invoice'}
+                {copied ? 'Link copied' : 'Share invoice'}
             </button>
 
-            {/* Status Actions */}
             {currentStatus === 'draft' && (
                 <button
+                    type="button"
                     onClick={() => handleStatusChange('sent')}
                     disabled={loading}
-                    className="btn btn-primary w-full flex items-center justify-center gap-2"
+                    aria-busy={loading}
+                    className="btn btn-primary w-full"
                 >
                     <Send size={16} />
-                    Mark as Sent
+                    Mark as sent
                 </button>
             )}
 
             {currentStatus === 'sent' && (
-                <div className="flex gap-3">
+                <div className="flex gap-2">
                     <button
+                        type="button"
                         onClick={() => handleStatusChange('paid')}
                         disabled={loading}
-                        className="btn btn-primary flex-1 flex items-center justify-center gap-2"
+                        aria-busy={loading}
+                        className="btn btn-primary flex-1"
                     >
                         <CheckCircle size={16} />
-                        Mark as Paid
+                        Mark as paid
                     </button>
                     <button
+                        type="button"
                         onClick={() => handleStatusChange('draft')}
                         disabled={loading}
-                        className="btn btn-secondary flex items-center justify-center gap-2"
-                        style={{ background: 'var(--bg-surface)' }}
+                        className="btn btn-secondary"
+                        aria-label="Return to draft"
+                        title="Return to draft"
                     >
                         <RotateCcw size={16} />
                     </button>
@@ -112,51 +138,41 @@ export default function InvoiceStatusActions({ invoiceId, currentStatus, shareTo
             )}
 
             {currentStatus === 'paid' && (
-                <div className="glass-card text-center py-3">
-                    <p className="text-sm font-bold" style={{ color: '#22c55e' }}>
-                        ✓ Invoice Paid
-                    </p>
+                <div className="surface-card flex items-center justify-center gap-2 py-3" style={{ color: 'var(--success)' }}>
+                    <CheckCircle size={16} />
+                    <p className="text-sm font-bold">Invoice paid</p>
                 </div>
             )}
 
-            {/* Edit & Delete — always visible */}
-            <div className="flex gap-3 pt-2">
+            <div className="flex gap-2 pt-2">
                 <Link
                     href={`/dispatch/invoices/${invoiceId}/edit`}
-                    className="btn btn-secondary flex-1 flex items-center justify-center gap-2"
-                    style={{ background: 'var(--bg-surface)' }}
+                    className="btn btn-secondary flex-1"
                 >
                     <Pencil size={16} />
                     Edit
                 </Link>
-                {!showDeleteConfirm ? (
-                    <button
-                        onClick={() => setShowDeleteConfirm(true)}
-                        className="btn btn-secondary flex items-center justify-center gap-2"
-                        style={{ background: 'rgba(239, 68, 68, 0.15)', color: '#ef4444' }}
-                    >
-                        <Trash2 size={16} />
-                    </button>
-                ) : (
-                    <div className="flex gap-2">
-                        <button
-                            onClick={handleDelete}
-                            disabled={loading}
-                            className="btn text-sm px-3 py-2"
-                            style={{ background: 'rgba(239, 68, 68, 0.3)', color: '#ef4444' }}
-                        >
-                            Confirm Delete
-                        </button>
-                        <button
-                            onClick={() => setShowDeleteConfirm(false)}
-                            className="btn btn-secondary text-sm px-3 py-2"
-                            style={{ background: 'var(--bg-surface)' }}
-                        >
-                            Cancel
-                        </button>
-                    </div>
-                )}
+                <button
+                    type="button"
+                    onClick={() => setConfirmDelete(true)}
+                    className="icon-button icon-button-danger"
+                    aria-label="Delete invoice"
+                    title="Delete invoice"
+                >
+                    <Trash2 size={16} />
+                </button>
             </div>
+
+            <ConfirmDialog
+                open={confirmDelete}
+                onClose={() => setConfirmDelete(false)}
+                onConfirm={handleDelete}
+                title="Delete invoice?"
+                body="Tickets on this invoice will return to the approved queue so you can re-bundle them."
+                confirmLabel="Delete invoice"
+                tone="danger"
+                busy={loading}
+            />
         </div>
     );
 }

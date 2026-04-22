@@ -4,59 +4,72 @@ import { createStack } from "@/app/actions";
 import { BALE_SIZES, BALE_SIZE_WEIGHTS } from "@/lib/units";
 import { useState } from "react";
 import CustomSelect from "@/components/CustomSelect";
+import PageHeader from "@/components/ui/PageHeader";
+import SubmitButton from "@/components/ui/SubmitButton";
+
+const COMMODITY_OPTIONS = [
+    { value: 'Alfalfa', label: 'Alfalfa' },
+    { value: 'Timothy', label: 'Timothy' },
+    { value: 'Bermuda', label: 'Bermuda' },
+    { value: 'Oat Hay', label: 'Oat Hay' },
+    { value: 'Orchard Grass', label: 'Orchard Grass' },
+    { value: 'Straw', label: 'Straw' },
+    { value: 'Mixed Hay', label: 'Mixed Hay' },
+];
+
+const QUALITY_OPTIONS = [
+    { value: 'Premium', label: 'Premium' },
+    { value: '#1', label: '#1 (Good)' },
+    { value: 'Feeder', label: 'Feeder / Economy' },
+];
+
+const PRICE_UNIT_OPTIONS = [
+    { value: 'bale', label: 'Per bale' },
+    { value: 'ton', label: 'Per ton' },
+];
 
 export default function NewStackPage() {
     const [baleSize, setBaleSize] = useState('3x4');
     const [weightPerBale, setWeightPerBale] = useState(BALE_SIZE_WEIGHTS['3x4']);
     const [priceUnit, setPriceUnit] = useState<'bale' | 'ton'>('bale');
 
+    const baleSizeOptions = BALE_SIZES.map((size) => ({ value: size, label: size }));
+
     const handleBaleSizeChange = (newSize: string) => {
         setBaleSize(newSize);
-        // Prefill with default weight for this bale size
         setWeightPerBale(BALE_SIZE_WEIGHTS[newSize] || 1200);
     };
 
-    const commodityOptions = [
-        { value: 'Alfalfa', label: 'Alfalfa' },
-        { value: 'Timothy', label: 'Timothy' },
-        { value: 'Bermuda', label: 'Bermuda' },
-        { value: 'Oat Hay', label: 'Oat Hay' },
-        { value: 'Orchard Grass', label: 'Orchard Grass' },
-        { value: 'Straw', label: 'Straw' },
-        { value: 'Mixed Hay', label: 'Mixed Hay' },
-    ];
-
-    const baleSizeOptions = BALE_SIZES.map(size => ({ value: size, label: size }));
-
-    const qualityOptions = [
-        { value: 'Premium', label: 'Premium' },
-        { value: '#1', label: '#1 (Good)' },
-        { value: 'Feeder', label: 'Feeder / Economy' },
-    ];
-
-    const priceUnitOptions = [
-        { value: 'bale', label: 'Bale' },
-        { value: 'ton', label: 'Ton' },
-    ];
-
     return (
-        <div className="max-w-md mx-auto">
-            <h1 className="text-xl font-bold mb-6" style={{ color: 'var(--accent)' }}>Create New Stack</h1>
+        <div>
+            <PageHeader
+                eyebrow="New stack"
+                title="Define a product"
+                subtitle="A stack is one cutting, lot, or line of product. You'll use it on every ticket."
+                backHref="/stacks"
+                backLabel="Stacks"
+            />
 
-            <form action={createStack} className="glass-card space-y-5">
+            <form action={createStack} className="surface-card space-y-5">
                 <div>
-                    <label className="label-modern">Stack Name / Lot #</label>
-                    <input type="text" name="name" required className="input-modern" placeholder="e.g. 2024-ALF-001" />
+                    <label className="label-modern">Stack name / lot #</label>
+                    <input
+                        type="text"
+                        name="name"
+                        required
+                        className="input-modern"
+                        placeholder="e.g. 2024-ALF-001"
+                    />
                 </div>
 
                 <div>
                     <label className="label-modern">Commodity</label>
-                    <CustomSelect name="commodity" options={commodityOptions} defaultValue="Alfalfa" />
+                    <CustomSelect name="commodity" options={COMMODITY_OPTIONS} defaultValue="Alfalfa" />
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">
                     <div>
-                        <label className="label-modern">Bale Size</label>
+                        <label className="label-modern">Bale size</label>
                         <CustomSelect
                             name="baleSize"
                             options={baleSizeOptions}
@@ -65,7 +78,7 @@ export default function NewStackPage() {
                         />
                     </div>
                     <div>
-                        <label className="label-modern">Weight/Bale (lbs)</label>
+                        <label className="label-modern">Weight/bale (lbs)</label>
                         <input
                             type="number"
                             name="weightPerBale"
@@ -73,34 +86,47 @@ export default function NewStackPage() {
                             value={weightPerBale}
                             onChange={(e) => setWeightPerBale(parseInt(e.target.value) || 0)}
                             min="1"
+                            inputMode="numeric"
                         />
                     </div>
                 </div>
 
                 <div>
                     <label className="label-modern">Quality</label>
-                    <CustomSelect name="quality" options={qualityOptions} defaultValue="Premium" />
+                    <CustomSelect name="quality" options={QUALITY_OPTIONS} defaultValue="Premium" />
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">
                     <div>
-                        <label className="label-modern">Base Price ($)</label>
-                        <input type="number" name="basePrice" step="0.01" className="input-modern" placeholder="0.00" />
+                        <label className="label-modern">Base price ($)</label>
+                        <input
+                            type="number"
+                            name="basePrice"
+                            step="0.01"
+                            min="0"
+                            inputMode="decimal"
+                            className="input-modern"
+                            placeholder="0.00"
+                        />
                     </div>
                     <div>
-                        <label className="label-modern">Price Per</label>
+                        <label className="label-modern">Priced</label>
                         <CustomSelect
                             name="priceUnit"
-                            options={priceUnitOptions}
+                            options={PRICE_UNIT_OPTIONS}
                             value={priceUnit}
                             onChange={(val) => setPriceUnit(val as 'bale' | 'ton')}
                         />
                     </div>
                 </div>
 
-                <button type="submit" className="btn btn-primary w-full mt-4">
-                    Create Product
-                </button>
+                <SubmitButton className="w-full" pendingLabel="Creating stack…">
+                    Create stack
+                </SubmitButton>
+
+                <p className="text-xs text-center" style={{ color: 'var(--text-dim)' }}>
+                    You can adjust any of these later from the stack detail page.
+                </p>
             </form>
         </div>
     );
