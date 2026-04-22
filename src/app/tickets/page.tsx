@@ -3,24 +3,25 @@ import pool from "@/lib/db";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { Plus, Ticket, Package, MapPin, ArrowRight } from "lucide-react";
+import { Roles } from "@/lib/permissions";
 
 const STATUS_STYLES: Record<string, { bg: string; text: string; label: string }> = {
-    pending: { bg: 'rgba(245, 158, 11, 0.2)', text: '#f59e0b', label: 'Pending' },
-    approved: { bg: 'rgba(34, 197, 94, 0.2)', text: '#22c55e', label: 'Approved' },
-    rejected: { bg: 'rgba(239, 68, 68, 0.2)', text: '#ef4444', label: 'Rejected' },
-    invoiced: { bg: 'rgba(59, 130, 246, 0.2)', text: '#3b82f6', label: 'Invoiced' },
+    pending: { bg: 'rgba(180, 83, 9, 0.15)', text: 'var(--warning)', label: 'Pending' },
+    approved: { bg: 'rgba(22, 128, 60, 0.15)', text: 'var(--success)', label: 'Approved' },
+    rejected: { bg: 'rgba(185, 28, 28, 0.15)', text: 'var(--error)', label: 'Rejected' },
+    invoiced: { bg: 'rgba(59, 130, 246, 0.15)', text: '#3b82f6', label: 'Invoiced' },
 };
 
 const TYPE_STYLES: Record<string, { bg: string; text: string; label: string }> = {
-    sale: { bg: 'rgba(34, 197, 94, 0.15)', text: '#22c55e', label: 'Sale' },
+    sale: { bg: 'rgba(22, 128, 60, 0.12)', text: 'var(--success)', label: 'Sale' },
     barn_to_barn: { bg: 'rgba(139, 92, 246, 0.15)', text: '#8b5cf6', label: 'B2B' },
 };
 
-async function getTickets(orgId: string, userId: string) {
+async function getTickets(orgId: string, driverIdOrNull: string | null) {
     const client = await pool.connect();
     try {
-        const result = await client.query(`
-            SELECT 
+        const baseQuery = `
+            SELECT
                 tk.*,
                 s.name as stack_name,
                 s.commodity,
@@ -30,9 +31,19 @@ async function getTickets(orgId: string, userId: string) {
             LEFT JOIN stacks s ON s.id = tk.stack_id
             LEFT JOIN locations l ON l.id = tk.location_id
             LEFT JOIN locations dl ON dl.id = tk.destination_id
-            WHERE tk.org_id = $1
-            ORDER BY tk.created_at DESC
-        `, [orgId]);
+            WHERE tk.org_id = $1`;
+
+        if (driverIdOrNull) {
+            const result = await client.query(
+                `${baseQuery} AND tk.driver_id = $2 ORDER BY tk.created_at DESC`,
+                [orgId, driverIdOrNull]
+            );
+            return result.rows;
+        }
+        const result = await client.query(
+            `${baseQuery} ORDER BY tk.created_at DESC`,
+            [orgId]
+        );
         return result.rows;
     } finally {
         client.release();
@@ -40,10 +51,11 @@ async function getTickets(orgId: string, userId: string) {
 }
 
 export default async function TicketsPage() {
-    const { userId, orgId } = await auth();
+    const { userId, orgId, has } = await auth();
     if (!userId || !orgId) redirect("/sign-in");
 
-    const tickets = await getTickets(orgId, userId);
+    const isDriver = has({ role: Roles.DRIVER } as any);
+    const tickets = await getTickets(orgId, isDriver ? userId : null);
 
     return (
         <div className="space-y-6">

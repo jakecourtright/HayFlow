@@ -1,55 +1,58 @@
--- Users Table (managed by Clerk, but referenced for foreign keys)
--- Note: user_id and org_id are Clerk IDs stored as VARCHAR
+-- HayFlow consolidated schema — source of truth
+-- user_id and org_id are Clerk IDs stored as VARCHAR(255)
+-- Run with: npm run migrate
 
--- Locations Table
+-- ============================================================
+-- Locations (barns / storage facilities)
+-- ============================================================
 CREATE TABLE IF NOT EXISTS locations (
   id SERIAL PRIMARY KEY,
   name VARCHAR(255) NOT NULL,
   capacity INTEGER NOT NULL,
   unit VARCHAR(50) DEFAULT 'bales',
-  capacity_unit VARCHAR(20) DEFAULT 'bales', -- 'bales' or 'tons'
+  capacity_unit VARCHAR(20) DEFAULT 'bales',      -- 'bales' | 'tons'
   user_id VARCHAR(255) NOT NULL,
   org_id VARCHAR(255) NOT NULL,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
--- Stacks (Products/Lot Numbers) Table
+-- ============================================================
+-- Stacks (products / lot numbers)
+-- ============================================================
 CREATE TABLE IF NOT EXISTS stacks (
   id SERIAL PRIMARY KEY,
   name VARCHAR(255) NOT NULL,
   commodity VARCHAR(255),
-  bale_size VARCHAR(100), -- '3x3', '3x4', '4x4', '2-Tie', '3-Tie'
+  bale_size VARCHAR(100),                          -- '3x3' | '3x4' | '4x4' | '2-Tie' | '3-Tie'
   quality VARCHAR(100),
   base_price DECIMAL(10, 2) DEFAULT 0,
-  weight_per_bale INTEGER, -- lbs per bale (overrides bale_size default)
-  price_unit VARCHAR(20) DEFAULT 'bale', -- 'bale' or 'ton'
+  weight_per_bale INTEGER,                         -- lbs per bale (overrides bale_size default)
+  price_unit VARCHAR(20) DEFAULT 'bale',           -- 'bale' | 'ton'
   user_id VARCHAR(255) NOT NULL,
   org_id VARCHAR(255) NOT NULL,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
--- Transactions Table
+-- ============================================================
+-- Transactions (inventory ledger)
+-- ============================================================
 CREATE TABLE IF NOT EXISTS transactions (
   id SERIAL PRIMARY KEY,
   date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  type VARCHAR(50) NOT NULL, -- 'production', 'purchase', 'sale', 'adjustment'
+  type VARCHAR(50) NOT NULL,                       -- 'production' | 'purchase' | 'sale' | 'adjustment'
   stack_id INTEGER REFERENCES stacks(id) ON DELETE SET NULL,
   location_id INTEGER REFERENCES locations(id) ON DELETE SET NULL,
-  amount DECIMAL(10, 2) NOT NULL,
-  unit VARCHAR(50),
-  entity VARCHAR(255), -- Buyer or seller name
-  price DECIMAL(10, 2) DEFAULT 0,
+  amount DECIMAL(10, 2) NOT NULL,                  -- always in bales
+  unit VARCHAR(50),                                -- always 'bales'
+  entity VARCHAR(255),                             -- buyer or seller
+  price DECIMAL(10, 2) DEFAULT 0,                  -- always stored as $/ton
   user_id VARCHAR(255) NOT NULL,
   org_id VARCHAR(255) NOT NULL
 );
 
--- Indexes for performance on org_id queries
-CREATE INDEX IF NOT EXISTS idx_locations_org_id ON locations(org_id);
-CREATE INDEX IF NOT EXISTS idx_stacks_org_id ON stacks(org_id);
-CREATE INDEX IF NOT EXISTS idx_transactions_org_id ON transactions(org_id);
-CREATE INDEX IF NOT EXISTS idx_transactions_stack_location ON transactions(stack_id, location_id);
-
--- User Preferences (dashboard layout, settings, etc.)
+-- ============================================================
+-- User preferences (dashboard layout, theme, etc.)
+-- ============================================================
 CREATE TABLE IF NOT EXISTS user_preferences (
   id SERIAL PRIMARY KEY,
   user_id VARCHAR(255) NOT NULL,
@@ -60,51 +63,87 @@ CREATE TABLE IF NOT EXISTS user_preferences (
   UNIQUE(user_id, org_id, preference_key)
 );
 
-CREATE INDEX IF NOT EXISTS idx_user_preferences_lookup 
-ON user_preferences(user_id, org_id, preference_key);
-
--- Tickets: Driver-created removal requests staged for invoicing
+-- ============================================================
+-- Tickets (driver-created removal requests)
+-- ============================================================
 CREATE TABLE IF NOT EXISTS tickets (
   id SERIAL PRIMARY KEY,
+  type VARCHAR(50) DEFAULT 'sale',                 -- 'sale' | 'barn_to_barn'
   stack_id INTEGER REFERENCES stacks(id) ON DELETE SET NULL,
-  location_id INTEGER REFERENCES locations(id) ON DELETE SET NULL,
-  amount DECIMAL(10, 2) NOT NULL,       -- bales (canonical)
-  customer VARCHAR(255),                 -- who it's going to
+  location_id INTEGER REFERENCES locations(id) ON DELETE SET NULL,   -- source
+  destination_id INTEGER REFERENCES locations(id) ON DELETE SET NULL, -- barn_to_barn only
+  amount DECIMAL(10, 2) NOT NULL,                  -- bales (canonical)
+  net_lbs DECIMAL(12, 2),                          -- scale weight (optional, sale only)
+  customer VARCHAR(255),
   notes TEXT,
-  status VARCHAR(50) DEFAULT 'pending',  -- pending, approved, rejected, invoiced
-  invoice_id INTEGER,                    -- NULL until added to an invoice
-  transaction_id INTEGER,                -- Links to the sale transaction created on approval
-  driver_id VARCHAR(255) NOT NULL,       -- Clerk user ID of creating driver
+  status VARCHAR(50) DEFAULT 'pending',            -- 'pending' | 'approved' | 'rejected' | 'invoiced'
+  invoice_id INTEGER,
+  transaction_id INTEGER,
+  driver_id VARCHAR(255) NOT NULL,
   org_id VARCHAR(255) NOT NULL,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
--- Invoices: Bookkeeper-compiled collections of approved tickets
+-- Backfill columns on pre-existing tickets tables (idempotent)
+ALTER TABLE tickets ADD COLUMN IF NOT EXISTS type VARCHAR(50) DEFAULT 'sale';
+ALTER TABLE tickets ADD COLUMN IF NOT EXISTS net_lbs DECIMAL(12, 2);
+ALTER TABLE tickets ADD COLUMN IF NOT EXISTS destination_id INTEGER REFERENCES locations(id) ON DELETE SET NULL;
+
+-- ============================================================
+-- Invoices (bookkeeper-compiled collections of approved tickets)
+-- ============================================================
 CREATE TABLE IF NOT EXISTS invoices (
   id SERIAL PRIMARY KEY,
   invoice_number VARCHAR(100),
   customer VARCHAR(255),
-  status VARCHAR(50) DEFAULT 'draft',    -- draft, sent, paid
+  status VARCHAR(50) DEFAULT 'draft',              -- 'draft' | 'sent' | 'paid'
   total_amount DECIMAL(12, 2) DEFAULT 0,
+  price_per_unit DECIMAL(10, 2),
+  price_unit VARCHAR(20) DEFAULT 'ton',            -- 'bale' | 'ton'
   notes TEXT,
+  share_token VARCHAR(128),                        -- 32-byte hex (256-bit entropy)
+  share_token_expires_at TIMESTAMP,                -- optional expiry; null = no expiry
   created_by VARCHAR(255) NOT NULL,
   org_id VARCHAR(255) NOT NULL,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
--- FK: tickets -> invoices
-ALTER TABLE tickets ADD CONSTRAINT fk_tickets_invoice
-  FOREIGN KEY (invoice_id) REFERENCES invoices(id) ON DELETE SET NULL;
+-- Backfill columns on pre-existing invoices tables (idempotent)
+ALTER TABLE invoices ADD COLUMN IF NOT EXISTS price_per_unit DECIMAL(10, 2);
+ALTER TABLE invoices ADD COLUMN IF NOT EXISTS price_unit VARCHAR(20) DEFAULT 'ton';
+ALTER TABLE invoices ADD COLUMN IF NOT EXISTS share_token VARCHAR(128);
+ALTER TABLE invoices ADD COLUMN IF NOT EXISTS share_token_expires_at TIMESTAMP;
 
--- FK: tickets -> transactions  
-ALTER TABLE tickets ADD CONSTRAINT fk_tickets_transaction
-  FOREIGN KEY (transaction_id) REFERENCES transactions(id) ON DELETE SET NULL;
+-- ============================================================
+-- Foreign keys (added via ALTER so table creation order is flexible)
+-- ============================================================
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'fk_tickets_invoice') THEN
+    ALTER TABLE tickets ADD CONSTRAINT fk_tickets_invoice
+      FOREIGN KEY (invoice_id) REFERENCES invoices(id) ON DELETE SET NULL;
+  END IF;
 
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'fk_tickets_transaction') THEN
+    ALTER TABLE tickets ADD CONSTRAINT fk_tickets_transaction
+      FOREIGN KEY (transaction_id) REFERENCES transactions(id) ON DELETE SET NULL;
+  END IF;
+END$$;
+
+-- ============================================================
+-- Indexes
+-- ============================================================
+CREATE INDEX IF NOT EXISTS idx_locations_org_id ON locations(org_id);
+CREATE INDEX IF NOT EXISTS idx_stacks_org_id ON stacks(org_id);
+CREATE INDEX IF NOT EXISTS idx_transactions_org_id ON transactions(org_id);
+CREATE INDEX IF NOT EXISTS idx_transactions_stack_location ON transactions(stack_id, location_id);
+CREATE INDEX IF NOT EXISTS idx_user_preferences_lookup ON user_preferences(user_id, org_id, preference_key);
 CREATE INDEX IF NOT EXISTS idx_tickets_org_id ON tickets(org_id);
 CREATE INDEX IF NOT EXISTS idx_tickets_status ON tickets(status, org_id);
 CREATE INDEX IF NOT EXISTS idx_tickets_driver ON tickets(driver_id, org_id);
 CREATE INDEX IF NOT EXISTS idx_tickets_invoice ON tickets(invoice_id);
 CREATE INDEX IF NOT EXISTS idx_invoices_org_id ON invoices(org_id);
 CREATE INDEX IF NOT EXISTS idx_invoices_status ON invoices(status, org_id);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_invoices_share_token ON invoices(share_token) WHERE share_token IS NOT NULL;

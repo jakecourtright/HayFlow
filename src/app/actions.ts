@@ -871,8 +871,12 @@ export async function updateInvoice(id: string, formData: FormData) {
 }
 
 export async function quickSale(formData: FormData) {
-    const { userId, orgId } = await auth();
+    const { userId, orgId, has } = await auth();
     if (!userId || !orgId) throw new Error("Unauthorized");
+
+    if (!has({ permission: Permissions.INVOICES_MANAGE } as any)) {
+        throw new Error("You do not have permission to create invoices");
+    }
 
     const stackId = formData.get('stackId') as string;
     const locationId = formData.get('locationId') as string;
