@@ -1,7 +1,7 @@
 import { auth } from "@clerk/nextjs/server";
 import pool from "@/lib/db";
 import { SignedIn, SignedOut, SignInButton, SignUpButton } from "@clerk/nextjs";
-import { Tractor, Banknote } from 'lucide-react';
+import { Tractor, Receipt, ClipboardCheck, Users } from 'lucide-react';
 import { getDashboardLayout } from "./actions";
 import DashboardGrid from "./dashboard/DashboardGrid";
 import { getPermissionFlags } from "@/lib/permissions";
@@ -13,7 +13,7 @@ async function getStats(orgId: string) {
   try {
     // Total stock (bales)
     const stockRes = await client.query(`
-      SELECT 
+      SELECT
         COALESCE(SUM(
           CASE WHEN t.type IN ('production', 'purchase') THEN t.amount ELSE -t.amount END
         ), 0) as total_stock
@@ -24,7 +24,7 @@ async function getStats(orgId: string) {
 
     // Stock by commodity (converted to tons)
     const commodityRes = await client.query(`
-      SELECT 
+      SELECT
         s.commodity,
         COALESCE(SUM(
           CASE WHEN t.type IN ('production', 'purchase') THEN t.amount ELSE -t.amount END
@@ -42,7 +42,6 @@ async function getStats(orgId: string) {
       ), 0) DESC
     `, [orgId]);
 
-    // Aggregate by commodity name (since multiple stacks of same commodity may have different weights)
     const commodityMap = new Map<string, number>();
     for (const row of commodityRes.rows) {
       const tons = (parseFloat(row.bales) * parseFloat(row.weight_per_bale)) / 2000;
@@ -53,31 +52,27 @@ async function getStats(orgId: string) {
       .map(([commodity, tons]) => ({ commodity, tons }))
       .sort((a, b) => b.tons - a.tons);
 
-    // Sales this month ($) — price is $/ton, amount is bales, need to compute revenue
-    // Revenue = bales * (weight_per_bale / 2000) * price_per_ton
     const now = new Date();
     const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
 
     const salesRes = await client.query(`
-      SELECT 
+      SELECT
         COALESCE(SUM(
           t.amount * (COALESCE(s.weight_per_bale, 1200)::decimal / 2000) * t.price
         ), 0) as sales_total
       FROM transactions t
       JOIN stacks s ON t.stack_id = s.id
-      WHERE t.org_id = $1 
-        AND t.type = 'sale' 
+      WHERE t.org_id = $1
+        AND t.type = 'sale'
         AND t.date >= $2
     `, [orgId, monthStart]);
 
-    // Bales moved this month (all transaction types)
     const movedRes = await client.query(`
       SELECT COALESCE(SUM(t.amount), 0) as bales_moved
       FROM transactions t
       WHERE t.org_id = $1 AND t.date >= $2
     `, [orgId, monthStart]);
 
-    // Recent activity
     const activityRes = await client.query(`
       SELECT t.*, s.name as stack_name, s.commodity
       FROM transactions t
@@ -121,45 +116,92 @@ export default async function Dashboard() {
   return (
     <>
       <SignedOut>
-        <div className="flex flex-col items-center justify-center min-h-[80vh] text-center space-y-8">
-          <div className="space-y-4 max-w-lg">
-            <h1 className="text-5xl font-extrabold tracking-tight bg-gradient-to-r from-[var(--primary)] to-[var(--primary-light)] bg-clip-text text-transparent">
-              HayFlow
+        <section className="py-8 md:py-14 space-y-16">
+          {/* Hero */}
+          <div className="text-center space-y-6 max-w-2xl mx-auto">
+            <span className="chip chip-info">For hay growers & dealers</span>
+            <h1 className="font-display text-5xl md:text-6xl font-bold leading-[1.02]" style={{ color: 'var(--accent)' }}>
+              Hay inventory <span style={{ color: 'var(--primary)' }}>made well.</span>
             </h1>
-            <p className="text-xl" style={{ color: 'var(--text-dim)' }}>
-              Modern inventory management for hay producers. Track bales, sales, and storage with ease.
+            <p className="text-lg md:text-xl leading-relaxed" style={{ color: 'var(--text-dim)' }}>
+              Track bales from the barn. Approve driver tickets. Send clean invoices customers can actually read. HayFlow is the tool your hay business has been missing.
+            </p>
+
+            <div className="flex flex-col sm:flex-row gap-3 justify-center pt-2">
+              <SignUpButton mode="modal" fallbackRedirectUrl="/">
+                <button className="btn btn-primary">
+                  Start free — 14 days
+                </button>
+              </SignUpButton>
+              <SignInButton mode="modal" fallbackRedirectUrl="/">
+                <button className="btn btn-secondary">
+                  Sign in
+                </button>
+              </SignInButton>
+            </div>
+            <p className="text-xs" style={{ color: 'var(--text-dim)' }}>
+              No credit card. Full team features during trial.
             </p>
           </div>
 
-          <div className="flex gap-4 w-full max-w-xs">
-            <SignInButton mode="modal" fallbackRedirectUrl="/">
-              <button className="btn btn-primary flex-1">
-                Sign In
-              </button>
-            </SignInButton>
-            <SignUpButton mode="modal" fallbackRedirectUrl="/">
-              <button className="btn btn-secondary flex-1">
-                Sign Up
-              </button>
-            </SignUpButton>
+          {/* Feature grid */}
+          <div className="grid sm:grid-cols-2 gap-4">
+            <FeatureCard
+              icon={<Tractor className="w-6 h-6" />}
+              title="Track every bale"
+              body="Production, purchases, sales, barn-to-barn transfers. Stock updates as work happens."
+            />
+            <FeatureCard
+              icon={<ClipboardCheck className="w-6 h-6" />}
+              title="Driver tickets, approved fast"
+              body="Drivers create tickets on their phone. Office approves with one tap. Inventory moves automatically."
+            />
+            <FeatureCard
+              icon={<Receipt className="w-6 h-6" />}
+              title="Invoices that look professional"
+              body="Bundle approved tickets into clean invoices. Share a link — no PDF acrobatics, no email attachments."
+            />
+            <FeatureCard
+              icon={<Users className="w-6 h-6" />}
+              title="Built for your team"
+              body="Roles for admins, bookkeepers, and drivers. Everyone sees what they need, nothing they don't."
+            />
           </div>
 
-          <div className="grid grid-cols-2 gap-4 w-full max-w-md mt-12 opacity-80">
-            <div className="glass-card p-4">
-              <Tractor className="w-8 h-8 mx-auto mb-2 text-[var(--primary)]" />
-              <span className="text-sm font-bold">Track Production</span>
-            </div>
-            <div className="glass-card p-4">
-              <Banknote className="w-8 h-8 mx-auto mb-2 text-[var(--primary)]" />
-              <span className="text-sm font-bold">Manage Sales</span>
-            </div>
+          {/* Small print */}
+          <div className="text-center pt-4">
+            <p className="text-xs uppercase tracking-wider font-bold" style={{ color: 'var(--text-dim)' }}>
+              Designed for the field. Engineered for the books.
+            </p>
           </div>
-        </div>
+        </section>
       </SignedOut>
 
       <SignedIn>
         <DashboardGrid stats={stats} layout={layout} canWriteInventory={(await getPermissionFlags()).canWriteInventory} />
       </SignedIn>
     </>
+  );
+}
+
+function FeatureCard({ icon, title, body }: { icon: React.ReactNode; title: string; body: string }) {
+  return (
+    <div className="glass-card">
+      <div className="flex items-start gap-3">
+        <div
+          className="flex-shrink-0 w-10 h-10 rounded-xl flex items-center justify-center"
+          style={{
+            background: 'color-mix(in srgb, var(--primary) 10%, transparent)',
+            color: 'var(--primary)',
+          }}
+        >
+          {icon}
+        </div>
+        <div className="space-y-1">
+          <h3 className="font-bold text-base" style={{ color: 'var(--accent)' }}>{title}</h3>
+          <p className="text-sm leading-relaxed" style={{ color: 'var(--text-dim)' }}>{body}</p>
+        </div>
+      </div>
+    </div>
   );
 }

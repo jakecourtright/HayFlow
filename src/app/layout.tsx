@@ -1,25 +1,41 @@
 import {
   ClerkProvider,
-  SignInButton,
-  SignUpButton,
   SignedIn,
-  SignedOut,
   UserButton,
 } from "@clerk/nextjs";
 import Link from "next/link";
 import { Settings } from 'lucide-react';
+import { Fraunces, Geist } from 'next/font/google';
 import './globals.css';
 import { ThemeProvider } from "./contexts/theme-context";
 import { auth } from "@clerk/nextjs/server";
 import RoleNav from "@/components/RoleNav";
 import { Permissions } from "@/lib/permissions";
 
+const fraunces = Fraunces({
+  subsets: ['latin'],
+  weight: ['500', '600', '700', '800'],
+  variable: '--font-display',
+  display: 'swap',
+});
+
+const geist = Geist({
+  subsets: ['latin'],
+  variable: '--font-sans',
+  display: 'swap',
+});
+
+export const metadata = {
+  title: 'HayFlow — Hay inventory & invoicing, made well',
+  description: 'Modern inventory and invoicing for hay growers and dealers. Track bales, approve tickets, send invoices — from the barn or the office.',
+  icons: { icon: '/brand/favicon.svg' },
+};
+
 export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  // Get permission flags for navigation visibility
   let canManageTickets = false;
   let isDriver = false;
   try {
@@ -46,16 +62,17 @@ export default async function RootLayout({
         },
       }}
     >
-      <html lang="en">
+      <html lang="en" data-theme="harvest" className={`${fraunces.variable} ${geist.variable}`}>
         <body className="antialiased pb-24 transition-colors duration-300">
           <ThemeProvider>
             {/* Header */}
-            <header className="sticky top-0 z-50 border-b bg-[var(--bg-deep)]/80 backdrop-blur-xl" style={{ borderColor: 'var(--glass-border)' }}>
+            <header className="sticky top-0 z-50 border-b bg-[var(--bg-deep)]/85 backdrop-blur-xl" style={{ borderColor: 'var(--glass-border)' }}>
               <div className="container mx-auto px-6 py-4 flex justify-between items-center">
-                <Link href="/" className="hover:opacity-80 transition-opacity">
-                  <h1 className="text-2xl font-extrabold tracking-tight" style={{ color: 'var(--accent)' }}>
-                    HayFlow
-                  </h1>
+                <Link href="/" className="hover:opacity-85 transition-opacity">
+                  <span className="wordmark text-2xl">
+                    <span className="wordmark-hay">Hay</span>
+                    <span className="wordmark-flow">Flow</span>
+                  </span>
                 </Link>
                 <div className="flex items-center gap-4">
                   <SignedIn>

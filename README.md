@@ -1,36 +1,49 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# HayFlow
 
-## Getting Started
+Modern inventory and invoicing for hay growers and dealers. Track bales, approve driver tickets, send clean invoices — from the barn or the office.
 
-First, run the development server:
+## Tech stack
+
+- **Next.js 16** App Router · **React 19** · **TypeScript**
+- **Clerk** — auth + multi-tenant Organizations + roles
+- **Neon Postgres** (serverless pool, raw SQL — no ORM)
+- **Tailwind CSS v4** with a branded theme system
+- **Zod** for validation · **Recharts** for reports · **Lucide** icons
+
+## Getting started
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+npm install
+cp .env.example .env.local   # fill in DATABASE_URL, Clerk keys
+npm run migrate              # apply src/db/schema.sql to Neon
+npm run dev                  # http://localhost:3000
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Required environment variables:
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+- `DATABASE_URL` — Neon Postgres pooled connection string
+- `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` — Clerk frontend key
+- `CLERK_SECRET_KEY` — Clerk backend key
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Project knowledge
 
-## Learn More
+Start with [`CLAUDE.md`](CLAUDE.md) for an overview of how the app is structured, the data model, and the working conventions. Deeper references:
 
-To learn more about Next.js, take a look at the following resources:
+- [docs/architecture.md](docs/architecture.md)
+- [docs/data-model.md](docs/data-model.md)
+- [docs/roles-and-permissions.md](docs/roles-and-permissions.md)
+- [docs/user-flows.md](docs/user-flows.md)
+- [docs/launch-readiness.md](docs/launch-readiness.md)
+- [docs/design-identity.md](docs/design-identity.md)
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Scripts
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+- `npm run dev` — local dev server
+- `npm run build` — production build
+- `npm run lint` — ESLint
+- `npm run migrate` — apply consolidated schema to `DATABASE_URL`
+- `npm run migrate:*` — legacy one-off migrations (kept for historical reference)
 
-## Deploy on Vercel
+## Status
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Pre-launch. See [`docs/launch-readiness.md`](docs/launch-readiness.md) for the open punch list and the prioritized roadmap to paying customers.

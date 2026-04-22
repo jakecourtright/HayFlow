@@ -9,12 +9,48 @@
   --color-accent: var(--accent);
   --color-text-main: var(--text-main);
   --color-text-dim: var(--text-dim);
+  --color-success: var(--success);
+  --color-warning: var(--warning);
   --color-error: var(--error);
+  --font-display: var(--font-display), ui-serif, Georgia, serif;
 }
 
-:root {
-  /* Base variables */
-  --error: #ef4444;
+/* ===== HARVEST — flagship brand (default) ===== */
+/* Warm amber + deep pine + cream. The "agricultural craft meets modern software" palette. */
+:root,
+:root[data-theme="harvest"] {
+  --bg-deep: #F7F2E7;          /* warm canvas */
+  --bg-surface: #FFFFFF;
+  --primary: #B45309;          /* amber 700 */
+  --primary-light: #D97706;    /* amber 600 */
+  --primary-glow: rgba(180, 83, 9, 0.22);
+  --accent: #1F3A2E;           /* deep pine for headings */
+  --text-main: #1C1917;        /* stone 900 */
+  --text-dim: #78716C;         /* stone 500 */
+  --glass-bg: rgba(255, 255, 255, 0.82);
+  --glass-border: rgba(28, 25, 23, 0.08);
+  --glass-blur: blur(20px);
+  --success: #16803C;
+  --warning: #B45309;
+  --error: #B91C1C;
+}
+
+/* ===== PINE — dark alt to Harvest ===== */
+:root[data-theme="pine"] {
+  --bg-deep: #0F1A14;
+  --bg-surface: #18251D;
+  --primary: #D97706;          /* amber 600 */
+  --primary-light: #F59E0B;    /* amber 500 */
+  --primary-glow: rgba(245, 158, 11, 0.28);
+  --accent: #FDE68A;           /* amber 200 highlight */
+  --text-main: #F5F1E6;        /* cream */
+  --text-dim: #9CA393;         /* muted sage */
+  --glass-bg: rgba(15, 26, 20, 0.76);
+  --glass-border: rgba(253, 230, 138, 0.10);
+  --glass-blur: blur(22px);
+  --success: #4ADE80;
+  --warning: #F59E0B;
+  --error: #F87171;
 }
 
 /* Sunset Theme (Default) - Deep Navy & Coral */
@@ -259,29 +295,62 @@
   --error: #DC2626;
 }
 
-/* Harvest - Golden wheat & brown earth (agricultural) */
-:root[data-theme="harvest"] {
-  --bg-deep: #F5F0E1;
-  --bg-surface: #FFFDF7;
-  --primary: #92702A;
-  --primary-light: #B8942D;
-  --primary-glow: rgba(146, 112, 42, 0.2);
-  --accent: #3D3322;
-  --text-main: #2A2315;
-  --text-dim: #8C7E6A;
-  --glass-bg: rgba(255, 253, 247, 0.88);
-  --glass-border: rgba(61, 51, 34, 0.1);
-  --glass-blur: blur(24px);
-  --error: #DC2626;
-}
+/* Harvest brand theme is defined at the top of this file as the default :root. */
 
 body {
   background-color: var(--bg-deep);
   color: var(--text-main);
-  font-size: 18px;
+  font-size: 17px;
   min-height: 100vh;
   transition: background-color 0.3s ease, color 0.3s ease;
+  font-variant-numeric: tabular-nums;
 }
+
+/* ===== Typography helpers ===== */
+.font-display {
+  font-family: var(--font-display), ui-serif, Georgia, serif;
+  font-feature-settings: "ss01", "ss02";
+  letter-spacing: -0.015em;
+}
+
+.wordmark {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0;
+  line-height: 1;
+  letter-spacing: -0.02em;
+}
+
+.wordmark-hay {
+  font-family: var(--font-display), ui-serif, Georgia, serif;
+  font-weight: 700;
+  color: var(--accent);
+}
+
+.wordmark-flow {
+  font-weight: 700;
+  color: var(--primary);
+  letter-spacing: -0.02em;
+}
+
+/* ===== Chips / status badges ===== */
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.25rem 0.625rem;
+  border-radius: 9999px;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.chip-success { background: color-mix(in srgb, var(--success) 14%, transparent); color: var(--success); }
+.chip-warning { background: color-mix(in srgb, var(--warning) 14%, transparent); color: var(--warning); }
+.chip-error   { background: color-mix(in srgb, var(--error) 14%, transparent); color: var(--error); }
+.chip-info    { background: color-mix(in srgb, var(--primary) 14%, transparent); color: var(--primary); }
+.chip-muted   { background: color-mix(in srgb, var(--text-dim) 14%, transparent); color: var(--text-dim); }
 
 /* Glass Card Utility */
 .glass-card {
@@ -289,7 +358,7 @@ body {
   background: var(--glass-bg);
   border-color: var(--glass-border);
   backdrop-filter: var(--glass-blur);
-  box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 6px 24px rgba(28, 25, 23, 0.06);
 }
 
 .glass-card::before {
@@ -300,23 +369,43 @@ body {
 
 /* Buttons */
 .btn {
-  @apply flex items-center justify-center gap-3 rounded-2xl px-6 py-4 font-semibold transition-all duration-300;
+  @apply inline-flex items-center justify-center gap-2 rounded-xl px-5 py-3 font-semibold transition-all duration-200;
+  font-size: 0.9375rem;
 }
 
 .btn:hover {
-  @apply -translate-y-0.5 brightness-110;
+  @apply -translate-y-0.5;
+  filter: brightness(1.06);
 }
 
 .btn-primary {
   background: var(--primary);
-  color: var(--accent);
-  box-shadow: 0 8px 24px var(--primary-glow);
+  color: #FFFFFF;
+  box-shadow: 0 6px 18px var(--primary-glow);
+}
+
+.btn-primary:hover {
+  background: var(--primary-light);
 }
 
 .btn-secondary {
   background: var(--bg-surface);
   color: var(--text-main);
   border: 1px solid var(--glass-border);
+  box-shadow: 0 2px 6px rgba(28, 25, 23, 0.04);
+}
+
+.btn-secondary:hover {
+  border-color: var(--primary-light);
+}
+
+.btn-ghost {
+  background: transparent;
+  color: var(--text-main);
+}
+
+.btn-ghost:hover {
+  background: color-mix(in srgb, var(--text-main) 6%, transparent);
 }
 
 /* Modern Select Dropdowns */
