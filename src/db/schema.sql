@@ -136,6 +136,17 @@ CREATE TABLE IF NOT EXISTS business_profiles (
 );
 
 -- ============================================================
+-- Org billing (local mirror for trial countdown UX; Clerk Billing is source of truth for access)
+-- ============================================================
+CREATE TABLE IF NOT EXISTS org_billing (
+  org_id VARCHAR(255) PRIMARY KEY,
+  trial_started_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  trial_days INTEGER NOT NULL DEFAULT 14,
+  grace_days INTEGER NOT NULL DEFAULT 7,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- ============================================================
 -- Foreign keys (added via ALTER so table creation order is flexible)
 -- ============================================================
 DO $$
@@ -167,3 +178,4 @@ CREATE INDEX IF NOT EXISTS idx_invoices_org_id ON invoices(org_id);
 CREATE INDEX IF NOT EXISTS idx_invoices_status ON invoices(status, org_id);
 CREATE UNIQUE INDEX IF NOT EXISTS idx_invoices_share_token ON invoices(share_token) WHERE share_token IS NOT NULL;
 CREATE UNIQUE INDEX IF NOT EXISTS idx_business_profiles_org ON business_profiles(org_id);
+CREATE INDEX IF NOT EXISTS idx_org_billing_trial_started ON org_billing(trial_started_at);

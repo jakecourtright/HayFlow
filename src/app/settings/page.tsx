@@ -1,7 +1,7 @@
 "use client";
 
 import { useTheme } from "../contexts/theme-context";
-import { Check, Building2, ChevronRight } from "lucide-react";
+import { Check, Building2, ChevronRight, CreditCard } from "lucide-react";
 import Link from "next/link";
 import { OrganizationSwitcher, Protect } from "@clerk/nextjs";
 import TeamManagement from "@/components/TeamManagement";
@@ -194,6 +194,25 @@ export default function SettingsPage() {
                     <ChevronRight size={18} style={{ color: 'var(--text-dim)' }} className="flex-shrink-0" />
                 </Link>
             </Protect>
+
+            <Link href="/billing" className="glass-card flex items-center gap-4 hover:brightness-110 transition-all">
+                <div
+                    className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
+                    style={{
+                        background: 'color-mix(in srgb, var(--primary) 14%, transparent)',
+                        color: 'var(--primary)',
+                    }}
+                >
+                    <CreditCard size={20} />
+                </div>
+                <div className="flex-1 min-w-0">
+                    <p className="font-semibold" style={{ color: 'var(--text-main)' }}>Billing &amp; subscription</p>
+                    <p className="text-sm" style={{ color: 'var(--text-dim)' }}>
+                        Manage your plan, payment method, and invoices.
+                    </p>
+                </div>
+                <ChevronRight size={18} style={{ color: 'var(--text-dim)' }} className="flex-shrink-0" />
+            </Link>
 
             <div className="glass-card">
                 <h2 className="text-lg font-bold mb-3" style={{ color: 'var(--text-main)' }}>Organization</h2>

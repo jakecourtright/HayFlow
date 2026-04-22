@@ -6,11 +6,13 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { tonsToBales, getDefaultWeight, normalizePrice } from "@/lib/units";
 import { Permissions, requirePermission } from "@/lib/permissions";
+import { requireActiveSubscription } from "@/lib/billing";
 import crypto from 'crypto';
 
 export async function submitTransaction(formData: FormData) {
     const { userId, orgId } = await auth();
     if (!userId || !orgId) throw new Error("Unauthorized");
+    await requireActiveSubscription();
 
     const type = formData.get('type') as string;
     const stackId = formData.get('stackId');
@@ -105,6 +107,7 @@ export async function submitTransaction(formData: FormData) {
 export async function updateTransaction(id: string, formData: FormData) {
     const { userId, orgId } = await auth();
     if (!userId || !orgId) throw new Error("Unauthorized");
+    await requireActiveSubscription();
 
     const type = formData.get('type') as string;
     const stackId = formData.get('stackId');
@@ -182,6 +185,7 @@ export async function updateTransaction(id: string, formData: FormData) {
 export async function deleteTransaction(id: string) {
     const { userId, orgId } = await auth();
     if (!userId || !orgId) throw new Error("Unauthorized");
+    await requireActiveSubscription();
 
     const client = await pool.connect();
     try {
@@ -206,6 +210,7 @@ export async function createLocation(formData: FormData) {
     const { userId, orgId } = await auth();
     if (!userId) throw new Error("Not authenticated - please sign in");
     if (!orgId) throw new Error("No organization selected - please select an organization");
+    await requireActiveSubscription();
 
     const name = formData.get('name') as string;
     const capacity = formData.get('capacity') as string;
@@ -235,6 +240,7 @@ export async function updateLocation(id: string, formData: FormData) {
     const { userId, orgId } = await auth();
     if (!userId) throw new Error("Not authenticated - please sign in");
     if (!orgId) throw new Error("No organization selected - please select an organization");
+    await requireActiveSubscription();
 
     const name = formData.get('name') as string;
     const capacity = formData.get('capacity') as string;
@@ -265,6 +271,7 @@ export async function deleteLocation(id: string) {
     const { userId, orgId, has } = await auth();
     if (!userId) throw new Error("Not authenticated - please sign in");
     if (!orgId) throw new Error("No organization selected - please select an organization");
+    await requireActiveSubscription();
 
     if (!has({ permission: Permissions.LOCATIONS_DELETE } as any)) {
         throw new Error("You do not have permission to delete locations");
@@ -299,6 +306,7 @@ export async function createStack(formData: FormData) {
     const { userId, orgId } = await auth();
     if (!userId) throw new Error("Not authenticated - please sign in");
     if (!orgId) throw new Error("No organization selected - please select an organization");
+    await requireActiveSubscription();
 
     const name = formData.get('name') as string;
     const commodity = formData.get('commodity') as string;
@@ -339,6 +347,7 @@ export async function updateStack(id: string, formData: FormData) {
     const { userId, orgId } = await auth();
     if (!userId) throw new Error("Not authenticated - please sign in");
     if (!orgId) throw new Error("No organization selected - please select an organization");
+    await requireActiveSubscription();
 
     const name = formData.get('name') as string;
     const commodity = formData.get('commodity') as string;
@@ -387,6 +396,7 @@ export async function deleteStack(id: string) {
     const { userId, orgId, has } = await auth();
     if (!userId) throw new Error("Not authenticated - please sign in");
     if (!orgId) throw new Error("No organization selected - please select an organization");
+    await requireActiveSubscription();
 
     if (!has({ permission: Permissions.STACKS_DELETE } as any)) {
         throw new Error("You do not have permission to delete stacks");
@@ -442,6 +452,7 @@ export async function getDashboardLayout(): Promise<DashboardLayout> {
 export async function saveDashboardLayout(layout: DashboardLayout) {
     const { userId, orgId } = await auth();
     if (!userId || !orgId) throw new Error("Unauthorized");
+    await requireActiveSubscription();
 
     const client = await pool.connect();
     try {
@@ -463,6 +474,7 @@ export async function saveDashboardLayout(layout: DashboardLayout) {
 export async function createTicket(formData: FormData) {
     const { userId, orgId } = await auth();
     if (!userId || !orgId) throw new Error("Unauthorized");
+    await requireActiveSubscription();
 
     const ticketType = (formData.get('type') as string) || 'sale';
     const stackId = formData.get('stackId') as string;
@@ -540,6 +552,7 @@ export async function createTicket(formData: FormData) {
 export async function approveTicket(id: string) {
     const { userId, orgId, has } = await auth();
     if (!userId || !orgId) throw new Error("Unauthorized");
+    await requireActiveSubscription();
 
     if (!has({ permission: Permissions.TICKETS_MANAGE } as any)) {
         throw new Error("You do not have permission to manage tickets");
@@ -625,6 +638,7 @@ export async function approveTicket(id: string) {
 export async function rejectTicket(id: string) {
     const { userId, orgId, has } = await auth();
     if (!userId || !orgId) throw new Error("Unauthorized");
+    await requireActiveSubscription();
 
     if (!has({ permission: Permissions.TICKETS_MANAGE } as any)) {
         throw new Error("You do not have permission to manage tickets");
@@ -651,6 +665,7 @@ export async function rejectTicket(id: string) {
 export async function deleteTicket(id: string) {
     const { userId, orgId } = await auth();
     if (!userId || !orgId) throw new Error("Unauthorized");
+    await requireActiveSubscription();
 
     const client = await pool.connect();
     try {
@@ -690,6 +705,7 @@ export async function deleteTicket(id: string) {
 export async function createInvoice(formData: FormData) {
     const { userId, orgId, has } = await auth();
     if (!userId || !orgId) throw new Error("Unauthorized");
+    await requireActiveSubscription();
 
     if (!has({ permission: Permissions.INVOICES_MANAGE } as any)) {
         throw new Error("You do not have permission to manage invoices");
@@ -768,6 +784,7 @@ export async function createInvoice(formData: FormData) {
 export async function updateInvoiceStatus(id: string, status: string) {
     const { userId, orgId, has } = await auth();
     if (!userId || !orgId) throw new Error("Unauthorized");
+    await requireActiveSubscription();
 
     if (!has({ permission: Permissions.INVOICES_MANAGE } as any)) {
         throw new Error("You do not have permission to manage invoices");
@@ -794,6 +811,7 @@ export async function updateInvoiceStatus(id: string, status: string) {
 export async function deleteInvoice(id: string) {
     const { userId, orgId, has } = await auth();
     if (!userId || !orgId) throw new Error("Unauthorized");
+    await requireActiveSubscription();
 
     if (!has({ permission: Permissions.INVOICES_MANAGE } as any)) {
         throw new Error("You do not have permission to manage invoices");
@@ -825,6 +843,7 @@ export async function deleteInvoice(id: string) {
 export async function updateInvoice(id: string, formData: FormData) {
     const { userId, orgId, has } = await auth();
     if (!userId || !orgId) throw new Error("Unauthorized");
+    await requireActiveSubscription();
 
     if (!has({ permission: Permissions.INVOICES_MANAGE } as any)) {
         throw new Error("You do not have permission to manage invoices");
@@ -873,6 +892,7 @@ export async function updateInvoice(id: string, formData: FormData) {
 export async function quickSale(formData: FormData) {
     const { userId, orgId, has } = await auth();
     if (!userId || !orgId) throw new Error("Unauthorized");
+    await requireActiveSubscription();
 
     if (!has({ permission: Permissions.INVOICES_MANAGE } as any)) {
         throw new Error("You do not have permission to create invoices");
@@ -1018,6 +1038,7 @@ export async function getBusinessProfileByOrg(orgId: string): Promise<BusinessPr
 export async function saveBusinessProfile(formData: FormData) {
     const { userId, orgId } = await auth();
     if (!userId || !orgId) throw new Error("Unauthorized");
+    await requireActiveSubscription();
     await requirePermission(Permissions.INVOICES_MANAGE);
 
     const name = (formData.get('name') as string | null)?.trim() || null;

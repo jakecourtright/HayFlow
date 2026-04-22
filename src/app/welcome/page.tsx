@@ -32,7 +32,7 @@ export default async function WelcomePage() {
                 <CreateOrganization
                     skipInvitationScreen
                     hideSlug
-                    afterCreateOrganizationUrl="/"
+                    afterCreateOrganizationUrl="/billing"
                     appearance={{
                         elements: {
                             rootBox: "w-full",

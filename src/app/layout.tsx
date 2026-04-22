@@ -11,6 +11,7 @@ import './globals.css';
 import { ThemeProvider } from "./contexts/theme-context";
 import { auth } from "@clerk/nextjs/server";
 import RoleNav from "@/components/RoleNav";
+import TrialBanner from "@/components/TrialBanner";
 import { Permissions } from "@/lib/permissions";
 import { ToastProvider } from "@/components/ui/Toast";
 
@@ -108,6 +109,10 @@ export default async function RootLayout({
                   </div>
                 </div>
               </header>
+
+              <SignedIn>
+                <TrialBanner />
+              </SignedIn>
 
               {/* Main Content */}
               <main className="container mx-auto px-6 py-6 max-w-2xl">
