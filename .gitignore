@@ -43,3 +43,6 @@ node_modules
 
 # clerk configuration (can include secrets)
 /.clerk/
+
+# Claude Code local settings
+/.claude/
