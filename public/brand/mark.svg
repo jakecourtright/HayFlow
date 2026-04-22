@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" fill="none" aria-label="HayFlow">
+  <!-- stylized stack of three bales -->
+  <rect x="6" y="30" width="36" height="9" rx="1.6" fill="currentColor"/>
+  <rect x="10" y="19" width="28" height="9" rx="1.6" fill="currentColor" opacity="0.82"/>
+  <rect x="14" y="8" width="20" height="9" rx="1.6" fill="currentColor" opacity="0.62"/>
+  <!-- twine lines -->
+  <line x1="16" y1="30" x2="16" y2="39" stroke="#FFFFFF" stroke-opacity="0.28" stroke-width="1.2"/>
+  <line x1="32" y1="30" x2="32" y2="39" stroke="#FFFFFF" stroke-opacity="0.28" stroke-width="1.2"/>
+  <line x1="19" y1="19" x2="19" y2="28" stroke="#FFFFFF" stroke-opacity="0.28" stroke-width="1.2"/>
+  <line x1="29" y1="19" x2="29" y2="28" stroke="#FFFFFF" stroke-opacity="0.28" stroke-width="1.2"/>
+  <line x1="22" y1="8" x2="22" y2="17" stroke="#FFFFFF" stroke-opacity="0.28" stroke-width="1.2"/>
+  <line x1="26" y1="8" x2="26" y2="17" stroke="#FFFFFF" stroke-opacity="0.28" stroke-width="1.2"/>
+</svg>

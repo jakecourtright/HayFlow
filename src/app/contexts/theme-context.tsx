@@ -2,7 +2,7 @@
 
 import { createContext, useContext, useEffect, useState } from "react";
 
-type Theme = "sunset" | "forest" | "strawberry" | "midnight" | "ember" | "ocean" | "slate" | "moss" | "sand" | "cloud" | "mint" | "blush" | "arctic" | "prairie" | "harvest";
+type Theme = "harvest" | "pine" | "sunset" | "forest" | "strawberry" | "midnight" | "ember" | "ocean" | "slate" | "moss" | "sand" | "cloud" | "mint" | "blush" | "arctic" | "prairie";
 
 interface ThemeContextType {
   theme: Theme;
@@ -12,17 +12,15 @@ interface ThemeContextType {
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
-  const [theme, setThemeState] = useState<Theme>("sunset");
+  const [theme, setThemeState] = useState<Theme>("harvest");
 
   useEffect(() => {
-    // Check localStorage for saved theme
     const savedTheme = localStorage.getItem("theme") as Theme;
     if (savedTheme) {
       setThemeState(savedTheme);
       document.documentElement.setAttribute("data-theme", savedTheme);
     } else {
-      // Default to sunset
-      document.documentElement.setAttribute("data-theme", "sunset");
+      document.documentElement.setAttribute("data-theme", "harvest");
     }
   }, []);
 

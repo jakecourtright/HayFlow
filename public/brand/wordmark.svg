@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 56" aria-label="HayFlow">
+  <g>
+    <rect x="4" y="36" width="30" height="7" rx="1.3" fill="#B45309"/>
+    <rect x="7" y="27" width="24" height="7" rx="1.3" fill="#B45309" opacity="0.82"/>
+    <rect x="10" y="18" width="18" height="7" rx="1.3" fill="#B45309" opacity="0.62"/>
+  </g>
+  <text x="42" y="40" font-family="ui-serif, Georgia, serif" font-weight="700" font-size="30" fill="#1F3A2E" letter-spacing="-0.5">Hay</text>
+  <text x="108" y="40" font-family="ui-sans-serif, system-ui, -apple-system, Inter, sans-serif" font-weight="700" font-size="30" fill="#B45309" letter-spacing="-0.8">Flow</text>
+</svg>

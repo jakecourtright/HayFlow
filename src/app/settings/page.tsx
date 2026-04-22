@@ -6,6 +6,25 @@ import { OrganizationSwitcher, Protect } from "@clerk/nextjs";
 import TeamManagement from "@/components/TeamManagement";
 
 const THEMES = [
+    // Brand Themes — first, recommended
+    {
+        id: "harvest" as const,
+        name: "Harvest",
+        label: "Brand",
+        colors: ["#F7F2E7", "#B45309", "#D97706", "#1F3A2E"],
+        nameColor: "#1F3A2E",
+        checkColor: "#B45309",
+        bgPreview: "#F7F2E7",
+    },
+    {
+        id: "pine" as const,
+        name: "Pine",
+        label: "Brand",
+        colors: ["#0F1A14", "#D97706", "#F59E0B", "#FDE68A"],
+        nameColor: "#F5F1E6",
+        checkColor: "#F59E0B",
+        bgPreview: "#0F1A14",
+    },
     // Dark Themes
     {
         id: "sunset" as const,
@@ -134,20 +153,12 @@ const THEMES = [
         checkColor: "#5B7553",
         bgPreview: "#F3F1EA",
     },
-    {
-        id: "harvest" as const,
-        name: "Harvest",
-        label: "Light",
-        colors: ["#F5F0E1", "#92702A", "#B8942D", "#3D3322"],
-        nameColor: "#3D3322",
-        checkColor: "#92702A",
-        bgPreview: "#F5F0E1",
-    },
 ];
 
 export default function SettingsPage() {
     const { theme, setTheme } = useTheme();
 
+    const brandThemes = THEMES.filter(t => t.label === "Brand");
     const darkThemes = THEMES.filter(t => t.label === "Dark");
     const lightThemes = THEMES.filter(t => t.label === "Light");
 
@@ -192,8 +203,42 @@ export default function SettingsPage() {
             <div className="glass-card">
                 <h2 className="text-lg font-bold mb-2" style={{ color: 'var(--text-main)' }}>Theme</h2>
 
-                {/* Dark Themes */}
+                {/* Brand Themes */}
                 <h3 className="text-xs font-bold uppercase tracking-wider mt-4 mb-3" style={{ color: 'var(--text-dim)' }}>
+                    Brand
+                </h3>
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                    {brandThemes.map(t => (
+                        <button
+                            key={t.id}
+                            onClick={() => setTheme(t.id)}
+                            className={`relative rounded-xl p-3 border-2 transition-all duration-200 text-left ${theme === t.id
+                                ? "border-[var(--primary)] scale-[1.02]"
+                                : "border-transparent hover:border-[var(--glass-border)]"
+                                }`}
+                            style={{ background: t.bgPreview }}
+                        >
+                            <div className="flex items-center justify-between mb-2">
+                                <span className="font-bold text-sm" style={{ color: t.nameColor }}>
+                                    {t.name}
+                                </span>
+                                {theme === t.id && <Check className="w-4 h-4" style={{ color: t.checkColor }} />}
+                            </div>
+                            <div className="flex gap-1.5">
+                                {t.colors.map((c, i) => (
+                                    <div
+                                        key={i}
+                                        className="w-6 h-6 rounded-full"
+                                        style={{ background: c, border: '1px solid rgba(0,0,0,0.08)' }}
+                                    />
+                                ))}
+                            </div>
+                        </button>
+                    ))}
+                </div>
+
+                {/* Dark Themes */}
+                <h3 className="text-xs font-bold uppercase tracking-wider mt-6 mb-3" style={{ color: 'var(--text-dim)' }}>
                     Dark Themes
                 </h3>
                 <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
