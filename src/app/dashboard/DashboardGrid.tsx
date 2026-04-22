@@ -188,7 +188,7 @@ export default function DashboardGrid({ stats, layout: initialLayout, canWriteIn
                     // Drivers see a simplified set of actions
                     return (
                         <div className="grid grid-cols-2 gap-4">
-                            <Link href="/tickets/new" className="glass-card flex flex-col items-center justify-center p-6 hover:brightness-110 transition-all active:scale-95 text-center group border-2 border-transparent hover:border-[var(--primary)] aspect-square">
+                            <Link href="/tickets/new" className="glass-card flex flex-col items-center justify-center p-6 hover:brightness-110 transition-all active:scale-95 text-center group border-2 border-transparent hover:border-[var(--primary)] min-h-40 sm:min-h-44">
                                 <Banknote size={52} style={{ color: 'var(--primary)', marginBottom: '14px' }} />
                                 <span className="font-bold text-2xl" style={{ color: 'var(--text-main)' }}>Ticket</span>
                                 <span className="text-sm mt-1 opacity-80" style={{ color: 'var(--text-dim)' }}>New Ticket</span>
@@ -198,22 +198,22 @@ export default function DashboardGrid({ stats, layout: initialLayout, canWriteIn
                 }
                 return (
                     <div className="grid grid-cols-2 gap-4">
-                        <Link href="/log?type=production" className="glass-card flex flex-col items-center justify-center p-6 hover:brightness-110 transition-all active:scale-95 text-center group border-2 border-transparent hover:border-[var(--primary)] aspect-square">
+                        <Link href="/log?type=production" className="glass-card flex flex-col items-center justify-center p-6 hover:brightness-110 transition-all active:scale-95 text-center group border-2 border-transparent hover:border-[var(--primary)] min-h-40 sm:min-h-44">
                             <Tractor size={52} style={{ color: 'var(--primary)', marginBottom: '14px' }} />
                             <span className="font-bold text-2xl" style={{ color: 'var(--text-main)' }}>Bale</span>
                             <span className="text-sm mt-1 opacity-80" style={{ color: 'var(--text-dim)' }}>Production</span>
                         </Link>
-                        <Link href="/log?type=purchase" className="glass-card flex flex-col items-center justify-center p-6 hover:brightness-110 transition-all active:scale-95 text-center group border-2 border-transparent hover:border-[var(--primary)] aspect-square">
+                        <Link href="/log?type=purchase" className="glass-card flex flex-col items-center justify-center p-6 hover:brightness-110 transition-all active:scale-95 text-center group border-2 border-transparent hover:border-[var(--primary)] min-h-40 sm:min-h-44">
                             <ShoppingCart size={52} style={{ color: 'var(--primary)', marginBottom: '14px' }} />
                             <span className="font-bold text-2xl" style={{ color: 'var(--text-main)' }}>Buy</span>
                             <span className="text-sm mt-1 opacity-80" style={{ color: 'var(--text-dim)' }}>Purchase</span>
                         </Link>
-                        <Link href="/sell" className="glass-card flex flex-col items-center justify-center p-6 hover:brightness-110 transition-all active:scale-95 text-center group border-2 border-transparent hover:border-[var(--primary)] aspect-square">
+                        <Link href="/sell" className="glass-card flex flex-col items-center justify-center p-6 hover:brightness-110 transition-all active:scale-95 text-center group border-2 border-transparent hover:border-[var(--primary)] min-h-40 sm:min-h-44">
                             <Banknote size={52} style={{ color: 'var(--primary)', marginBottom: '14px' }} />
                             <span className="font-bold text-2xl" style={{ color: 'var(--text-main)' }}>Sell</span>
                             <span className="text-sm mt-1 opacity-80" style={{ color: 'var(--text-dim)' }}>Sale</span>
                         </Link>
-                        <Link href="/log?type=adjustment" className="glass-card flex flex-col items-center justify-center p-6 hover:brightness-110 transition-all active:scale-95 text-center group border-2 border-transparent hover:border-[var(--primary)] aspect-square">
+                        <Link href="/log?type=adjustment" className="glass-card flex flex-col items-center justify-center p-6 hover:brightness-110 transition-all active:scale-95 text-center group border-2 border-transparent hover:border-[var(--primary)] min-h-40 sm:min-h-44">
                             <Wrench size={52} style={{ color: 'var(--primary)', marginBottom: '14px' }} />
                             <span className="font-bold text-2xl" style={{ color: 'var(--text-main)' }}>Adjust</span>
                             <span className="text-sm mt-1 opacity-80" style={{ color: 'var(--text-dim)' }}>Inventory</span>

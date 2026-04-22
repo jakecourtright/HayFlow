@@ -1,6 +1,6 @@
 import pool from "@/lib/db";
 import { notFound } from "next/navigation";
-import PrintButton from "./PrintButton";
+import PrintButton from "@/components/ui/PrintButton";
 import StatusChip from "@/components/ui/StatusChip";
 
 async function getInvoiceByToken(token: string) {
@@ -50,7 +50,9 @@ export default async function PublicInvoicePage({ params }: { params: Promise<{ 
     return (
         <div className="min-h-screen" style={{ background: 'var(--bg-deep)', color: 'var(--text-main)' }}>
             <div className="max-w-xl mx-auto px-4 py-8 space-y-6">
-                <PrintButton />
+                <div className="flex justify-end">
+                    <PrintButton />
+                </div>
 
                 <article className="glass-card space-y-5" id="invoice-content">
                     <div className="flex justify-between items-start gap-4">

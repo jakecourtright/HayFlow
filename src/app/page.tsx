@@ -7,6 +7,7 @@ import DashboardGrid from "./dashboard/DashboardGrid";
 import { getPermissionFlags } from "@/lib/permissions";
 import { redirect } from "next/navigation";
 import { Roles } from "@/lib/permissions";
+import PageHeader from "@/components/ui/PageHeader";
 
 async function getStats(orgId: string) {
   const client = await pool.connect();
@@ -178,7 +179,14 @@ export default async function Dashboard() {
       </SignedOut>
 
       <SignedIn>
-        <DashboardGrid stats={stats} layout={layout} canWriteInventory={(await getPermissionFlags()).canWriteInventory} />
+        <div className="max-w-3xl mx-auto">
+          <PageHeader
+            eyebrow="Home"
+            title="Dashboard"
+            subtitle="Your inventory and activity at a glance."
+          />
+          <DashboardGrid stats={stats} layout={layout} canWriteInventory={(await getPermissionFlags()).canWriteInventory} />
+        </div>
       </SignedIn>
     </>
   );

@@ -6,6 +6,7 @@ import { Permissions } from "@/lib/permissions";
 import InvoiceStatusActions from "./InvoiceStatusActions";
 import PageHeader from "@/components/ui/PageHeader";
 import StatusChip from "@/components/ui/StatusChip";
+import PrintButton from "@/components/ui/PrintButton";
 
 async function getInvoice(invoiceId: string, orgId: string) {
     const client = await pool.connect();
@@ -62,16 +63,23 @@ export default async function InvoiceDetailPage({ params }: { params: Promise<{ 
 
     return (
         <div>
-            <PageHeader
-                eyebrow="Invoice"
-                title={invoice.invoice_number}
-                subtitle={invoice.customer || 'No customer'}
-                backHref="/dispatch/invoices"
-                backLabel="Invoices"
-                actions={<StatusChip status={invoice.status} />}
-            />
+            <div className="print-hide">
+                <PageHeader
+                    eyebrow="Invoice"
+                    title={invoice.invoice_number}
+                    subtitle={invoice.customer || 'No customer'}
+                    backHref="/dispatch/invoices"
+                    backLabel="Invoices"
+                    actions={
+                        <>
+                            <PrintButton label="Print" className="btn btn-secondary btn-sm" />
+                            <StatusChip status={invoice.status} />
+                        </>
+                    }
+                />
+            </div>
 
-            <article className="glass-card space-y-5">
+            <article className="glass-card space-y-5" id="invoice-content">
                 <div className="flex justify-between items-start gap-4">
                     <div>
                         <p className="text-eyebrow">Invoice</p>
@@ -189,7 +197,7 @@ export default async function InvoiceDetailPage({ params }: { params: Promise<{ 
                 )}
             </article>
 
-            <div className="mt-4">
+            <div className="mt-4 print-hide">
                 <InvoiceStatusActions invoiceId={invoice.id} currentStatus={invoice.status} shareToken={invoice.share_token} />
             </div>
         </div>
