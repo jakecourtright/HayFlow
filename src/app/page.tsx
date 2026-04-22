@@ -4,6 +4,7 @@ import { SignedIn, SignedOut, SignInButton, SignUpButton } from "@clerk/nextjs";
 import { Tractor, Receipt, ClipboardCheck, Users } from 'lucide-react';
 import { getDashboardLayout } from "./actions";
 import DashboardGrid from "./dashboard/DashboardGrid";
+import OnboardingChecklist from "./dashboard/OnboardingChecklist";
 import { getPermissionFlags } from "@/lib/permissions";
 import { redirect } from "next/navigation";
 import { Roles } from "@/lib/permissions";
@@ -96,7 +97,12 @@ async function getStats(orgId: string) {
 }
 
 export default async function Dashboard() {
-  const { orgId, has } = await auth();
+  const { userId, orgId, has } = await auth();
+
+  // Signed-in users without an org land on /welcome to create one
+  if (userId && !orgId) {
+    redirect('/welcome');
+  }
 
   // Drivers should not see the dashboard (financial data) — redirect to tickets
   if (has({ role: Roles.DRIVER } as any)) {
@@ -185,6 +191,7 @@ export default async function Dashboard() {
             title="Dashboard"
             subtitle="Your inventory and activity at a glance."
           />
+          <OnboardingChecklist />
           <DashboardGrid stats={stats} layout={layout} canWriteInventory={(await getPermissionFlags()).canWriteInventory} />
         </div>
       </SignedIn>
