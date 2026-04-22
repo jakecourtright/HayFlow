@@ -2,6 +2,8 @@ import pool from "@/lib/db";
 import { notFound } from "next/navigation";
 import PrintButton from "@/components/ui/PrintButton";
 import StatusChip from "@/components/ui/StatusChip";
+import InvoiceFromBlock from "@/components/ui/InvoiceFromBlock";
+import { getBusinessProfileByOrg } from "@/app/actions";
 
 async function getInvoiceByToken(token: string) {
     const client = await pool.connect();
@@ -36,6 +38,8 @@ export default async function PublicInvoicePage({ params }: { params: Promise<{ 
     const { token } = await params;
     const invoice = await getInvoiceByToken(token);
     if (!invoice) notFound();
+
+    const businessProfile = await getBusinessProfileByOrg(invoice.org_id);
 
     const totalBales = invoice.tickets.reduce((sum: number, t: any) => sum + parseFloat(t.amount), 0);
     const totalNetLbs = invoice.tickets.reduce((sum: number, t: any) => sum + (parseFloat(t.net_lbs) || 0), 0);
@@ -74,12 +78,15 @@ export default async function PublicInvoicePage({ params }: { params: Promise<{ 
                         </div>
                     </div>
 
-                    {invoice.customer && (
-                        <div className="pt-3" style={{ borderTop: '1px solid var(--glass-border)' }}>
-                            <p className="text-eyebrow mb-0.5">Bill to</p>
-                            <p className="text-lg font-semibold" style={{ color: 'var(--text-main)' }}>{invoice.customer}</p>
-                        </div>
-                    )}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 pt-3" style={{ borderTop: '1px solid var(--glass-border)' }}>
+                        <InvoiceFromBlock profile={businessProfile} />
+                        {invoice.customer && (
+                            <div className={businessProfile?.name ? 'sm:text-right' : ''}>
+                                <p className="text-eyebrow mb-0.5">Bill to</p>
+                                <p className="text-lg font-semibold" style={{ color: 'var(--text-main)' }}>{invoice.customer}</p>
+                            </div>
+                        )}
+                    </div>
 
                     <div>
                         <div className="grid grid-cols-12 gap-2 text-xs font-bold uppercase tracking-wider pb-2"
@@ -174,6 +181,15 @@ export default async function PublicInvoicePage({ params }: { params: Promise<{ 
                         <div className="pt-3" style={{ borderTop: '1px solid var(--glass-border)' }}>
                             <p className="text-eyebrow mb-1">Notes</p>
                             <p className="text-sm" style={{ color: 'var(--text-main)' }}>{invoice.notes}</p>
+                        </div>
+                    )}
+
+                    {businessProfile?.payment_instructions && (
+                        <div className="pt-3" style={{ borderTop: '1px solid var(--glass-border)' }}>
+                            <p className="text-eyebrow mb-1">Payment instructions</p>
+                            <p className="text-sm whitespace-pre-line" style={{ color: 'var(--text-main)' }}>
+                                {businessProfile.payment_instructions}
+                            </p>
                         </div>
                     )}
                 </article>

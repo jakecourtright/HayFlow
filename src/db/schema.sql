@@ -117,6 +117,25 @@ ALTER TABLE invoices ADD COLUMN IF NOT EXISTS share_token VARCHAR(128);
 ALTER TABLE invoices ADD COLUMN IF NOT EXISTS share_token_expires_at TIMESTAMP;
 
 -- ============================================================
+-- Business profile (one per org — rendered as "From" block on invoices)
+-- ============================================================
+CREATE TABLE IF NOT EXISTS business_profiles (
+  id SERIAL PRIMARY KEY,
+  org_id VARCHAR(255) NOT NULL UNIQUE,
+  name VARCHAR(255),                               -- business/legal name
+  address_line1 VARCHAR(255),
+  address_line2 VARCHAR(255),
+  city VARCHAR(120),
+  state VARCHAR(60),
+  zip VARCHAR(20),
+  phone VARCHAR(40),
+  email VARCHAR(255),
+  payment_instructions TEXT,                       -- "Make checks payable to... / Venmo @... / routing/account"
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_by VARCHAR(255)
+);
+
+-- ============================================================
 -- Foreign keys (added via ALTER so table creation order is flexible)
 -- ============================================================
 DO $$
@@ -147,3 +166,4 @@ CREATE INDEX IF NOT EXISTS idx_tickets_invoice ON tickets(invoice_id);
 CREATE INDEX IF NOT EXISTS idx_invoices_org_id ON invoices(org_id);
 CREATE INDEX IF NOT EXISTS idx_invoices_status ON invoices(status, org_id);
 CREATE UNIQUE INDEX IF NOT EXISTS idx_invoices_share_token ON invoices(share_token) WHERE share_token IS NOT NULL;
+CREATE UNIQUE INDEX IF NOT EXISTS idx_business_profiles_org ON business_profiles(org_id);

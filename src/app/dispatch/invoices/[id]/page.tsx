@@ -2,11 +2,14 @@ import { auth } from "@clerk/nextjs/server";
 import pool from "@/lib/db";
 import { redirect, notFound } from "next/navigation";
 import Link from "next/link";
+import { AlertCircle } from "lucide-react";
 import { Permissions } from "@/lib/permissions";
+import { getBusinessProfile } from "@/app/actions";
 import InvoiceStatusActions from "./InvoiceStatusActions";
 import PageHeader from "@/components/ui/PageHeader";
 import StatusChip from "@/components/ui/StatusChip";
 import PrintButton from "@/components/ui/PrintButton";
+import InvoiceFromBlock from "@/components/ui/InvoiceFromBlock";
 
 async function getInvoice(invoiceId: string, orgId: string) {
     const client = await pool.connect();
@@ -48,7 +51,10 @@ export default async function InvoiceDetailPage({ params }: { params: Promise<{ 
     }
 
     const { id } = await params;
-    const invoice = await getInvoice(id, orgId);
+    const [invoice, businessProfile] = await Promise.all([
+        getInvoice(id, orgId),
+        getBusinessProfile(),
+    ]);
     if (!invoice) notFound();
 
     const totalBales = invoice.tickets.reduce((sum: number, t: any) => sum + parseFloat(t.amount), 0);
@@ -79,6 +85,18 @@ export default async function InvoiceDetailPage({ params }: { params: Promise<{ 
                 />
             </div>
 
+            {!businessProfile?.name && (
+                <div role="alert" className="print-hide surface-card flex items-start gap-2 p-3 mb-4" style={{ borderColor: 'var(--warning)', color: 'var(--warning)' }}>
+                    <AlertCircle size={16} className="shrink-0 mt-0.5" />
+                    <p className="text-sm">
+                        Your business profile is empty — customers won't see who to pay.{' '}
+                        <Link href="/settings/business" className="underline font-semibold">
+                            Set it up now
+                        </Link>.
+                    </p>
+                </div>
+            )}
+
             <article className="glass-card space-y-5" id="invoice-content">
                 <div className="flex justify-between items-start gap-4">
                     <div>
@@ -91,12 +109,15 @@ export default async function InvoiceDetailPage({ params }: { params: Promise<{ 
                     </div>
                 </div>
 
-                {invoice.customer && (
-                    <div>
-                        <p className="text-eyebrow mb-0.5">Bill to</p>
-                        <p className="font-semibold" style={{ color: 'var(--text-main)' }}>{invoice.customer}</p>
-                    </div>
-                )}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                    <InvoiceFromBlock profile={businessProfile} />
+                    {invoice.customer && (
+                        <div className={businessProfile?.name ? 'sm:text-right' : ''}>
+                            <p className="text-eyebrow mb-0.5">Bill to</p>
+                            <p className="font-semibold" style={{ color: 'var(--text-main)' }}>{invoice.customer}</p>
+                        </div>
+                    )}
+                </div>
 
                 <div>
                     <div className="grid grid-cols-12 gap-2 text-xs font-bold uppercase tracking-wider pb-2 mb-1"
@@ -193,6 +214,15 @@ export default async function InvoiceDetailPage({ params }: { params: Promise<{ 
                     <div className="pt-3" style={{ borderTop: '1px solid var(--glass-border)' }}>
                         <p className="text-eyebrow mb-1">Notes</p>
                         <p className="text-sm" style={{ color: 'var(--text-main)' }}>{invoice.notes}</p>
+                    </div>
+                )}
+
+                {businessProfile?.payment_instructions && (
+                    <div className="pt-3" style={{ borderTop: '1px solid var(--glass-border)' }}>
+                        <p className="text-eyebrow mb-1">Payment instructions</p>
+                        <p className="text-sm whitespace-pre-line" style={{ color: 'var(--text-main)' }}>
+                            {businessProfile.payment_instructions}
+                        </p>
                     </div>
                 )}
             </article>

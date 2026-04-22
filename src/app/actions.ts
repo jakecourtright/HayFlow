@@ -5,7 +5,7 @@ import pool from "@/lib/db";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { tonsToBales, getDefaultWeight, normalizePrice } from "@/lib/units";
-import { Permissions } from "@/lib/permissions";
+import { Permissions, requirePermission } from "@/lib/permissions";
 import crypto from 'crypto';
 
 export async function submitTransaction(formData: FormData) {
@@ -981,4 +981,79 @@ export async function quickSale(formData: FormData) {
     revalidatePath('/inventory');
     revalidatePath('/locations');
     redirect(`/dispatch/invoices/${invoiceId}`);
+}
+
+export interface BusinessProfile {
+    name: string | null;
+    address_line1: string | null;
+    address_line2: string | null;
+    city: string | null;
+    state: string | null;
+    zip: string | null;
+    phone: string | null;
+    email: string | null;
+    payment_instructions: string | null;
+}
+
+export async function getBusinessProfile(): Promise<BusinessProfile | null> {
+    const { userId, orgId } = await auth();
+    if (!userId || !orgId) throw new Error("Unauthorized");
+    return getBusinessProfileByOrg(orgId);
+}
+
+export async function getBusinessProfileByOrg(orgId: string): Promise<BusinessProfile | null> {
+    const client = await pool.connect();
+    try {
+        const result = await client.query(
+            `SELECT name, address_line1, address_line2, city, state, zip, phone, email, payment_instructions
+             FROM business_profiles WHERE org_id = $1`,
+            [orgId]
+        );
+        return result.rows[0] || null;
+    } finally {
+        client.release();
+    }
+}
+
+export async function saveBusinessProfile(formData: FormData) {
+    const { userId, orgId } = await auth();
+    if (!userId || !orgId) throw new Error("Unauthorized");
+    await requirePermission(Permissions.INVOICES_MANAGE);
+
+    const name = (formData.get('name') as string | null)?.trim() || null;
+    const address_line1 = (formData.get('address_line1') as string | null)?.trim() || null;
+    const address_line2 = (formData.get('address_line2') as string | null)?.trim() || null;
+    const city = (formData.get('city') as string | null)?.trim() || null;
+    const state = (formData.get('state') as string | null)?.trim() || null;
+    const zip = (formData.get('zip') as string | null)?.trim() || null;
+    const phone = (formData.get('phone') as string | null)?.trim() || null;
+    const email = (formData.get('email') as string | null)?.trim() || null;
+    const payment_instructions = (formData.get('payment_instructions') as string | null)?.trim() || null;
+
+    const client = await pool.connect();
+    try {
+        await client.query(
+            `INSERT INTO business_profiles
+                (org_id, name, address_line1, address_line2, city, state, zip, phone, email, payment_instructions, updated_at, updated_by)
+             VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,CURRENT_TIMESTAMP,$11)
+             ON CONFLICT (org_id) DO UPDATE SET
+                name = EXCLUDED.name,
+                address_line1 = EXCLUDED.address_line1,
+                address_line2 = EXCLUDED.address_line2,
+                city = EXCLUDED.city,
+                state = EXCLUDED.state,
+                zip = EXCLUDED.zip,
+                phone = EXCLUDED.phone,
+                email = EXCLUDED.email,
+                payment_instructions = EXCLUDED.payment_instructions,
+                updated_at = CURRENT_TIMESTAMP,
+                updated_by = EXCLUDED.updated_by`,
+            [orgId, name, address_line1, address_line2, city, state, zip, phone, email, payment_instructions, userId]
+        );
+    } finally {
+        client.release();
+    }
+
+    revalidatePath('/settings/business');
+    revalidatePath('/dispatch/invoices');
 }

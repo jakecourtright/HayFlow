@@ -1,7 +1,8 @@
 "use client";
 
 import { useTheme } from "../contexts/theme-context";
-import { Check } from "lucide-react";
+import { Check, Building2, ChevronRight } from "lucide-react";
+import Link from "next/link";
 import { OrganizationSwitcher, Protect } from "@clerk/nextjs";
 import TeamManagement from "@/components/TeamManagement";
 import PageHeader from "@/components/ui/PageHeader";
@@ -173,6 +174,27 @@ export default function SettingsPage() {
                 backLabel="Home"
             />
             <div className="space-y-6">
+            <Protect permission="org:invoices:manage">
+                <Link href="/settings/business" className="glass-card flex items-center gap-4 hover:brightness-110 transition-all">
+                    <div
+                        className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
+                        style={{
+                            background: 'color-mix(in srgb, var(--primary) 14%, transparent)',
+                            color: 'var(--primary)',
+                        }}
+                    >
+                        <Building2 size={20} />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                        <p className="font-semibold" style={{ color: 'var(--text-main)' }}>Business profile</p>
+                        <p className="text-sm" style={{ color: 'var(--text-dim)' }}>
+                            Name, address, and payment info shown on invoices.
+                        </p>
+                    </div>
+                    <ChevronRight size={18} style={{ color: 'var(--text-dim)' }} className="flex-shrink-0" />
+                </Link>
+            </Protect>
+
             <div className="glass-card">
                 <h2 className="text-lg font-bold mb-3" style={{ color: 'var(--text-main)' }}>Organization</h2>
                 <p className="text-sm mb-4" style={{ color: 'var(--text-dim)' }}>
