@@ -2,9 +2,9 @@
 
 import { createTicket } from "@/app/actions";
 import { useState } from "react";
-import { ArrowLeft } from "lucide-react";
-import Link from "next/link";
+import { AlertCircle, Info } from "lucide-react";
 import CustomSelect from "@/components/CustomSelect";
+import SubmitButton from "@/components/ui/SubmitButton";
 
 interface TicketFormProps {
     stacks: any[];
@@ -13,8 +13,8 @@ interface TicketFormProps {
 }
 
 const TICKET_TYPES = [
-    { value: 'sale', label: 'Sale' },
-    { value: 'barn_to_barn', label: 'Barn to Barn' },
+    { value: 'sale', label: 'Sale — load out to a customer' },
+    { value: 'barn_to_barn', label: 'Transfer — move between barns' },
 ];
 
 export default function TicketForm({ stacks, locations, inventory }: TicketFormProps) {
@@ -22,29 +22,29 @@ export default function TicketForm({ stacks, locations, inventory }: TicketFormP
     const [selectedStack, setSelectedStack] = useState('');
     const [selectedLocation, setSelectedLocation] = useState('');
     const [selectedDestination, setSelectedDestination] = useState('');
+    const [amount, setAmount] = useState('');
     const [error, setError] = useState('');
 
-    // Get available stock for selected stack/location
     const availableStock = inventory.find(
         (inv: any) =>
             inv.stack_id?.toString() === selectedStack &&
             inv.location_id?.toString() === selectedLocation
     );
+    const availableBales = availableStock ? parseFloat(availableStock.quantity) : null;
+    const requestedBales = parseFloat(amount) || 0;
+    const overStock = availableBales !== null && requestedBales > availableBales;
 
-    // Locations with stock for selected stack
     const locationsWithStock = selectedStack
         ? inventory
             .filter((inv: any) => inv.stack_id?.toString() === selectedStack && parseFloat(inv.quantity) > 0)
             .map((inv: any) => inv.location_id?.toString())
         : [];
 
-    // Build options for stack select
     const stackOptions = stacks.map((s: any) => ({
         value: s.id.toString(),
         label: `${s.name} — ${s.commodity}`,
     }));
 
-    // Build options for source location (with disabled for no-stock)
     const locationOptions = locations.map((l: any) => {
         const hasStock = locationsWithStock.includes(l.id.toString());
         return {
@@ -54,7 +54,6 @@ export default function TicketForm({ stacks, locations, inventory }: TicketFormP
         };
     });
 
-    // Build options for destination (exclude source location)
     const destinationOptions = locations
         .filter((l: any) => l.id.toString() !== selectedLocation)
         .map((l: any) => ({
@@ -67,33 +66,32 @@ export default function TicketForm({ stacks, locations, inventory }: TicketFormP
             setError('');
             await createTicket(formData);
         } catch (e: any) {
-            // Next.js redirect() works by throwing – let it propagate
-            if (e?.digest?.startsWith('NEXT_REDIRECT')) {
-                throw e;
-            }
+            if (e?.digest?.startsWith('NEXT_REDIRECT')) throw e;
             setError(e.message || 'Failed to create ticket');
         }
     }
 
+    const isTransfer = ticketType === 'barn_to_barn';
+
     return (
         <div className="space-y-4">
-            <Link href="/tickets" className="flex items-center gap-2 text-sm mb-4" style={{ color: 'var(--text-dim)' }}>
-                <ArrowLeft size={16} />
-                Back to Tickets
-            </Link>
-
             {error && (
-                <div className="p-3 rounded-lg text-sm" style={{ background: 'rgba(239, 68, 68, 0.2)', color: '#ef4444' }}>
-                    {error}
+                <div
+                    role="alert"
+                    className="flex items-start gap-2 p-3 rounded-xl text-sm"
+                    style={{
+                        background: 'color-mix(in srgb, var(--error) 12%, transparent)',
+                        color: 'var(--error)',
+                    }}
+                >
+                    <AlertCircle size={16} className="flex-shrink-0 mt-0.5" />
+                    <span>{error}</span>
                 </div>
             )}
 
-            <form action={handleSubmit} className="glass-card space-y-4">
-                {/* Ticket Type Selector */}
+            <form action={handleSubmit} className="surface-card space-y-5">
                 <div>
-                    <label className="block text-sm font-semibold mb-1" style={{ color: 'var(--text-dim)' }}>
-                        Ticket Type *
-                    </label>
+                    <label className="label-modern">Ticket type *</label>
                     <CustomSelect
                         name="type"
                         value={ticketType}
@@ -105,11 +103,8 @@ export default function TicketForm({ stacks, locations, inventory }: TicketFormP
                     />
                 </div>
 
-                {/* Stack Selection */}
                 <div>
-                    <label className="block text-sm font-semibold mb-1" style={{ color: 'var(--text-dim)' }}>
-                        Product (Stack) *
-                    </label>
+                    <label className="label-modern">Product (stack) *</label>
                     <CustomSelect
                         name="stackId"
                         required
@@ -124,10 +119,9 @@ export default function TicketForm({ stacks, locations, inventory }: TicketFormP
                     />
                 </div>
 
-                {/* Source Location */}
                 <div>
-                    <label className="block text-sm font-semibold mb-1" style={{ color: 'var(--text-dim)' }}>
-                        {ticketType === 'barn_to_barn' ? 'Source Location *' : 'Pick-up Location *'}
+                    <label className="label-modern">
+                        {isTransfer ? 'Source location *' : 'Pick-up location *'}
                     </label>
                     <CustomSelect
                         name="locationId"
@@ -140,19 +134,22 @@ export default function TicketForm({ stacks, locations, inventory }: TicketFormP
                         options={locationOptions}
                         placeholder="Select location..."
                     />
-                    {availableStock && (
-                        <p className="text-xs mt-1" style={{ color: 'var(--primary-light)' }}>
-                            Available: {parseFloat(availableStock.quantity).toLocaleString()} bales
+                    {availableBales !== null && (
+                        <p className="text-xs mt-1.5 flex items-center gap-1" style={{ color: 'var(--text-dim)' }}>
+                            <Info size={12} />
+                            <span>
+                                Available here:{' '}
+                                <strong style={{ color: 'var(--accent)' }}>
+                                    {availableBales.toLocaleString()} bales
+                                </strong>
+                            </span>
                         </p>
                     )}
                 </div>
 
-                {/* Destination Location (B2B only) */}
-                {ticketType === 'barn_to_barn' && (
+                {isTransfer && (
                     <div>
-                        <label className="block text-sm font-semibold mb-1" style={{ color: 'var(--text-dim)' }}>
-                            Destination Location *
-                        </label>
+                        <label className="label-modern">Destination location *</label>
                         <CustomSelect
                             name="destinationId"
                             required
@@ -164,74 +161,80 @@ export default function TicketForm({ stacks, locations, inventory }: TicketFormP
                     </div>
                 )}
 
-                {/* Amount */}
                 <div>
-                    <label className="label-modern">
-                        Bales *
-                    </label>
+                    <label className="label-modern">Bales *</label>
                     <input
                         type="number"
                         name="amount"
                         required
                         min="1"
                         step="1"
+                        inputMode="numeric"
+                        value={amount}
+                        onChange={(e) => setAmount(e.target.value)}
                         placeholder="Number of bales"
                         className="input-modern"
+                        aria-invalid={overStock}
                     />
+                    {overStock && (
+                        <p className="text-xs mt-1.5 flex items-center gap-1" style={{ color: 'var(--error)' }}>
+                            <AlertCircle size={12} />
+                            Exceeds available stock ({availableBales!.toLocaleString()} bales)
+                        </p>
+                    )}
                 </div>
 
-                {/* Net Lbs (Sale only) */}
-                {ticketType === 'sale' && (
-                    <div>
-                        <label className="label-modern">
-                            Net Lbs
-                        </label>
-                        <input
-                            type="number"
-                            name="netLbs"
-                            min="0"
-                            step="0.01"
-                            placeholder="Total net weight (optional)"
-                            className="input-modern"
-                        />
-                    </div>
+                {!isTransfer && (
+                    <>
+                        <div>
+                            <label className="label-modern">Net lbs</label>
+                            <input
+                                type="number"
+                                name="netLbs"
+                                min="0"
+                                step="0.01"
+                                inputMode="decimal"
+                                placeholder="Total net weight (optional)"
+                                className="input-modern"
+                            />
+                        </div>
+                        <div>
+                            <label className="label-modern">Customer *</label>
+                            <input
+                                type="text"
+                                name="customer"
+                                required
+                                placeholder="Customer name"
+                                className="input-modern"
+                            />
+                        </div>
+                    </>
                 )}
 
-                {/* Customer (Sale only, required) */}
-                {ticketType === 'sale' && (
-                    <div>
-                        <label className="label-modern">
-                            Customer *
-                        </label>
-                        <input
-                            type="text"
-                            name="customer"
-                            required
-                            placeholder="Customer name"
-                            className="input-modern"
-                        />
-                    </div>
-                )}
-
-                {/* Notes / Comments */}
                 <div>
-                    <label className="label-modern">
-                        {ticketType === 'barn_to_barn' ? 'Comments' : 'Notes'}
-                    </label>
+                    <label className="label-modern">{isTransfer ? 'Comments' : 'Notes'}</label>
                     <textarea
                         name="notes"
                         rows={3}
-                        placeholder={ticketType === 'barn_to_barn'
+                        placeholder={isTransfer
                             ? "Transfer notes, reason, etc. (optional)"
-                            : "Delivery notes, truck #, etc. (optional)"
-                        }
+                            : "Delivery notes, truck #, etc. (optional)"}
                         className="input-modern"
                     />
                 </div>
 
-                <button type="submit" className="btn btn-primary w-full">
-                    Create {ticketType === 'sale' ? 'Sale' : 'Barn to Barn'} Ticket
-                </button>
+                <SubmitButton
+                    variant="primary"
+                    className="w-full"
+                    disabled={overStock}
+                    pendingLabel="Creating ticket…"
+                >
+                    Create {isTransfer ? 'transfer' : 'sale'} ticket
+                </SubmitButton>
+
+                <p className="text-xs text-center" style={{ color: 'var(--text-dim)' }}>
+                    Tickets start as <strong>pending</strong>. Inventory moves once the office approves.
+                </p>
             </form>
         </div>
     );

@@ -2,6 +2,7 @@ import { auth } from "@clerk/nextjs/server";
 import pool from "@/lib/db";
 import { redirect, notFound } from "next/navigation";
 import EditStackForm from "./EditStackForm";
+import PageHeader from "@/components/ui/PageHeader";
 
 async function getStack(stackId: string, orgId: string) {
     const client = await pool.connect();
@@ -23,13 +24,17 @@ export default async function EditStackPage({ params }: { params: Promise<{ id: 
     const { id } = await params;
     const stack = await getStack(id, orgId);
 
-    if (!stack) {
-        notFound();
-    }
+    if (!stack) notFound();
 
     return (
-        <div className="max-w-md mx-auto">
-            <h1 className="text-xl font-bold mb-6" style={{ color: 'var(--accent)' }}>Edit Stack</h1>
+        <div>
+            <PageHeader
+                eyebrow="Edit stack"
+                title={stack.name}
+                subtitle={stack.commodity}
+                backHref={`/stacks/${stack.id}`}
+                backLabel="Stack"
+            />
             <EditStackForm stack={stack} />
         </div>
     );

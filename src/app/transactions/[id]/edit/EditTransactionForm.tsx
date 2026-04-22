@@ -2,9 +2,11 @@
 
 import { updateTransaction, deleteTransaction } from "@/app/actions";
 import { useState } from "react";
-import { useRouter } from "next/navigation";
-import { Trash2 } from "lucide-react";
+import { Trash2, AlertCircle } from "lucide-react";
 import CustomSelect from "@/components/CustomSelect";
+import ConfirmDialog from "@/components/ui/ConfirmDialog";
+import SubmitButton from "@/components/ui/SubmitButton";
+import { useToast } from "@/components/ui/Toast";
 
 interface EditTransactionFormProps {
     transaction: {
@@ -21,9 +23,9 @@ interface EditTransactionFormProps {
 }
 
 export default function EditTransactionForm({ transaction, stacks, locations }: EditTransactionFormProps) {
-    const router = useRouter();
-    const [loading, setLoading] = useState(false);
-    const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+    const toast = useToast();
+    const [confirmDelete, setConfirmDelete] = useState(false);
+    const [deleting, setDeleting] = useState(false);
     const [selectedType, setSelectedType] = useState(transaction.type);
     const [selectedStackId, setSelectedStackId] = useState(transaction.stack_id.toString());
     const [selectedLocationId, setSelectedLocationId] = useState(
@@ -36,36 +38,38 @@ export default function EditTransactionForm({ transaction, stacks, locations }: 
 
     const getPriceLabel = (type: string) => {
         switch (type) {
-            case 'production': return 'Production Cost ($/unit)';
-            case 'purchase': return 'Purchase Price ($/unit)';
-            case 'sale': return 'Sale Price ($/unit)';
-            case 'adjustment': return 'Value Adjustment ($/unit)';
-            default: return 'Price / Cost ($/unit)';
+            case 'production': return 'Production cost ($/unit)';
+            case 'purchase': return 'Purchase price ($/unit)';
+            case 'sale': return 'Sale price ($/unit)';
+            case 'adjustment': return 'Value adjustment ($/unit)';
+            default: return 'Price / cost ($/unit)';
         }
     };
 
-    async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
-        event.preventDefault();
-        setLoading(true);
-        setError(null);
-
-        const formData = new FormData(event.currentTarget);
-
+    async function handleSubmit(formData: FormData) {
         try {
+            setError(null);
             await updateWithId(formData);
         } catch (e: any) {
-            setError(e.message || 'Error updating transaction. Please try again.');
-            setLoading(false);
+            if (e?.digest?.startsWith('NEXT_REDIRECT')) throw e;
+            const msg = e.message || 'Error updating transaction.';
+            setError(msg);
+            toast.show(msg, 'error');
         }
     }
 
     async function handleDelete() {
-        setLoading(true);
+        setDeleting(true);
         try {
             await deleteWithId();
+            toast.show('Transaction deleted', 'success');
         } catch (e: any) {
-            setError(e.message || 'Error deleting transaction.');
-            setLoading(false);
+            if (e?.digest?.startsWith('NEXT_REDIRECT')) throw e;
+            const msg = e.message || 'Error deleting transaction.';
+            setError(msg);
+            toast.show(msg, 'error');
+            setDeleting(false);
+            setConfirmDelete(false);
         }
     }
 
@@ -77,12 +81,12 @@ export default function EditTransactionForm({ transaction, stacks, locations }: 
     ];
 
     const stackOptions = [
-        { value: '', label: 'Select Stack...' },
+        { value: '', label: 'Select stack…' },
         ...stacks.map(s => ({ value: String(s.id), label: `${s.name} (${s.commodity})` })),
     ];
 
     const locationOptions = [
-        { value: 'none', label: 'None (In Transit / Sold)' },
+        { value: 'none', label: 'None (in transit / sold)' },
         ...locations.map(l => ({ value: String(l.id), label: l.name })),
     ];
 
@@ -98,10 +102,11 @@ export default function EditTransactionForm({ transaction, stacks, locations }: 
 
     return (
         <>
-            <form onSubmit={handleSubmit} className="glass-card space-y-5">
+            <form action={handleSubmit} className="surface-card space-y-5">
                 {error && (
-                    <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative">
-                        {error}
+                    <div role="alert" className="flex items-start gap-2 p-3 rounded-lg" style={{ background: 'color-mix(in srgb, var(--error) 14%, transparent)', color: 'var(--error)' }}>
+                        <AlertCircle size={16} className="shrink-0 mt-0.5" />
+                        <p className="text-sm">{error}</p>
                     </div>
                 )}
 
@@ -117,7 +122,7 @@ export default function EditTransactionForm({ transaction, stacks, locations }: 
                     </div>
 
                     <div>
-                        <label className="label-modern">Stack (Product)</label>
+                        <label className="label-modern">Stack</label>
                         <CustomSelect
                             name="stackId"
                             required
@@ -130,7 +135,7 @@ export default function EditTransactionForm({ transaction, stacks, locations }: 
 
                 <div>
                     <label className="label-modern">
-                        {selectedType === 'sale' ? 'Source Location' : 'Destination Location'}
+                        {selectedType === 'sale' ? 'Source location' : 'Destination location'}
                     </label>
                     <CustomSelect
                         name="locationId"
@@ -142,12 +147,15 @@ export default function EditTransactionForm({ transaction, stacks, locations }: 
 
                 <div className="grid grid-cols-2 gap-4">
                     <div>
-                        <label className="label-modern">Amount</label>
+                        <label className="label-modern" htmlFor="tx-amount">Amount</label>
                         <input
+                            id="tx-amount"
                             type="number"
                             name="amount"
                             required
                             step="0.01"
+                            min="0"
+                            inputMode="decimal"
                             className="input-modern"
                             defaultValue={parseFloat(transaction.amount)}
                         />
@@ -163,30 +171,34 @@ export default function EditTransactionForm({ transaction, stacks, locations }: 
                 </div>
 
                 <div>
-                    <label className="label-modern">Entity / Notes</label>
+                    <label className="label-modern" htmlFor="tx-entity">Entity / notes</label>
                     <input
+                        id="tx-entity"
                         type="text"
                         name="entity"
                         className="input-modern"
-                        placeholder="Buyer Name / Field # / Notes"
+                        placeholder="Buyer name / field # / notes"
                         defaultValue={transaction.entity || ''}
                     />
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">
                     <div>
-                        <label className="label-modern">{getPriceLabel(selectedType)}</label>
+                        <label className="label-modern" htmlFor="tx-price">{getPriceLabel(selectedType)}</label>
                         <input
+                            id="tx-price"
                             type="number"
                             name="price"
                             step="0.01"
+                            min="0"
+                            inputMode="decimal"
                             className="input-modern"
                             placeholder="0.00"
                             defaultValue={transaction.price ? parseFloat(transaction.price) : ''}
                         />
                     </div>
                     <div>
-                        <label className="label-modern">Price Per</label>
+                        <label className="label-modern">Price per</label>
                         <CustomSelect
                             name="priceUnit"
                             options={priceUnitOptions}
@@ -195,51 +207,32 @@ export default function EditTransactionForm({ transaction, stacks, locations }: 
                     </div>
                 </div>
 
-                <button type="submit" disabled={loading} className="btn btn-primary w-full mt-6">
-                    {loading ? 'Saving...' : 'Save Changes'}
-                </button>
+                <SubmitButton className="w-full" pendingLabel="Saving…">
+                    Save changes
+                </SubmitButton>
             </form>
 
-            {/* Delete Section */}
             <div className="mt-6 pt-6" style={{ borderTop: '1px solid var(--glass-border)' }}>
-                {!showDeleteConfirm ? (
-                    <button
-                        onClick={() => setShowDeleteConfirm(true)}
-                        className="w-full py-3 rounded-xl flex items-center justify-center gap-2 transition-colors"
-                        style={{
-                            background: 'rgba(239, 68, 68, 0.1)',
-                            color: '#ef4444',
-                            border: '1px solid rgba(239, 68, 68, 0.3)'
-                        }}
-                    >
-                        <Trash2 size={18} />
-                        Delete Transaction
-                    </button>
-                ) : (
-                    <div className="glass-card p-4 text-center" style={{ borderColor: '#ef4444' }}>
-                        <p className="mb-4" style={{ color: 'var(--accent)' }}>
-                            Are you sure? This cannot be undone.
-                        </p>
-                        <div className="flex gap-3">
-                            <button
-                                onClick={() => setShowDeleteConfirm(false)}
-                                className="flex-1 py-2 rounded-xl"
-                                style={{ background: 'var(--bg-surface)', color: 'var(--text-dim)' }}
-                            >
-                                Cancel
-                            </button>
-                            <button
-                                onClick={handleDelete}
-                                disabled={loading}
-                                className="flex-1 py-2 rounded-xl"
-                                style={{ background: '#ef4444', color: 'white' }}
-                            >
-                                {loading ? 'Deleting...' : 'Delete'}
-                            </button>
-                        </div>
-                    </div>
-                )}
+                <button
+                    type="button"
+                    onClick={() => setConfirmDelete(true)}
+                    className="btn btn-danger w-full"
+                >
+                    <Trash2 size={16} />
+                    Delete transaction
+                </button>
             </div>
+
+            <ConfirmDialog
+                open={confirmDelete}
+                onClose={() => setConfirmDelete(false)}
+                onConfirm={handleDelete}
+                title="Delete transaction?"
+                body="This will remove the record permanently and adjust stack quantity accordingly. This cannot be undone."
+                confirmLabel="Delete transaction"
+                tone="danger"
+                busy={deleting}
+            />
         </>
     );
 }

@@ -4,6 +4,7 @@ import { updateStack } from "@/app/actions";
 import { BALE_SIZES, BALE_SIZE_WEIGHTS, getDefaultWeight } from "@/lib/units";
 import { useState } from "react";
 import CustomSelect from "@/components/CustomSelect";
+import SubmitButton from "@/components/ui/SubmitButton";
 
 interface Stack {
     id: number;
@@ -16,11 +17,28 @@ interface Stack {
     price_unit: string;
 }
 
-interface EditStackFormProps {
-    stack: Stack;
-}
+const COMMODITY_OPTIONS = [
+    { value: 'Alfalfa', label: 'Alfalfa' },
+    { value: 'Timothy', label: 'Timothy' },
+    { value: 'Bermuda', label: 'Bermuda' },
+    { value: 'Oat Hay', label: 'Oat Hay' },
+    { value: 'Orchard Grass', label: 'Orchard Grass' },
+    { value: 'Straw', label: 'Straw' },
+    { value: 'Mixed Hay', label: 'Mixed Hay' },
+];
 
-export default function EditStackForm({ stack }: EditStackFormProps) {
+const QUALITY_OPTIONS = [
+    { value: 'Premium', label: 'Premium' },
+    { value: '#1', label: '#1 (Good)' },
+    { value: 'Feeder', label: 'Feeder / Economy' },
+];
+
+const PRICE_UNIT_OPTIONS = [
+    { value: 'bale', label: 'Per bale' },
+    { value: 'ton', label: 'Per ton' },
+];
+
+export default function EditStackForm({ stack }: { stack: Stack }) {
     const [baleSize, setBaleSize] = useState(stack.bale_size || '3x4');
     const [weightPerBale, setWeightPerBale] = useState(
         stack.weight_per_bale || getDefaultWeight(stack.bale_size)
@@ -29,9 +47,10 @@ export default function EditStackForm({ stack }: EditStackFormProps) {
         (stack.price_unit as 'bale' | 'ton') || 'bale'
     );
 
+    const baleSizeOptions = BALE_SIZES.map((size) => ({ value: size, label: size }));
+
     const handleBaleSizeChange = (newSize: string) => {
         setBaleSize(newSize);
-        // Only prefill if weight wasn't already customized
         if (!stack.weight_per_bale) {
             setWeightPerBale(BALE_SIZE_WEIGHTS[newSize] || 1200);
         }
@@ -39,33 +58,10 @@ export default function EditStackForm({ stack }: EditStackFormProps) {
 
     const updateWithId = updateStack.bind(null, stack.id.toString());
 
-    const commodityOptions = [
-        { value: 'Alfalfa', label: 'Alfalfa' },
-        { value: 'Timothy', label: 'Timothy' },
-        { value: 'Bermuda', label: 'Bermuda' },
-        { value: 'Oat Hay', label: 'Oat Hay' },
-        { value: 'Orchard Grass', label: 'Orchard Grass' },
-        { value: 'Straw', label: 'Straw' },
-        { value: 'Mixed Hay', label: 'Mixed Hay' },
-    ];
-
-    const baleSizeOptions = BALE_SIZES.map(size => ({ value: size, label: size }));
-
-    const qualityOptions = [
-        { value: 'Premium', label: 'Premium' },
-        { value: '#1', label: '#1 (Good)' },
-        { value: 'Feeder', label: 'Feeder / Economy' },
-    ];
-
-    const priceUnitOptions = [
-        { value: 'bale', label: 'Bale' },
-        { value: 'ton', label: 'Ton' },
-    ];
-
     return (
-        <form action={updateWithId} className="glass-card space-y-5">
+        <form action={updateWithId} className="surface-card space-y-5">
             <div>
-                <label className="label-modern">Lot/Stack Name</label>
+                <label className="label-modern">Lot / stack name</label>
                 <input
                     type="text"
                     name="name"
@@ -77,12 +73,12 @@ export default function EditStackForm({ stack }: EditStackFormProps) {
 
             <div>
                 <label className="label-modern">Commodity</label>
-                <CustomSelect name="commodity" options={commodityOptions} defaultValue={stack.commodity} />
+                <CustomSelect name="commodity" options={COMMODITY_OPTIONS} defaultValue={stack.commodity} />
             </div>
 
             <div className="grid grid-cols-2 gap-4">
                 <div>
-                    <label className="label-modern">Bale Size</label>
+                    <label className="label-modern">Bale size</label>
                     <CustomSelect
                         name="baleSize"
                         options={baleSizeOptions}
@@ -91,7 +87,7 @@ export default function EditStackForm({ stack }: EditStackFormProps) {
                     />
                 </div>
                 <div>
-                    <label className="label-modern">Weight/Bale (lbs)</label>
+                    <label className="label-modern">Weight/bale (lbs)</label>
                     <input
                         type="number"
                         name="weightPerBale"
@@ -99,40 +95,43 @@ export default function EditStackForm({ stack }: EditStackFormProps) {
                         value={weightPerBale}
                         onChange={(e) => setWeightPerBale(parseInt(e.target.value) || 0)}
                         min="1"
+                        inputMode="numeric"
                     />
                 </div>
             </div>
 
             <div>
                 <label className="label-modern">Quality</label>
-                <CustomSelect name="quality" options={qualityOptions} defaultValue={stack.quality} />
+                <CustomSelect name="quality" options={QUALITY_OPTIONS} defaultValue={stack.quality} />
             </div>
 
             <div className="grid grid-cols-2 gap-4">
                 <div>
-                    <label className="label-modern">Base Price ($)</label>
+                    <label className="label-modern">Base price ($)</label>
                     <input
                         type="number"
                         name="basePrice"
                         step="0.01"
+                        min="0"
+                        inputMode="decimal"
                         defaultValue={stack.base_price}
                         className="input-modern"
                     />
                 </div>
                 <div>
-                    <label className="label-modern">Price Per</label>
+                    <label className="label-modern">Priced</label>
                     <CustomSelect
                         name="priceUnit"
-                        options={priceUnitOptions}
+                        options={PRICE_UNIT_OPTIONS}
                         value={priceUnit}
                         onChange={(val) => setPriceUnit(val as 'bale' | 'ton')}
                     />
                 </div>
             </div>
 
-            <button type="submit" className="btn btn-primary w-full mt-4">
-                Update Stack
-            </button>
+            <SubmitButton className="w-full" pendingLabel="Saving…">
+                Save changes
+            </SubmitButton>
         </form>
     );
 }

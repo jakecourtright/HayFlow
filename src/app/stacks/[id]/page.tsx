@@ -2,31 +2,27 @@ import { auth } from "@clerk/nextjs/server";
 import pool from "@/lib/db";
 import { redirect, notFound } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, Pencil, Tractor, ShoppingCart, Banknote, Wrench } from "lucide-react";
+import { Pencil, Tractor, ShoppingCart, Banknote, Wrench, MapPin } from "lucide-react";
 import { balesToTons, resolveWeight } from "@/lib/units";
+import PageHeader from "@/components/ui/PageHeader";
+import EmptyState from "@/components/ui/EmptyState";
 
 async function getStackWithDetails(stackId: string, orgId: string) {
     const client = await pool.connect();
     try {
-        // Get stack info
         const stackResult = await client.query(
             'SELECT * FROM stacks WHERE id = $1 AND org_id = $2',
             [stackId, orgId]
         );
-
-        if (stackResult.rows.length === 0) {
-            return null;
-        }
-
+        if (stackResult.rows.length === 0) return null;
         const stack = stackResult.rows[0];
 
-        // Get inventory by location
         const locationInventory = await client.query(`
-            SELECT 
+            SELECT
                 l.id as location_id,
                 l.name as location_name,
                 COALESCE(SUM(
-                    CASE 
+                    CASE
                         WHEN t.type IN ('production', 'purchase') THEN t.amount
                         WHEN t.type = 'sale' THEN -t.amount
                         ELSE 0
@@ -37,7 +33,7 @@ async function getStackWithDetails(stackId: string, orgId: string) {
             WHERE t.stack_id = $1 AND t.org_id = $2 AND t.location_id IS NOT NULL
             GROUP BY l.id, l.name
             HAVING COALESCE(SUM(
-                CASE 
+                CASE
                     WHEN t.type IN ('production', 'purchase') THEN t.amount
                     WHEN t.type = 'sale' THEN -t.amount
                     ELSE 0
@@ -46,10 +42,9 @@ async function getStackWithDetails(stackId: string, orgId: string) {
             ORDER BY l.name ASC
         `, [stackId, orgId]);
 
-        // Get total stock
         const totalResult = await client.query(`
             SELECT COALESCE(SUM(
-                CASE 
+                CASE
                     WHEN type IN ('production', 'purchase') THEN amount
                     WHEN type = 'sale' THEN -amount
                     ELSE 0
@@ -59,9 +54,8 @@ async function getStackWithDetails(stackId: string, orgId: string) {
             WHERE stack_id = $1 AND org_id = $2
         `, [stackId, orgId]);
 
-        // Get recent transactions
         const transactionsResult = await client.query(`
-            SELECT 
+            SELECT
                 t.*,
                 l.name as location_name
             FROM transactions t
@@ -74,11 +68,8 @@ async function getStackWithDetails(stackId: string, orgId: string) {
         return {
             ...stack,
             total_stock: parseFloat(totalResult.rows[0].total),
-            locations: locationInventory.rows.map((r: any) => ({
-                ...r,
-                stock: parseFloat(r.stock)
-            })),
-            transactions: transactionsResult.rows
+            locations: locationInventory.rows.map((r: any) => ({ ...r, stock: parseFloat(r.stock) })),
+            transactions: transactionsResult.rows,
         };
     } finally {
         client.release();
@@ -109,159 +100,160 @@ export default async function StackDetailPage({ params }: { params: Promise<{ id
 
     const { id } = await params;
     const stack = await getStackWithDetails(id, orgId);
+    if (!stack) notFound();
 
-    if (!stack) {
-        notFound();
-    }
+    const weight = resolveWeight(stack.weight_per_bale, stack.bale_size);
+    const tons = balesToTons(stack.total_stock, weight);
 
     return (
         <div className="space-y-6">
-            {/* Header */}
-            <div className="flex items-center gap-4">
-                <Link
-                    href="/stacks"
-                    className="p-2 rounded-xl transition-colors"
-                    style={{ background: 'var(--bg-surface)' }}
-                >
-                    <ArrowLeft size={20} style={{ color: 'var(--text-dim)' }} />
-                </Link>
-                <div className="flex-1">
-                    <h1 className="text-xl font-bold" style={{ color: 'var(--accent)' }}>{stack.name}</h1>
-                    <p className="text-sm font-semibold uppercase" style={{ color: 'var(--primary-light)' }}>
-                        {stack.commodity}
-                    </p>
-                </div>
-                <Link
-                    href={`/stacks/${stack.id}/edit`}
-                    className="p-2 rounded-xl transition-colors"
-                    style={{ background: 'var(--bg-surface)' }}
-                >
-                    <Pencil size={18} style={{ color: 'var(--text-dim)' }} />
-                </Link>
-            </div>
+            <PageHeader
+                eyebrow={stack.commodity}
+                title={stack.name}
+                backHref="/stacks"
+                backLabel="Stacks"
+                actions={
+                    <Link href={`/stacks/${stack.id}/edit`} aria-label="Edit stack" className="icon-button">
+                        <Pencil size={16} />
+                    </Link>
+                }
+            />
 
-            {/* Stats Card */}
-            {(() => {
-                const weight = resolveWeight(stack.weight_per_bale, stack.bale_size);
-                const tons = balesToTons(stack.total_stock, weight);
-                return (
-                    <div className="glass-card">
-                        <div className="grid grid-cols-2 gap-4">
-                            <div>
-                                <span className="text-xs block" style={{ color: 'var(--text-dim)' }}>TOTAL INVENTORY</span>
-                                <span className="text-2xl font-bold" style={{ color: 'var(--accent)' }}>
-                                    {stack.total_stock.toLocaleString()}
-                                </span>
-                                <span className="text-sm ml-1" style={{ color: 'var(--text-dim)' }}>Bales</span>
-                                <p className="text-sm" style={{ color: 'var(--text-dim)' }}>
-                                    {tons.toFixed(2)} tons
-                                </p>
-                            </div>
-                            <div>
-                                <span className="text-xs block" style={{ color: 'var(--text-dim)' }}>BASE PRICE</span>
-                                <span className="text-2xl font-bold" style={{ color: 'var(--accent)' }}>
-                                    ${parseFloat(stack.base_price).toFixed(2)}
-                                </span>
-                                <span className="text-sm ml-1" style={{ color: 'var(--text-dim)' }}>/{stack.price_unit || 'bale'}</span>
-                            </div>
+            <div className="glass-card">
+                <div className="grid grid-cols-2 gap-4">
+                    <div>
+                        <span className="text-eyebrow">Total inventory</span>
+                        <div className="flex items-baseline gap-1 mt-1">
+                            <span className="text-3xl font-bold" style={{ color: 'var(--accent)' }}>
+                                {stack.total_stock.toLocaleString()}
+                            </span>
+                            <span className="text-sm" style={{ color: 'var(--text-dim)' }}>bales</span>
                         </div>
-
-                        {/* Weight and Size Info */}
-                        <div className="grid grid-cols-3 gap-4 mt-4 pt-4 text-sm" style={{ borderTop: '1px solid var(--glass-border)' }}>
-                            <div>
-                                <span className="text-xs block" style={{ color: 'var(--text-dim)' }}>WEIGHT/BALE</span>
-                                <span style={{ color: 'var(--accent)' }}>{weight.toLocaleString()} lbs</span>
-                            </div>
-                            <div>
-                                <span className="text-xs block" style={{ color: 'var(--text-dim)' }}>BALE SIZE</span>
-                                <span style={{ color: 'var(--accent)' }}>{stack.bale_size || 'N/A'}</span>
-                            </div>
-                            <div>
-                                <span className="text-xs block" style={{ color: 'var(--text-dim)' }}>QUALITY</span>
-                                <span style={{ color: 'var(--accent)' }}>{stack.quality || 'N/A'}</span>
-                            </div>
+                        <p className="text-sm mt-0.5" style={{ color: 'var(--text-dim)' }}>
+                            {tons.toFixed(2)} tons
+                        </p>
+                    </div>
+                    <div>
+                        <span className="text-eyebrow">Base price</span>
+                        <div className="flex items-baseline gap-1 mt-1">
+                            <span className="text-3xl font-bold" style={{ color: 'var(--accent)' }}>
+                                ${parseFloat(stack.base_price).toFixed(2)}
+                            </span>
+                            <span className="text-sm" style={{ color: 'var(--text-dim)' }}>
+                                /{stack.price_unit || 'bale'}
+                            </span>
                         </div>
                     </div>
-                );
-            })()}
+                </div>
 
-            {/* Location Breakdown */}
+                <div
+                    className="grid grid-cols-3 gap-4 mt-5 pt-5 text-sm"
+                    style={{ borderTop: '1px solid var(--glass-border)' }}
+                >
+                    <div>
+                        <span className="text-eyebrow">Weight/bale</span>
+                        <p style={{ color: 'var(--accent)' }}>{weight.toLocaleString()} lbs</p>
+                    </div>
+                    <div>
+                        <span className="text-eyebrow">Bale size</span>
+                        <p style={{ color: 'var(--accent)' }}>{stack.bale_size || 'N/A'}</p>
+                    </div>
+                    <div>
+                        <span className="text-eyebrow">Quality</span>
+                        <p style={{ color: 'var(--accent)' }}>{stack.quality || 'N/A'}</p>
+                    </div>
+                </div>
+            </div>
+
             {stack.locations.length > 0 && (
-                <div>
-                    <h2 className="text-sm font-bold mb-3 uppercase" style={{ color: 'var(--text-dim)' }}>
-                        Inventory by Location
+                <section>
+                    <h2 className="text-eyebrow mb-3 flex items-center gap-1.5">
+                        <MapPin size={12} />
+                        <span>Inventory by location</span>
                     </h2>
                     <div className="space-y-2">
                         {stack.locations.map((loc: any) => (
                             <Link
                                 key={loc.location_id}
                                 href={`/locations/${loc.location_id}`}
-                                className="glass-card p-4 flex justify-between items-center hover:brightness-110 transition-all"
+                                className="glass-card glass-card-link p-4 flex justify-between items-center"
                             >
                                 <span className="font-semibold" style={{ color: 'var(--accent)' }}>
                                     {loc.location_name}
                                 </span>
                                 <span className="text-lg font-bold" style={{ color: 'var(--primary-light)' }}>
-                                    {loc.stock.toLocaleString()} <span className="text-xs font-normal" style={{ color: 'var(--text-dim)' }}>bales</span>
+                                    {loc.stock.toLocaleString()}{' '}
+                                    <span className="text-xs font-normal" style={{ color: 'var(--text-dim)' }}>
+                                        bales
+                                    </span>
                                 </span>
                             </Link>
                         ))}
                     </div>
-                </div>
+                </section>
             )}
 
-            {/* Transaction History */}
-            <div>
-                <h2 className="text-sm font-bold mb-3 uppercase" style={{ color: 'var(--text-dim)' }}>
-                    Recent Transactions
-                </h2>
+            <section>
+                <h2 className="text-eyebrow mb-3">Recent transactions</h2>
                 {stack.transactions.length === 0 ? (
-                    <div className="glass-card text-center py-8" style={{ color: 'var(--text-dim)' }}>
-                        No transactions yet
-                    </div>
+                    <EmptyState
+                        icon={<Tractor className="w-7 h-7" />}
+                        title="No activity yet"
+                        body="Production, purchases, sales and transfers on this stack will appear here."
+                    />
                 ) : (
                     <div className="space-y-2">
-                        {stack.transactions.map((tx: any) => (
-                            <Link key={tx.id} href={`/transactions/${tx.id}`} className="block">
-                                <div className="glass-card p-4 hover:brightness-110 transition-all">
-                                    <div className="flex justify-between items-start">
-                                        <div className="flex items-center gap-3">
-                                            <div
-                                                className="p-2 rounded-lg"
-                                                style={{
-                                                    background: tx.type === 'sale' ? 'rgba(239, 68, 68, 0.2)' : 'rgba(var(--primary-rgb), 0.2)',
-                                                    color: tx.type === 'sale' ? '#ef4444' : 'var(--primary-light)'
-                                                }}
-                                            >
-                                                {getTransactionIcon(tx.type)}
+                        {stack.transactions.map((tx: any) => {
+                            const isSale = tx.type === 'sale';
+                            return (
+                                <Link key={tx.id} href={`/transactions/${tx.id}`} className="block">
+                                    <div className="glass-card glass-card-link p-4">
+                                        <div className="flex justify-between items-center gap-3">
+                                            <div className="flex items-center gap-3 min-w-0">
+                                                <div
+                                                    className="flex-shrink-0 w-9 h-9 rounded-xl flex items-center justify-center"
+                                                    style={{
+                                                        background: isSale
+                                                            ? 'color-mix(in srgb, var(--error) 10%, transparent)'
+                                                            : 'color-mix(in srgb, var(--primary) 10%, transparent)',
+                                                        color: isSale ? 'var(--error)' : 'var(--primary)',
+                                                    }}
+                                                >
+                                                    {getTransactionIcon(tx.type)}
+                                                </div>
+                                                <div className="min-w-0">
+                                                    <p className="font-semibold" style={{ color: 'var(--accent)' }}>
+                                                        {getTransactionLabel(tx.type)}
+                                                    </p>
+                                                    <p className="text-xs truncate" style={{ color: 'var(--text-dim)' }}>
+                                                        {tx.location_name || 'No location'}
+                                                        {tx.entity ? ` · ${tx.entity}` : ''}
+                                                    </p>
+                                                </div>
                                             </div>
-                                            <div>
-                                                <p className="font-semibold" style={{ color: 'var(--accent)' }}>
-                                                    {getTransactionLabel(tx.type)}
+                                            <div className="text-right flex-shrink-0">
+                                                <p
+                                                    className="font-bold text-lg tabular-nums"
+                                                    style={{ color: isSale ? 'var(--error)' : 'var(--primary-light)' }}
+                                                >
+                                                    {isSale ? '−' : '+'}
+                                                    {parseFloat(tx.amount).toLocaleString()}
                                                 </p>
                                                 <p className="text-xs" style={{ color: 'var(--text-dim)' }}>
-                                                    {tx.location_name || 'No location'} {tx.entity && `• ${tx.entity}`}
+                                                    {new Date(tx.date).toLocaleDateString(undefined, {
+                                                        month: 'short',
+                                                        day: 'numeric',
+                                                    })}
                                                 </p>
                                             </div>
                                         </div>
-                                        <div className="text-right">
-                                            <p
-                                                className="font-bold text-lg"
-                                                style={{ color: tx.type === 'sale' ? '#ef4444' : 'var(--primary-light)' }}
-                                            >
-                                                {tx.type === 'sale' ? '−' : '+'}{parseFloat(tx.amount).toLocaleString()}
-                                            </p>
-                                            <p className="text-xs" style={{ color: 'var(--text-dim)' }}>
-                                                {new Date(tx.date).toLocaleDateString()}
-                                            </p>
-                                        </div>
                                     </div>
-                                </div>
-                            </Link>
-                        ))}
+                                </Link>
+                            );
+                        })}
                     </div>
                 )}
-            </div>
+            </section>
         </div>
     );
 }

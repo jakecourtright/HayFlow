@@ -4,6 +4,7 @@ import { useTheme } from "../contexts/theme-context";
 import { Check } from "lucide-react";
 import { OrganizationSwitcher, Protect } from "@clerk/nextjs";
 import TeamManagement from "@/components/TeamManagement";
+import PageHeader from "@/components/ui/PageHeader";
 
 const THEMES = [
     // Brand Themes — first, recommended
@@ -163,10 +164,15 @@ export default function SettingsPage() {
     const lightThemes = THEMES.filter(t => t.label === "Light");
 
     return (
-        <div className="space-y-6">
-            <h1 className="text-2xl font-bold" style={{ color: 'var(--accent)' }}>Settings</h1>
-
-            {/* Organization Switcher */}
+        <div>
+            <PageHeader
+                eyebrow="Preferences"
+                title="Settings"
+                subtitle="Your workspace, team, and visual theme."
+                backHref="/"
+                backLabel="Home"
+            />
+            <div className="space-y-6">
             <div className="glass-card">
                 <h2 className="text-lg font-bold mb-3" style={{ color: 'var(--text-main)' }}>Organization</h2>
                 <p className="text-sm mb-4" style={{ color: 'var(--text-dim)' }}>
@@ -304,6 +310,7 @@ export default function SettingsPage() {
                         </button>
                     ))}
                 </div>
+            </div>
             </div>
         </div>
     );

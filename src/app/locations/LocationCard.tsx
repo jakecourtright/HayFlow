@@ -16,47 +16,61 @@ interface LocationCardProps {
 }
 
 export default function LocationCard({ location }: LocationCardProps) {
-    const percentUsed = Math.min(100, Math.round((location.total_stock / location.capacity) * 100));
+    const percentUsed = location.capacity > 0
+        ? Math.min(100, Math.round((location.total_stock / location.capacity) * 100))
+        : 0;
     const isNearCapacity = percentUsed > 90;
+    const isEmpty = location.total_stock <= 0;
 
     return (
         <Link href={`/locations/${location.id}`} className="block">
-            <div className="glass-card p-5 hover:border-[var(--primary)] transition-colors cursor-pointer">
-                <div className="flex justify-between items-center mb-4">
-                    <div>
-                        <h3 className="text-lg font-semibold" style={{ color: 'var(--accent)' }}>{location.name}</h3>
+            <div className="glass-card glass-card-link p-5">
+                <div className="flex justify-between items-start gap-3 mb-4">
+                    <div className="min-w-0 flex-1">
+                        <h3 className="text-display-sm truncate">{location.name}</h3>
                         <span className="text-sm" style={{ color: 'var(--text-dim)' }}>
-                            {location.total_stock.toLocaleString()} bales ({location.total_tons.toFixed(2)} tons)
+                            {location.total_stock.toLocaleString()} bales · {location.total_tons.toFixed(2)} tons
                         </span>
                     </div>
-                    <div className="flex items-center gap-3">
-                        <span className="font-semibold" style={{ color: isNearCapacity ? '#ef4444' : 'var(--primary-light)' }}>
+                    <div className="flex items-center gap-2 flex-shrink-0">
+                        <span
+                            className="font-bold tabular-nums"
+                            style={{ color: isNearCapacity ? 'var(--error)' : isEmpty ? 'var(--text-dim)' : 'var(--primary-light)' }}
+                        >
                             {percentUsed}%
                         </span>
                         <Link
                             href={`/locations/${location.id}/edit`}
                             onClick={(e) => e.stopPropagation()}
-                            className="p-2 rounded-lg transition-colors"
-                            style={{ background: 'var(--bg-surface)' }}
+                            aria-label="Edit location"
+                            className="icon-button"
                         >
-                            <Pencil size={14} style={{ color: 'var(--text-dim)' }} />
+                            <Pencil size={14} />
                         </Link>
                     </div>
                 </div>
 
-                {/* Progress Bar */}
-                <div className="h-2 rounded-full overflow-hidden mb-3" style={{ background: 'var(--bg-surface)' }}>
+                <div
+                    className="h-2 rounded-full overflow-hidden mb-3"
+                    style={{ background: 'var(--bg-surface)' }}
+                    role="progressbar"
+                    aria-valuemin={0}
+                    aria-valuemax={100}
+                    aria-valuenow={percentUsed}
+                >
                     <div
                         className="h-full rounded-full transition-all"
                         style={{
                             width: `${percentUsed}%`,
-                            background: isNearCapacity ? '#ef4444' : 'var(--primary-light)'
+                            background: isNearCapacity ? 'var(--error)' : 'var(--primary-light)',
                         }}
                     />
                 </div>
 
                 <div className="flex justify-between text-xs" style={{ color: 'var(--text-dim)' }}>
-                    <span>{location.stack_count} {location.stack_count === 1 ? 'lot' : 'lots'} stored here</span>
+                    <span>
+                        {location.stack_count} {location.stack_count === 1 ? 'lot' : 'lots'} stored
+                    </span>
                     <span>Capacity: {location.capacity.toLocaleString()} {location.unit}</span>
                 </div>
             </div>

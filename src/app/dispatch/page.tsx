@@ -2,16 +2,18 @@ import { auth } from "@clerk/nextjs/server";
 import pool from "@/lib/db";
 import { redirect } from "next/navigation";
 import Link from "next/link";
-import { FileText, Package, MapPin } from "lucide-react";
+import { FileText, ArrowRight } from "lucide-react";
 import { Permissions } from "@/lib/permissions";
 import DispatchQueue from "./DispatchQueue";
+import PageHeader from "@/components/ui/PageHeader";
+import EmptyState from "@/components/ui/EmptyState";
+import StatusChip from "@/components/ui/StatusChip";
 
 async function getDispatchData(orgId: string) {
     const client = await pool.connect();
     try {
-        // Get pending and approved tickets
         const ticketsRes = await client.query(`
-            SELECT 
+            SELECT
                 tk.*,
                 s.name as stack_name,
                 s.commodity,
@@ -20,14 +22,13 @@ async function getDispatchData(orgId: string) {
             LEFT JOIN stacks s ON s.id = tk.stack_id
             LEFT JOIN locations l ON l.id = tk.location_id
             WHERE tk.org_id = $1 AND tk.status IN ('pending', 'approved') AND tk.type = 'sale'
-            ORDER BY 
+            ORDER BY
                 CASE tk.status WHEN 'pending' THEN 0 WHEN 'approved' THEN 1 END,
                 tk.created_at DESC
         `, [orgId]);
 
-        // Get recent invoices
         const invoicesRes = await client.query(`
-            SELECT i.*, 
+            SELECT i.*,
                 (SELECT COUNT(*) FROM tickets t WHERE t.invoice_id = i.id) as ticket_count
             FROM invoices i
             WHERE i.org_id = $1
@@ -57,121 +58,116 @@ export default async function DispatchPage() {
     const pendingTickets = data.tickets.filter((t: any) => t.status === 'pending');
     const approvedTickets = data.tickets.filter((t: any) => t.status === 'approved');
 
-    return (
-        <div className="space-y-6">
-            <div className="flex justify-between items-center">
-                <h1 className="text-xl font-bold" style={{ color: 'var(--accent)' }}>Invoicing</h1>
-                <Link href="/dispatch/invoices" className="btn btn-secondary flex items-center gap-2">
-                    <FileText size={16} />
-                    Invoices
-                </Link>
-            </div>
+    const hasWork = pendingTickets.length > 0 || approvedTickets.length > 0;
 
-            {/* Stats */}
-            <div className="grid grid-cols-2 gap-3">
-                <div className="glass-card text-center py-4">
-                    <p className="text-2xl font-bold" style={{ color: '#f59e0b' }}>
+    return (
+        <div>
+            <PageHeader
+                eyebrow="Dispatch"
+                title="Invoicing queue"
+                subtitle="Review pending tickets and bundle approved loads into clean invoices."
+                actions={
+                    <Link href="/dispatch/invoices" className="btn btn-secondary btn-sm">
+                        <FileText size={16} />
+                        All invoices
+                    </Link>
+                }
+            />
+
+            <div className="grid grid-cols-2 gap-3 mb-6">
+                <div className="surface-card text-center py-4">
+                    <p className="text-display-md" style={{ color: 'var(--warning)' }}>
                         {pendingTickets.length}
                     </p>
-                    <p className="text-xs font-bold uppercase" style={{ color: 'var(--text-dim)' }}>
-                        Pending Review
-                    </p>
+                    <p className="text-eyebrow mt-1">Needs review</p>
                 </div>
-                <div className="glass-card text-center py-4">
-                    <p className="text-2xl font-bold" style={{ color: '#22c55e' }}>
+                <div className="surface-card text-center py-4">
+                    <p className="text-display-md" style={{ color: 'var(--success)' }}>
                         {approvedTickets.length}
                     </p>
-                    <p className="text-xs font-bold uppercase" style={{ color: 'var(--text-dim)' }}>
-                        Ready to Invoice
-                    </p>
+                    <p className="text-eyebrow mt-1">Ready to invoice</p>
                 </div>
             </div>
 
-            {/* Pending Tickets */}
             {pendingTickets.length > 0 && (
-                <div>
-                    <h2 className="text-sm font-bold mb-3 uppercase" style={{ color: '#f59e0b' }}>
-                        Needs Review ({pendingTickets.length})
+                <section className="mb-6">
+                    <h2 className="text-eyebrow mb-3" style={{ color: 'var(--warning)' }}>
+                        Needs review ({pendingTickets.length})
                     </h2>
                     <div className="space-y-2">
                         {pendingTickets.map((ticket: any) => (
-                            <Link key={ticket.id} href={`/tickets/${ticket.id}`} className="block">
-                                <div className="glass-card p-4 hover:brightness-110 transition-all" style={{ borderLeft: '3px solid #f59e0b' }}>
-                                    <div className="flex justify-between items-center">
-                                        <div>
+                            <Link key={ticket.id} href={`/tickets/${ticket.id}`} className="glass-card-link p-4 block" style={{ borderLeft: '3px solid var(--warning)' }}>
+                                <div className="flex justify-between items-center gap-3">
+                                    <div className="min-w-0">
+                                        <div className="flex items-baseline gap-2 flex-wrap">
                                             <span className="font-bold" style={{ color: 'var(--accent)' }}>
                                                 #{ticket.id}
                                             </span>
-                                            <span className="text-sm ml-2" style={{ color: 'var(--text-dim)' }}>
+                                            <span className="text-sm truncate" style={{ color: 'var(--text)' }}>
                                                 {ticket.stack_name}
                                             </span>
-                                            {ticket.location_name && (
-                                                <span className="text-xs ml-2" style={{ color: 'var(--text-dim)' }}>
-                                                    @ {ticket.location_name}
-                                                </span>
-                                            )}
                                         </div>
-                                        <span className="font-bold" style={{ color: 'var(--primary-light)' }}>
-                                            {parseFloat(ticket.amount).toLocaleString()} bales
-                                        </span>
+                                        {ticket.customer && (
+                                            <p className="text-xs mt-1" style={{ color: 'var(--text-dim)' }}>
+                                                → {ticket.customer}
+                                            </p>
+                                        )}
+                                        {ticket.location_name && (
+                                            <p className="text-xs" style={{ color: 'var(--text-dim)' }}>
+                                                @ {ticket.location_name}
+                                            </p>
+                                        )}
                                     </div>
-                                    {ticket.customer && (
-                                        <p className="text-xs mt-1" style={{ color: 'var(--text-dim)' }}>
-                                            → {ticket.customer}
-                                        </p>
-                                    )}
+                                    <div className="text-right shrink-0">
+                                        <div className="font-bold" style={{ color: 'var(--primary-light)' }}>
+                                            {parseFloat(ticket.amount).toLocaleString()}
+                                        </div>
+                                        <div className="text-xs" style={{ color: 'var(--text-dim)' }}>bales</div>
+                                    </div>
                                 </div>
                             </Link>
                         ))}
                     </div>
-                </div>
+                </section>
             )}
 
-            {/* Approved Tickets — can be compiled into invoices */}
             <DispatchQueue approvedTickets={approvedTickets} />
 
-            {/* Recent Invoices Preview */}
             {data.recentInvoices.length > 0 && (
-                <div>
+                <section className="mt-8">
                     <div className="flex justify-between items-center mb-3">
-                        <h2 className="text-sm font-bold uppercase" style={{ color: 'var(--text-dim)' }}>
-                            Recent Invoices
-                        </h2>
-                        <Link href="/dispatch/invoices" className="text-xs font-bold" style={{ color: 'var(--primary-light)' }}>
-                            View All →
+                        <h2 className="text-eyebrow">Recent invoices</h2>
+                        <Link href="/dispatch/invoices" className="text-xs font-bold inline-flex items-center gap-1" style={{ color: 'var(--primary-light)' }}>
+                            View all <ArrowRight size={12} />
                         </Link>
                     </div>
                     <div className="space-y-2">
                         {data.recentInvoices.map((inv: any) => (
-                            <Link key={inv.id} href={`/dispatch/invoices/${inv.id}`} className="block">
-                                <div className="glass-card p-3 hover:brightness-110 transition-all">
-                                    <div className="flex justify-between items-center">
-                                        <div>
-                                            <span className="font-bold" style={{ color: 'var(--accent)' }}>
-                                                {inv.invoice_number}
-                                            </span>
-                                            <span className="text-xs ml-2 px-2 py-0.5 rounded-full" style={{
-                                                background: inv.status === 'paid' ? 'rgba(34,197,94,0.2)' : inv.status === 'sent' ? 'rgba(59,130,246,0.2)' : 'rgba(245,158,11,0.2)',
-                                                color: inv.status === 'paid' ? '#22c55e' : inv.status === 'sent' ? '#3b82f6' : '#f59e0b',
-                                            }}>
-                                                {inv.status}
-                                            </span>
-                                        </div>
-                                        <span className="text-sm" style={{ color: 'var(--text-dim)' }}>
-                                            {inv.ticket_count} tickets
+                            <Link key={inv.id} href={`/dispatch/invoices/${inv.id}`} className="glass-card-link p-3 block">
+                                <div className="flex justify-between items-center gap-3">
+                                    <div className="flex items-center gap-2 min-w-0">
+                                        <span className="font-bold truncate" style={{ color: 'var(--accent)' }}>
+                                            {inv.invoice_number}
                                         </span>
+                                        <StatusChip status={inv.status} />
                                     </div>
+                                    <span className="text-xs shrink-0" style={{ color: 'var(--text-dim)' }}>
+                                        {inv.ticket_count} ticket{inv.ticket_count === '1' ? '' : 's'}
+                                    </span>
                                 </div>
                             </Link>
                         ))}
                     </div>
-                </div>
+                </section>
             )}
 
-            {pendingTickets.length === 0 && approvedTickets.length === 0 && (
-                <div className="glass-card text-center py-12">
-                    <p style={{ color: 'var(--text-dim)' }}>No tickets need attention right now</p>
-                </div>
+            {!hasWork && (
+                <EmptyState
+                    icon={<FileText size={28} />}
+                    title="Queue is clear"
+                    body="No tickets waiting for review or invoicing. New sale tickets show up here for approval."
+                    cta={{ href: "/tickets/new", label: "New ticket" }}
+                />
             )}
         </div>
     );

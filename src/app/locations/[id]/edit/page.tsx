@@ -5,6 +5,8 @@ import { updateLocation } from "@/app/actions";
 import DeleteButton from "./DeleteButton";
 import UnitSelect from "@/components/UnitSelect";
 import { getPermissionFlags } from "@/lib/permissions";
+import PageHeader from "@/components/ui/PageHeader";
+import SubmitButton from "@/components/ui/SubmitButton";
 
 async function getLocation(locationId: string, orgId: string) {
     const client = await pool.connect();
@@ -27,19 +29,22 @@ export default async function EditLocationPage({ params }: { params: Promise<{ i
     const location = await getLocation(id, orgId);
     const perms = await getPermissionFlags();
 
-    if (!location) {
-        notFound();
-    }
+    if (!location) notFound();
 
     const updateWithId = updateLocation.bind(null, id);
 
     return (
         <div>
-            <h1 className="text-xl font-bold mb-6">Edit Location</h1>
+            <PageHeader
+                eyebrow="Edit location"
+                title={location.name}
+                backHref={`/locations/${location.id}`}
+                backLabel="Location"
+            />
 
-            <form action={updateWithId} className="glass-card space-y-5">
+            <form action={updateWithId} className="surface-card space-y-5">
                 <div>
-                    <label className="label-modern">Location Name</label>
+                    <label className="label-modern">Location name</label>
                     <input
                         type="text"
                         name="name"
@@ -56,6 +61,8 @@ export default async function EditLocationPage({ params }: { params: Promise<{ i
                             type="number"
                             name="capacity"
                             required
+                            min="1"
+                            inputMode="numeric"
                             defaultValue={location.capacity}
                             className="input-modern"
                         />
@@ -66,9 +73,9 @@ export default async function EditLocationPage({ params }: { params: Promise<{ i
                     </div>
                 </div>
 
-                <button type="submit" className="btn btn-primary w-full mt-4">
-                    Update Location
-                </button>
+                <SubmitButton className="w-full" pendingLabel="Saving…">
+                    Save changes
+                </SubmitButton>
             </form>
 
             {perms.canDeleteLocations && (
