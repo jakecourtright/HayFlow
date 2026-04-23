@@ -13,6 +13,27 @@ export type SubscriptionState =
     | { kind: "inactive" }
     | { kind: "no-org" };
 
+function parseIdList(raw: string | undefined): Set<string> {
+    if (!raw) return new Set();
+    return new Set(raw.split(",").map((s) => s.trim()).filter(Boolean));
+}
+
+/**
+ * Pre-launch bypass for internal/test accounts. Reads comma-separated IDs from
+ * BILLING_BYPASS_USER_IDS and BILLING_BYPASS_ORG_IDS. A hit on either list
+ * makes the org behave as if it has an active (non-trialing) subscription.
+ * Safe to leave empty in prod.
+ */
+export async function isBillingBypassed(): Promise<boolean> {
+    const { userId, orgId } = await auth();
+    if (!userId && !orgId) return false;
+    const userAllow = parseIdList(process.env.BILLING_BYPASS_USER_IDS);
+    const orgAllow = parseIdList(process.env.BILLING_BYPASS_ORG_IDS);
+    if (userId && userAllow.has(userId)) return true;
+    if (orgId && orgAllow.has(orgId)) return true;
+    return false;
+}
+
 /**
  * Idempotent: creates an org_billing row the first time we see an org.
  * Used to compute trial countdown locally (Clerk Billing is source of truth for gating).
@@ -53,6 +74,9 @@ export async function getSubscriptionState(): Promise<SubscriptionState> {
     if (!orgId) return { kind: "no-org" };
 
     await ensureOrgBillingRow(orgId);
+    if (await isBillingBypassed()) {
+        return { kind: "active", trialing: false, trialDaysLeft: null };
+    }
     const hasPlan = has({ plan: BILLING_PLAN_KEY } as any);
 
     if (!hasPlan) return { kind: "inactive" };
@@ -77,6 +101,7 @@ export async function getSubscriptionState(): Promise<SubscriptionState> {
 export async function hasActiveSubscription(): Promise<boolean> {
     const { orgId, has } = await auth();
     if (!orgId) return false;
+    if (await isBillingBypassed()) return true;
     return has({ plan: BILLING_PLAN_KEY } as any);
 }
 
