@@ -2,10 +2,15 @@ import { auth } from "@clerk/nextjs/server";
 import pool from "@/lib/db";
 
 /**
- * Clerk plan key — must match the plan slug you create in Clerk Dashboard → Billing.
- * Single tier at $20/mo with 14-day trial + CC required upfront.
+ * Clerk plan keys — must match the plan slugs created in Clerk Dashboard → Billing.
+ * Two tiers, both with 14-day trial + CC required upfront:
+ *   - hayflow_pro:      $25/mo, up to 2 users
+ *   - hayflow_pro_team: team tier, unlimited users
+ * Any of these grants write access. Add new plan slugs here as the catalog grows.
  */
-export const BILLING_PLAN_KEY = "pro";
+export const BILLING_PLAN_KEYS = ["hayflow_pro", "hayflow_pro_team"] as const;
+/** Default plan key (used in copy / display fallbacks). */
+export const BILLING_PLAN_KEY = BILLING_PLAN_KEYS[0];
 export const TRIAL_DAYS = 14;
 
 export type SubscriptionState =
@@ -77,7 +82,7 @@ export async function getSubscriptionState(): Promise<SubscriptionState> {
     if (await isBillingBypassed()) {
         return { kind: "active", trialing: false, trialDaysLeft: null };
     }
-    const hasPlan = has({ plan: BILLING_PLAN_KEY } as any);
+    const hasPlan = BILLING_PLAN_KEYS.some((plan) => has({ plan } as any));
 
     if (!hasPlan) return { kind: "inactive" };
 
@@ -102,7 +107,7 @@ export async function hasActiveSubscription(): Promise<boolean> {
     const { orgId, has } = await auth();
     if (!orgId) return false;
     if (await isBillingBypassed()) return true;
-    return has({ plan: BILLING_PLAN_KEY } as any);
+    return BILLING_PLAN_KEYS.some((plan) => has({ plan } as any));
 }
 
 /**
