@@ -3,7 +3,7 @@
 import { useTheme } from "../contexts/theme-context";
 import { Check, Building2, ChevronRight, CreditCard } from "lucide-react";
 import Link from "next/link";
-import { OrganizationSwitcher, Protect } from "@clerk/nextjs";
+import { OrganizationSwitcher, Show } from "@clerk/nextjs";
 import TeamManagement from "@/components/TeamManagement";
 import PageHeader from "@/components/ui/PageHeader";
 
@@ -174,7 +174,9 @@ export default function SettingsPage() {
                 backLabel="Home"
             />
             <div className="space-y-6">
-            <Protect permission="org:invoices:manage">
+            <Show when={{
+                permission: "org:invoices:manage"
+            }}>
                 <Link href="/settings/business" className="glass-card flex items-center gap-4 hover:brightness-110 transition-all">
                     <div
                         className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
@@ -193,7 +195,7 @@ export default function SettingsPage() {
                     </div>
                     <ChevronRight size={18} style={{ color: 'var(--text-dim)' }} className="flex-shrink-0" />
                 </Link>
-            </Protect>
+            </Show>
 
             <Link href="/billing" className="glass-card flex items-center gap-4 hover:brightness-110 transition-all">
                 <div
@@ -236,7 +238,9 @@ export default function SettingsPage() {
             </div>
 
             {/* Team Management — only visible to users with manage permission */}
-            <Protect permission="org:users:manage">
+            <Show when={{
+                permission: "org:users:manage"
+            }}>
                 <div className="glass-card">
                     <h2 className="text-lg font-bold mb-3" style={{ color: 'var(--text-main)' }}>Team Management</h2>
                     <p className="text-sm mb-4" style={{ color: 'var(--text-dim)' }}>
@@ -244,7 +248,7 @@ export default function SettingsPage() {
                     </p>
                     <TeamManagement />
                 </div>
-            </Protect>
+            </Show>
 
             {/* Theme Selection */}
             <div className="glass-card">

@@ -27,11 +27,9 @@ export default async function WelcomePage() {
                     First things first — name your business. This is the workspace your team, stacks, and invoices live inside.
                 </p>
             </div>
-
             <div className="glass-card flex justify-center">
                 <CreateOrganization
                     skipInvitationScreen
-                    hideSlug
                     afterCreateOrganizationUrl="/billing"
                     appearance={{
                         elements: {
@@ -39,10 +37,8 @@ export default async function WelcomePage() {
                             cardBox: "shadow-none bg-transparent",
                             card: "shadow-none bg-transparent p-0",
                         },
-                    }}
-                />
+                    }} />
             </div>
-
             <p className="text-center text-xs" style={{ color: 'var(--text-dim)' }}>
                 You can invite drivers and bookkeepers later from Settings.
             </p>

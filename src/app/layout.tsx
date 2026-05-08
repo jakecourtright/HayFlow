@@ -1,7 +1,7 @@
 import {
   ClerkProvider,
   OrganizationSwitcher,
-  SignedIn,
+  Show,
   UserButton,
 } from "@clerk/nextjs";
 import Link from "next/link";
@@ -52,21 +52,19 @@ export default async function RootLayout({
   }
 
   return (
-    <ClerkProvider
-      appearance={{
-        variables: {
-          colorPrimary: 'var(--primary)',
-          colorText: 'var(--text-main)',
-          colorTextSecondary: 'var(--text-dim)',
-          colorBackground: 'var(--bg-surface)',
-          colorInputBackground: 'var(--bg-surface)',
-          colorInputText: 'var(--text-main)',
-          borderRadius: '0.75rem',
-        },
-      }}
-    >
-      <html lang="en" data-theme="harvest" className={`${fraunces.variable} ${geist.variable}`}>
-        <body className="antialiased pb-24 transition-colors duration-300">
+    <html lang="en" data-theme="harvest" className={`${fraunces.variable} ${geist.variable}`}>
+      <body className="antialiased pb-24 transition-colors duration-300"><ClerkProvider
+          appearance={{
+            variables: {
+              colorPrimary: 'var(--primary)',
+              colorForeground: 'var(--text-main)',
+              colorMutedForeground: 'var(--text-dim)',
+              colorBackground: 'var(--bg-surface)',
+              colorInput: 'var(--bg-surface)',
+              colorInputForeground: 'var(--text-main)',
+              borderRadius: '0.75rem',
+            },
+          }}>
           <ThemeProvider>
             <ToastProvider>
               {/* Header */}
@@ -79,7 +77,7 @@ export default async function RootLayout({
                     </span>
                   </Link>
                   <div className="flex items-center gap-2 sm:gap-3">
-                    <SignedIn>
+                    <Show when="signed-in">
                       <div className="hidden sm:block">
                         <OrganizationSwitcher
                           hidePersonal
@@ -105,14 +103,14 @@ export default async function RootLayout({
                           }
                         }}
                       />
-                    </SignedIn>
+                    </Show>
                   </div>
                 </div>
               </header>
 
-              <SignedIn>
+              <Show when="signed-in">
                 <TrialBanner />
-              </SignedIn>
+              </Show>
 
               {/* Main Content */}
               <main className="container mx-auto px-6 py-6 max-w-2xl">
@@ -120,13 +118,12 @@ export default async function RootLayout({
               </main>
 
               {/* Bottom Navigation */}
-              <SignedIn>
+              <Show when="signed-in">
                 <RoleNav isDriver={isDriver} canManageTickets={canManageTickets} />
-              </SignedIn>
+              </Show>
             </ToastProvider>
           </ThemeProvider>
-        </body>
-      </html>
-    </ClerkProvider>
+        </ClerkProvider></body>
+    </html>
   );
 }
