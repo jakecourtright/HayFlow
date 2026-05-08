@@ -5,7 +5,7 @@ import pool from "@/lib/db";
  * Clerk plan keys — must match the plan slugs created in Clerk Dashboard → Billing.
  * Two tiers, both with 14-day trial + CC required upfront:
  *   - hayflow_pro:      $25/mo, up to 2 users
- *   - hayflow_pro_team: team tier, unlimited users
+ *   - hayflow_pro_team: $100/mo, unlimited users
  * Any of these grants write access. Add new plan slugs here as the catalog grows.
  */
 export const BILLING_PLAN_KEYS = ["hayflow_pro", "hayflow_pro_team"] as const;
