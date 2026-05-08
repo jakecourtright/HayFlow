@@ -1,6 +1,6 @@
 import { auth } from "@clerk/nextjs/server";
 import { redirect } from "next/navigation";
-import { PricingTable, Protect } from "@clerk/nextjs";
+import { PricingTable } from "@clerk/nextjs";
 import { Sparkles, Check, CreditCard } from "lucide-react";
 import PageHeader from "@/components/ui/PageHeader";
 import { getSubscriptionState, TRIAL_DAYS } from "@/lib/billing";
@@ -87,21 +87,7 @@ export default async function BillingPage() {
                 )}
 
                 <div className="glass-card">
-                    <Protect
-                        permission="org:sys_billing:manage"
-                        fallback={
-                            <div className="text-center py-6">
-                                <p className="font-semibold mb-1" style={{ color: 'var(--text-main)' }}>
-                                    Only admins can manage billing
-                                </p>
-                                <p className="text-sm" style={{ color: 'var(--text-dim)' }}>
-                                    Contact your workspace admin to start or change the subscription.
-                                </p>
-                            </div>
-                        }
-                    >
-                        <PricingTable for="organization" />
-                    </Protect>
+                    <PricingTable for="organization" />
                 </div>
 
                 <p className="text-center text-xs" style={{ color: 'var(--text-dim)' }}>
