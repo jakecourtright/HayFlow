@@ -8,8 +8,9 @@
 //   nav-home, nav-locations, nav-stacks, nav-sales, nav-tickets, nav-reports
 //   help            — the floating Help assistant button
 // Page-specific anchors:
-//   onboarding      — the dashboard "Get started" checklist (office, "/")
-//   new-ticket      — the New ticket button (drivers + office, "/tickets")
+//   onboarding          — the dashboard "Get started" checklist (office, "/")
+//   customize-dashboard — the dashboard Customize toggle (office, "/")
+//   new-ticket          — the New ticket button (drivers + office, "/tickets")
 
 export interface TourStep {
     /** data-tour value to spotlight. Omit for a centered, target-less card. */
@@ -40,6 +41,11 @@ export const TOURS: Tour[] = [
                 target: "onboarding",
                 title: "Start here",
                 body: "This checklist walks you through first setup — your business profile, a barn, a stack, and your first sale. Knock it out top to bottom.",
+            },
+            {
+                target: "customize-dashboard",
+                title: "Make this home screen yours",
+                body: "Tap Customize to drag the cards into the order you like, or hide the ones you don't use. It saves on its own — your layout sticks every time you sign in.",
             },
             {
                 target: "nav-stacks",

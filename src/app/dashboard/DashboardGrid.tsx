@@ -288,6 +288,7 @@ export default function DashboardGrid({ stats, layout: initialLayout, canWriteIn
             <div className="flex justify-end">
                 <button
                     onClick={() => setEditMode(!editMode)}
+                    data-tour="customize-dashboard"
                     className="flex items-center gap-2 px-3 py-1.5 rounded-xl text-sm font-medium transition-all"
                     style={{
                         background: editMode ? 'var(--primary)' : 'var(--bg-surface)',
