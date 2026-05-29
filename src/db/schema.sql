@@ -74,6 +74,8 @@ CREATE TABLE IF NOT EXISTS tickets (
   destination_id INTEGER REFERENCES locations(id) ON DELETE SET NULL, -- barn_to_barn only
   amount DECIMAL(10, 2) NOT NULL,                  -- bales (canonical)
   net_lbs DECIMAL(12, 2),                          -- scale weight (optional, sale only)
+  price_per_unit DECIMAL(10, 2),                   -- per-line rate (Quick Sale multi-item); NULL = use invoice rate
+  price_unit VARCHAR(20),                          -- 'bale' | 'ton' for this line; NULL = use invoice price_unit
   customer VARCHAR(255),
   notes TEXT,
   status VARCHAR(50) DEFAULT 'pending',            -- 'pending' | 'approved' | 'rejected' | 'invoiced'
@@ -89,6 +91,8 @@ CREATE TABLE IF NOT EXISTS tickets (
 ALTER TABLE tickets ADD COLUMN IF NOT EXISTS type VARCHAR(50) DEFAULT 'sale';
 ALTER TABLE tickets ADD COLUMN IF NOT EXISTS net_lbs DECIMAL(12, 2);
 ALTER TABLE tickets ADD COLUMN IF NOT EXISTS destination_id INTEGER REFERENCES locations(id) ON DELETE SET NULL;
+ALTER TABLE tickets ADD COLUMN IF NOT EXISTS price_per_unit DECIMAL(10, 2);
+ALTER TABLE tickets ADD COLUMN IF NOT EXISTS price_unit VARCHAR(20);
 
 -- ============================================================
 -- Invoices (bookkeeper-compiled collections of approved tickets)

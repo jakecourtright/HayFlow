@@ -4,7 +4,7 @@ import { auth } from "@clerk/nextjs/server";
 import pool from "@/lib/db";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { tonsToBales, getDefaultWeight, normalizePrice } from "@/lib/units";
+import { tonsToBales, getDefaultWeight, normalizePrice, lineAmount, resolveLineRate } from "@/lib/units";
 import { Permissions, requirePermission } from "@/lib/permissions";
 import { requireActiveSubscription } from "@/lib/billing";
 import crypto from 'crypto';
@@ -857,21 +857,17 @@ export async function updateInvoice(id: string, formData: FormData) {
 
     const client = await pool.connect();
     try {
-        // Get linked tickets to recalculate total
+        // Recompute total from each line's effective rate: a line keeps its own
+        // per-item price (Quick Sale); lines without one use the submitted invoice rate.
         const ticketsRes = await client.query(
-            'SELECT amount, net_lbs FROM tickets WHERE invoice_id = $1 AND org_id = $2',
+            'SELECT amount, net_lbs, price_per_unit, price_unit FROM tickets WHERE invoice_id = $1 AND org_id = $2',
             [id, orgId]
         );
 
         let totalAmount = 0;
-        if (pricePerUnit > 0) {
-            if (priceUnit === 'ton') {
-                const totalNetLbs = ticketsRes.rows.reduce((sum: number, t: any) => sum + (parseFloat(t.net_lbs) || 0), 0);
-                totalAmount = (totalNetLbs / 2000) * pricePerUnit;
-            } else {
-                const totalBales = ticketsRes.rows.reduce((sum: number, t: any) => sum + parseFloat(t.amount), 0);
-                totalAmount = totalBales * pricePerUnit;
-            }
+        for (const t of ticketsRes.rows) {
+            const { rate, unit } = resolveLineRate(t.price_per_unit, t.price_unit, pricePerUnit, priceUnit);
+            totalAmount += lineAmount(parseFloat(t.amount), parseFloat(t.net_lbs) || 0, rate, unit);
         }
 
         await client.query(`
@@ -898,98 +894,115 @@ export async function quickSale(formData: FormData) {
         throw new Error("You do not have permission to create invoices");
     }
 
-    const stackId = formData.get('stackId') as string;
-    const locationId = formData.get('locationId') as string;
-    const amount = formData.get('amount') as string;
-    const customer = formData.get('customer') as string;
-    const netLbs = formData.get('netLbs') as string;
-    const notes = formData.get('notes') as string;
-    const pricePerUnitStr = formData.get('pricePerUnit') as string;
-    const priceUnit = (formData.get('priceUnit') as string) || 'ton';
+    const customer = (formData.get('customer') as string)?.trim();
+    const notes = (formData.get('notes') as string) || null;
+    const itemsRaw = formData.get('items') as string;
 
-    if (!stackId || !amount) throw new Error("Stack and amount are required");
-    if (!locationId || locationId === 'none') throw new Error("Location is required");
-    if (!customer?.trim()) throw new Error("Customer is required");
+    if (!customer) throw new Error("Customer is required");
+    if (!itemsRaw) throw new Error("Add at least one item");
 
-    const amountNum = parseFloat(amount);
-    if (isNaN(amountNum) || amountNum <= 0) throw new Error("Amount must be a positive number");
+    interface RawItem {
+        stackId?: string;
+        locationId?: string;
+        amount?: string;
+        netLbs?: string;
+        pricePerUnit?: string;
+        priceUnit?: string;
+    }
+    let parsed: RawItem[];
+    try {
+        parsed = JSON.parse(itemsRaw);
+    } catch {
+        throw new Error("Could not read the sale items");
+    }
+    if (!Array.isArray(parsed) || parsed.length === 0) throw new Error("Add at least one item");
 
-    const netLbsNum = netLbs ? parseFloat(netLbs) : null;
-    const pricePerUnit = parseFloat(pricePerUnitStr) || 0;
+    // Normalize + validate each line
+    const items = parsed.map((it, idx) => {
+        const n = idx + 1;
+        const stackId = (it.stackId || '').trim();
+        const locationId = (it.locationId || '').trim();
+        const amountNum = parseFloat(it.amount || '');
+        const netLbsNum = it.netLbs ? parseFloat(it.netLbs) : null;
+        const pricePerUnit = parseFloat(it.pricePerUnit || '') || 0;
+        const priceUnit: 'bale' | 'ton' = it.priceUnit === 'bale' ? 'bale' : 'ton';
+        if (!stackId) throw new Error(`Item ${n}: choose a lot`);
+        if (!locationId || locationId === 'none') throw new Error(`Item ${n}: choose a location`);
+        if (isNaN(amountNum) || amountNum <= 0) throw new Error(`Item ${n}: bales must be greater than zero`);
+        if (netLbsNum !== null && (isNaN(netLbsNum) || netLbsNum < 0)) throw new Error(`Item ${n}: net lbs is invalid`);
+        return { stackId, locationId, amount: amountNum, netLbs: netLbsNum, pricePerUnit, priceUnit };
+    });
 
     const client = await pool.connect();
     let invoiceId: number;
 
     try {
-        // Verify stock at location
-        const inventoryRes = await client.query(`
-            SELECT 
-                SUM(CASE 
-                    WHEN type IN ('production', 'purchase') THEN amount 
-                    WHEN type IN ('sale') THEN -amount 
-                    ELSE 0 
-                END) as quantity
-            FROM transactions
-            WHERE stack_id = $1 AND location_id = $2 AND org_id = $3
-        `, [stackId, locationId, orgId]);
+        await client.query('BEGIN');
 
-        const currentStock = parseFloat(inventoryRes.rows[0]?.quantity || '0');
-        if (currentStock < amountNum) {
-            throw new Error(`Insufficient stock. Available: ${currentStock} bales`);
-        }
-
-        // 1. Create ticket (auto-approved)
-        const ticketRes = await client.query(`
-            INSERT INTO tickets (type, stack_id, location_id, amount, customer, notes, net_lbs, status, driver_id, org_id)
-            VALUES ('sale', $1, $2, $3, $4, $5, $6, 'approved', $7, $8)
-            RETURNING id
-        `, [stackId, locationId, amountNum, customer, notes || null, netLbsNum, userId, orgId]);
-
-        const ticketId = ticketRes.rows[0].id;
-
-        // 2. Create sale transaction (deduct inventory)
-        const txRes = await client.query(`
-            INSERT INTO transactions (type, stack_id, location_id, amount, unit, entity, price, user_id, org_id)
-            VALUES ('sale', $1, $2, $3, 'bales', $4, 0, $5, $6)
-            RETURNING id
-        `, [stackId, locationId, amountNum, customer, userId, orgId]);
-
-        // Link transaction to ticket
-        await client.query(
-            'UPDATE tickets SET transaction_id = $1 WHERE id = $2',
-            [txRes.rows[0].id, ticketId]
-        );
-
-        // 3. Create invoice
-        const countRes = await client.query(
-            'SELECT COUNT(*) FROM invoices WHERE org_id = $1',
-            [orgId]
-        );
-        const invoiceNumber = `INV-${String(parseInt(countRes.rows[0].count) + 1).padStart(4, '0')}`;
-        const shareToken = crypto.randomBytes(32).toString('hex');
-
-        let totalAmount = 0;
-        if (pricePerUnit > 0) {
-            if (priceUnit === 'ton' && netLbsNum) {
-                totalAmount = (netLbsNum / 2000) * pricePerUnit;
-            } else if (priceUnit === 'bale') {
-                totalAmount = amountNum * pricePerUnit;
+        // Verify stock per (stack, location), aggregating duplicate lines so we never oversell
+        const demand = new Map<string, number>();
+        for (const it of items) demand.set(`${it.stackId}|${it.locationId}`, (demand.get(`${it.stackId}|${it.locationId}`) || 0) + it.amount);
+        for (const [key, needed] of demand) {
+            const [stackId, locationId] = key.split('|');
+            const invRes = await client.query(`
+                SELECT
+                    SUM(CASE
+                        WHEN type IN ('production', 'purchase') THEN amount
+                        WHEN type IN ('sale') THEN -amount
+                        ELSE 0
+                    END) as quantity
+                FROM transactions
+                WHERE stack_id = $1 AND location_id = $2 AND org_id = $3
+            `, [stackId, locationId, orgId]);
+            const stock = parseFloat(invRes.rows[0]?.quantity || '0');
+            if (stock < needed) {
+                throw new Error(`Insufficient stock for one of the lots (need ${needed}, have ${stock} bales)`);
             }
         }
+
+        // Compute line amounts + grand total; detect a single shared rate across all lines
+        let totalAmount = 0;
+        for (const it of items) totalAmount += lineAmount(it.amount, it.netLbs || 0, it.pricePerUnit, it.priceUnit);
+        const allPriced = items.every((i) => i.pricePerUnit > 0);
+        const distinctRates = new Set(items.map((i) => `${i.pricePerUnit}|${i.priceUnit}`));
+        const uniform = allPriced && distinctRates.size === 1;
+        const invoiceRate = uniform ? items[0].pricePerUnit : null;
+        const invoiceUnit = uniform ? items[0].priceUnit : (items[0].priceUnit || 'ton');
+
+        // Create the invoice (one per sale)
+        const countRes = await client.query('SELECT COUNT(*) FROM invoices WHERE org_id = $1', [orgId]);
+        const invoiceNumber = `INV-${String(parseInt(countRes.rows[0].count) + 1).padStart(4, '0')}`;
+        const shareToken = crypto.randomBytes(32).toString('hex');
 
         const invoiceRes = await client.query(`
             INSERT INTO invoices (invoice_number, customer, status, total_amount, price_per_unit, price_unit, notes, share_token, created_by, org_id)
             VALUES ($1, $2, 'draft', $3, $4, $5, $6, $7, $8, $9)
             RETURNING id
-        `, [invoiceNumber, customer, totalAmount, pricePerUnit || null, priceUnit, notes || null, shareToken, userId, orgId]);
-
+        `, [invoiceNumber, customer, totalAmount, invoiceRate, invoiceUnit, notes, shareToken, userId, orgId]);
         invoiceId = invoiceRes.rows[0].id;
 
-        // 4. Link ticket to invoice
-        await client.query(
-            'UPDATE tickets SET invoice_id = $1, status = $2 WHERE id = $3',
-            [invoiceId, 'invoiced', ticketId]
-        );
+        // One auto-approved ticket + sale transaction per line item, linked to the invoice
+        for (const it of items) {
+            const ticketRes = await client.query(`
+                INSERT INTO tickets (type, stack_id, location_id, amount, customer, notes, net_lbs, price_per_unit, price_unit, status, invoice_id, driver_id, org_id)
+                VALUES ('sale', $1, $2, $3, $4, $5, $6, $7, $8, 'invoiced', $9, $10, $11)
+                RETURNING id
+            `, [it.stackId, it.locationId, it.amount, customer, notes, it.netLbs, it.pricePerUnit || null, it.priceUnit, invoiceId, userId, orgId]);
+            const ticketId = ticketRes.rows[0].id;
+
+            const txRes = await client.query(`
+                INSERT INTO transactions (type, stack_id, location_id, amount, unit, entity, price, user_id, org_id)
+                VALUES ('sale', $1, $2, $3, 'bales', $4, 0, $5, $6)
+                RETURNING id
+            `, [it.stackId, it.locationId, it.amount, customer, userId, orgId]);
+
+            await client.query('UPDATE tickets SET transaction_id = $1 WHERE id = $2', [txRes.rows[0].id, ticketId]);
+        }
+
+        await client.query('COMMIT');
+    } catch (e) {
+        await client.query('ROLLBACK');
+        throw e;
     } finally {
         client.release();
     }

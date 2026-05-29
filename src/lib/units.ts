@@ -90,3 +90,33 @@ export function resolveWeight(weightPerBale: number | null, baleSize: string): n
     return weightPerBale || getDefaultWeight(baleSize);
 }
 
+/**
+ * Resolve a line item's effective rate. Prefers the ticket's own per-line price
+ * (Quick Sale multi-item); falls back to the invoice-level rate when the line has
+ * none (legacy/dispatch invoices). Keeps all four money surfaces in agreement.
+ */
+export function resolveLineRate(
+    ticketRate: unknown,
+    ticketUnit: unknown,
+    invoiceRate: unknown,
+    invoiceUnit: unknown,
+): { rate: number; unit: 'bale' | 'ton' } {
+    const t = Number(ticketRate) || 0;
+    if (t > 0) return { rate: t, unit: ticketUnit === 'bale' ? 'bale' : 'ton' };
+    return { rate: Number(invoiceRate) || 0, unit: invoiceUnit === 'bale' ? 'bale' : 'ton' };
+}
+
+/**
+ * Dollar amount for a single line. Per-ton lines need scale weight (net lbs);
+ * per-bale lines use the bale count. Returns 0 when unpriced.
+ */
+export function lineAmount(
+    bales: number,
+    netLbs: number,
+    rate: number,
+    unit: 'bale' | 'ton',
+): number {
+    if (!rate || rate <= 0) return 0;
+    return unit === 'ton' ? (netLbs / LBS_PER_TON) * rate : bales * rate;
+}
+

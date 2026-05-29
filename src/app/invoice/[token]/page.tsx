@@ -4,6 +4,7 @@ import PrintButton from "@/components/ui/PrintButton";
 import StatusChip from "@/components/ui/StatusChip";
 import InvoiceFromBlock from "@/components/ui/InvoiceFromBlock";
 import { getBusinessProfileByOrg } from "@/app/actions";
+import { resolveLineRate, lineAmount } from "@/lib/units";
 
 async function getInvoiceByToken(token: string) {
     const client = await pool.connect();
@@ -18,6 +19,7 @@ async function getInvoiceByToken(token: string) {
         const ticketsRes = await client.query(`
             SELECT
                 tk.id, tk.amount, tk.net_lbs, tk.customer,
+                tk.price_per_unit, tk.price_unit,
                 s.name as stack_name,
                 s.commodity,
                 l.name as location_name
@@ -43,9 +45,16 @@ export default async function PublicInvoicePage({ params }: { params: Promise<{ 
 
     const totalBales = invoice.tickets.reduce((sum: number, t: any) => sum + parseFloat(t.amount), 0);
     const totalNetLbs = invoice.tickets.reduce((sum: number, t: any) => sum + (parseFloat(t.net_lbs) || 0), 0);
-    const hasPricing = invoice.price_per_unit && parseFloat(invoice.price_per_unit) > 0;
-    const totalAmount = parseFloat(invoice.total_amount) || 0;
-    const pricePerUnit = parseFloat(invoice.price_per_unit) || 0;
+
+    // Each line uses its own rate when set (Quick Sale multi-item), else the invoice rate.
+    const lines = invoice.tickets.map((t: any) => {
+        const { rate, unit } = resolveLineRate(t.price_per_unit, t.price_unit, invoice.price_per_unit, invoice.price_unit);
+        return { rate, unit, amount: lineAmount(parseFloat(t.amount), parseFloat(t.net_lbs) || 0, rate, unit) };
+    });
+    const totalAmount = lines.reduce((sum: number, l: any) => sum + l.amount, 0);
+    const hasPricing = totalAmount > 0 || lines.some((l: any) => l.rate > 0);
+    const pricedRates = new Set(lines.filter((l: any) => l.rate > 0).map((l: any) => `${l.rate}|${l.unit}`));
+    const uniformRate = pricedRates.size === 1 ? lines.find((l: any) => l.rate > 0) : null;
 
     const invoiceDate = new Date(invoice.created_at).toLocaleDateString('en-US', {
         year: 'numeric', month: 'long', day: 'numeric'
@@ -97,15 +106,10 @@ export default async function PublicInvoicePage({ params }: { params: Promise<{ 
                             {hasPricing && <div className="col-span-3 text-right">Amount</div>}
                         </div>
 
-                        {invoice.tickets.map((ticket: any) => {
+                        {invoice.tickets.map((ticket: any, idx: number) => {
                             const ticketNetLbs = parseFloat(ticket.net_lbs) || 0;
                             const ticketBales = parseFloat(ticket.amount);
-                            let lineAmount = 0;
-                            if (hasPricing) {
-                                lineAmount = invoice.price_unit === 'ton'
-                                    ? (ticketNetLbs / 2000) * pricePerUnit
-                                    : ticketBales * pricePerUnit;
-                            }
+                            const line = lines[idx];
 
                             return (
                                 <div key={ticket.id} className="grid grid-cols-12 gap-2 py-3 items-center"
@@ -139,8 +143,13 @@ export default async function PublicInvoicePage({ params }: { params: Promise<{ 
                                     {hasPricing && (
                                         <div className="col-span-3 text-right">
                                             <p className="text-sm font-bold" style={{ color: 'var(--primary-light)' }}>
-                                                ${lineAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                                ${line.amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                             </p>
+                                            {line.rate > 0 && (
+                                                <p className="text-xs" style={{ color: 'var(--text-dim)' }}>
+                                                    @ ${line.rate.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })}/{line.unit}
+                                                </p>
+                                            )}
                                         </div>
                                     )}
                                 </div>
@@ -159,10 +168,10 @@ export default async function PublicInvoicePage({ params }: { params: Promise<{ 
                                 <span className="font-medium">{totalNetLbs.toLocaleString()} lbs ({(totalNetLbs / 2000).toFixed(2)} tons)</span>
                             </div>
                         )}
-                        {hasPricing && (
+                        {uniformRate && (
                             <div className="flex justify-between text-sm" style={{ color: 'var(--text-dim)' }}>
                                 <span>Rate</span>
-                                <span className="font-medium">${pricePerUnit.toFixed(2)} / {invoice.price_unit}</span>
+                                <span className="font-medium">${uniformRate.rate.toFixed(2)} / {uniformRate.unit}</span>
                             </div>
                         )}
 

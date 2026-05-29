@@ -4,6 +4,7 @@ import { redirect, notFound } from "next/navigation";
 import { Permissions } from "@/lib/permissions";
 import InvoiceEditForm from "./InvoiceEditForm";
 import PageHeader from "@/components/ui/PageHeader";
+import { resolveLineRate, lineAmount } from "@/lib/units";
 
 async function getInvoice(invoiceId: string, orgId: string) {
     const client = await pool.connect();
@@ -15,14 +16,22 @@ async function getInvoice(invoiceId: string, orgId: string) {
         if (invoiceRes.rows.length === 0) return null;
 
         const ticketsRes = await client.query(
-            'SELECT amount, net_lbs FROM tickets WHERE invoice_id = $1 AND org_id = $2',
+            'SELECT amount, net_lbs, price_per_unit, price_unit FROM tickets WHERE invoice_id = $1 AND org_id = $2',
             [invoiceId, orgId]
         );
 
+        const invoice = invoiceRes.rows[0];
+        const lineTotal = ticketsRes.rows.reduce((sum: number, t: any) => {
+            const { rate, unit } = resolveLineRate(t.price_per_unit, t.price_unit, invoice.price_per_unit, invoice.price_unit);
+            return sum + lineAmount(parseFloat(t.amount), parseFloat(t.net_lbs) || 0, rate, unit);
+        }, 0);
+
         return {
-            invoice: invoiceRes.rows[0],
+            invoice,
             totalBales: ticketsRes.rows.reduce((sum: number, t: any) => sum + parseFloat(t.amount), 0),
             totalNetLbs: ticketsRes.rows.reduce((sum: number, t: any) => sum + (parseFloat(t.net_lbs) || 0), 0),
+            lineTotal,
+            hasPerLinePricing: ticketsRes.rows.some((t: any) => parseFloat(t.price_per_unit) > 0),
         };
     } finally {
         client.release();
@@ -54,6 +63,8 @@ export default async function InvoiceEditPage({ params }: { params: Promise<{ id
                 invoice={data.invoice}
                 totalBales={data.totalBales}
                 totalNetLbs={data.totalNetLbs}
+                lineTotal={data.lineTotal}
+                hasPerLinePricing={data.hasPerLinePricing}
             />
         </div>
     );

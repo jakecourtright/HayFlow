@@ -10,9 +10,11 @@ interface InvoiceEditFormProps {
     invoice: any;
     totalBales: number;
     totalNetLbs: number;
+    lineTotal: number;
+    hasPerLinePricing: boolean;
 }
 
-export default function InvoiceEditForm({ invoice, totalBales, totalNetLbs }: InvoiceEditFormProps) {
+export default function InvoiceEditForm({ invoice, totalBales, totalNetLbs, lineTotal, hasPerLinePricing }: InvoiceEditFormProps) {
     const [customer, setCustomer] = useState(invoice.customer || '');
     const [notes, setNotes] = useState(invoice.notes || '');
     const [pricePerUnit, setPricePerUnit] = useState(
@@ -57,55 +59,79 @@ export default function InvoiceEditForm({ invoice, totalBales, totalNetLbs }: In
                 />
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
-                <div>
-                    <label className="label-modern" htmlFor="edit-price-unit">Price per</label>
-                    <select
-                        id="edit-price-unit"
-                        name="priceUnit"
-                        value={priceUnit}
-                        onChange={(e) => setPriceUnit(e.target.value)}
-                        className="select-modern"
-                    >
-                        <option value="ton">$ / Ton</option>
-                        <option value="bale">$ / Bale</option>
-                    </select>
-                </div>
-                <div>
-                    <label className="label-modern" htmlFor="edit-price">Amount</label>
-                    <input
-                        id="edit-price"
-                        type="number"
-                        name="pricePerUnit"
-                        value={pricePerUnit}
-                        onChange={(e) => setPricePerUnit(e.target.value)}
-                        placeholder="0.00"
-                        min="0"
-                        step="0.01"
-                        inputMode="decimal"
-                        className="input-modern"
-                    />
-                </div>
-            </div>
+            {hasPerLinePricing ? (
+                <>
+                    {/* Per-item pricing was set at the sale — preserve the invoice-level fallback and edit copy only */}
+                    <input type="hidden" name="priceUnit" value={priceUnit} />
+                    <input type="hidden" name="pricePerUnit" value={pricePerUnit} />
+                    <div className="p-3 rounded-lg" style={{ background: 'var(--bg-surface)' }}>
+                        <div className="flex justify-between text-xs mb-1" style={{ color: 'var(--text-dim)' }}>
+                            <span>{totalBales.toLocaleString()} bales</span>
+                            {totalNetLbs > 0 && <span>{totalTons.toFixed(2)} tons</span>}
+                        </div>
+                        <div className="flex justify-between text-sm font-bold mt-2 pt-2" style={{ borderTop: '1px solid var(--glass-border)', color: 'var(--primary-light)' }}>
+                            <span>Total</span>
+                            <span>${lineTotal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                        </div>
+                        <div className="flex items-start gap-2 text-xs mt-2 pt-2" style={{ borderTop: '1px solid var(--glass-border)', color: 'var(--text-dim)' }}>
+                            <AlertCircle size={14} className="shrink-0 mt-0.5" />
+                            <span>This invoice uses per-item pricing set at the sale. Edit the customer and notes here.</span>
+                        </div>
+                    </div>
+                </>
+            ) : (
+                <>
+                    <div className="grid grid-cols-2 gap-3">
+                        <div>
+                            <label className="label-modern" htmlFor="edit-price-unit">Price per</label>
+                            <select
+                                id="edit-price-unit"
+                                name="priceUnit"
+                                value={priceUnit}
+                                onChange={(e) => setPriceUnit(e.target.value)}
+                                className="select-modern"
+                            >
+                                <option value="ton">$ / Ton</option>
+                                <option value="bale">$ / Bale</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label className="label-modern" htmlFor="edit-price">Amount</label>
+                            <input
+                                id="edit-price"
+                                type="number"
+                                name="pricePerUnit"
+                                value={pricePerUnit}
+                                onChange={(e) => setPricePerUnit(e.target.value)}
+                                placeholder="0.00"
+                                min="0"
+                                step="0.01"
+                                inputMode="decimal"
+                                className="input-modern"
+                            />
+                        </div>
+                    </div>
 
-            <div className="p-3 rounded-lg" style={{ background: 'var(--bg-surface)' }}>
-                <div className="flex justify-between text-xs mb-1" style={{ color: 'var(--text-dim)' }}>
-                    <span>{totalBales.toLocaleString()} bales</span>
-                    {totalNetLbs > 0 && <span>{totalTons.toFixed(2)} tons</span>}
-                </div>
-                {price > 0 && (
-                    <div className="flex justify-between text-sm font-bold mt-2 pt-2" style={{ borderTop: '1px solid var(--glass-border)', color: 'var(--primary-light)' }}>
-                        <span>Total</span>
-                        <span>${dollarTotal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                    <div className="p-3 rounded-lg" style={{ background: 'var(--bg-surface)' }}>
+                        <div className="flex justify-between text-xs mb-1" style={{ color: 'var(--text-dim)' }}>
+                            <span>{totalBales.toLocaleString()} bales</span>
+                            {totalNetLbs > 0 && <span>{totalTons.toFixed(2)} tons</span>}
+                        </div>
+                        {price > 0 && (
+                            <div className="flex justify-between text-sm font-bold mt-2 pt-2" style={{ borderTop: '1px solid var(--glass-border)', color: 'var(--primary-light)' }}>
+                                <span>Total</span>
+                                <span>${dollarTotal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                            </div>
+                        )}
+                        {priceUnit === 'ton' && totalNetLbs === 0 && price > 0 && (
+                            <div className="flex items-start gap-2 text-xs mt-2 pt-2" style={{ borderTop: '1px solid var(--glass-border)', color: 'var(--warning)' }}>
+                                <AlertCircle size={14} className="shrink-0 mt-0.5" />
+                                <span>No net lbs on tickets — total will be $0 when priced per ton.</span>
+                            </div>
+                        )}
                     </div>
-                )}
-                {priceUnit === 'ton' && totalNetLbs === 0 && price > 0 && (
-                    <div className="flex items-start gap-2 text-xs mt-2 pt-2" style={{ borderTop: '1px solid var(--glass-border)', color: 'var(--warning)' }}>
-                        <AlertCircle size={14} className="shrink-0 mt-0.5" />
-                        <span>No net lbs on tickets — total will be $0 when priced per ton.</span>
-                    </div>
-                )}
-            </div>
+                </>
+            )}
 
             <div>
                 <label className="label-modern" htmlFor="edit-notes">Notes</label>

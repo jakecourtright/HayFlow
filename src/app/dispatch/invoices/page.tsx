@@ -54,7 +54,7 @@ export default async function InvoicesPage() {
             ) : (
                 <ul className="space-y-3" role="list">
                     {invoices.map((inv: any) => {
-                        const hasPrice = parseFloat(inv.total_amount) > 0 && inv.price_per_unit;
+                        const hasPrice = parseFloat(inv.total_amount) > 0;
                         return (
                             <li key={inv.id}>
                                 <Link href={`/dispatch/invoices/${inv.id}`} className="glass-card-link p-4 block">
