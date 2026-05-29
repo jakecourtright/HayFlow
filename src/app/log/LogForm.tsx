@@ -4,6 +4,7 @@ import { submitTransaction } from "../actions";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import CustomSelect from "@/components/CustomSelect";
+import HelpTip from "@/components/ui/HelpTip";
 
 interface LogFormProps {
     stacks: any[];
@@ -118,7 +119,12 @@ export default function LogForm({ stacks, locations, type: initialType, inventor
             <div className="grid grid-cols-2 gap-4">
                 {/* Type Selection - Hidden if type is locked */}
                 <div className={isTypeLocked ? 'hidden' : ''}>
-                    <label className="label-modern">Type</label>
+                    <label className="label-modern">
+                        Type{' '}
+                        <HelpTip learnMoreHref="/help/logging-inventory">
+                            Production = hay you baled. Purchase = hay you bought in. Adjustment = a correction (shrink, spoilage, a recount). Sales aren&apos;t logged here — use Quick Sale or a ticket.
+                        </HelpTip>
+                    </label>
                     <CustomSelect
                         name={isTypeLocked ? '_type_display' : 'type'}
                         options={typeOptions}

@@ -3,6 +3,7 @@ import pool from "@/lib/db";
 import { redirect } from "next/navigation";
 import { Permissions } from "@/lib/permissions";
 import QuickSaleForm from "./QuickSaleForm";
+import HelpTip from "@/components/ui/HelpTip";
 
 async function getData(orgId: string) {
     const client = await pool.connect();
@@ -49,7 +50,12 @@ export default async function QuickSalePage() {
 
     return (
         <div>
-            <h1 className="text-xl font-bold mb-6" style={{ color: 'var(--accent)' }}>Quick Sale</h1>
+            <h1 className="text-xl font-bold mb-6 flex items-center gap-2" style={{ color: 'var(--accent)' }}>
+                Quick Sale
+                <HelpTip learnMoreHref="/help/quick-sale">
+                    Quick Sale sells hay and creates the invoice in one step — it records the sale, drops your stock, and gives you a share link for the customer. No separate ticket or approval needed.
+                </HelpTip>
+            </h1>
             <QuickSaleForm stacks={data.stacks} locations={data.locations} inventory={data.inventory} />
         </div>
     );

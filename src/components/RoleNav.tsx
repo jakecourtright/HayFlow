@@ -16,14 +16,14 @@ export default function RoleNav({ isDriver, canManageTickets }: RoleNavProps) {
     // Admin/Bookkeeper: Home, Locations, Stacks, Tickets, Invoicing, Reports
     const navItems = isDriver
         ? [
-            { href: '/locations', icon: <MapPin size={20} />, label: 'Locations' },
-            { href: '/stacks', icon: <Box size={20} />, label: 'Stacks' },
-            { href: '/tickets', icon: <Ticket size={20} />, label: 'Tickets' },
+            { href: '/locations', icon: <MapPin size={20} />, label: 'Locations', tour: 'nav-locations' },
+            { href: '/stacks', icon: <Box size={20} />, label: 'Stacks', tour: 'nav-stacks' },
+            { href: '/tickets', icon: <Ticket size={20} />, label: 'Tickets', tour: 'nav-tickets' },
         ]
         : [
-            { href: '/', icon: <House size={20} />, label: 'Home' },
-            { href: '/locations', icon: <MapPin size={20} />, label: 'Locations' },
-            { href: '/stacks', icon: <Box size={20} />, label: 'Stacks' },
+            { href: '/', icon: <House size={20} />, label: 'Home', tour: 'nav-home' },
+            { href: '/locations', icon: <MapPin size={20} />, label: 'Locations', tour: 'nav-locations' },
+            { href: '/stacks', icon: <Box size={20} />, label: 'Stacks', tour: 'nav-stacks' },
             // Tickets + Invoicing collapse into one "Sales" hub: managers land on
             // the dispatch/invoicing queue, others on the ticket list. Both paths
             // light up the same tab.
@@ -32,8 +32,9 @@ export default function RoleNav({ isDriver, canManageTickets }: RoleNavProps) {
                 icon: <Receipt size={20} />,
                 label: 'Sales',
                 match: ['/dispatch', '/tickets'],
+                tour: 'nav-sales',
             },
-            { href: '/reports', icon: <BarChart3 size={20} />, label: 'Reports' },
+            { href: '/reports', icon: <BarChart3 size={20} />, label: 'Reports', tour: 'nav-reports' },
         ];
 
     return (
@@ -48,6 +49,7 @@ export default function RoleNav({ isDriver, canManageTickets }: RoleNavProps) {
                         <Link
                             key={item.href}
                             href={item.href}
+                            data-tour={item.tour}
                             className="flex flex-col items-center gap-1 transition-colors"
                             style={{
                                 color: isActive ? 'var(--primary)' : 'var(--text-dim)',

@@ -1,12 +1,13 @@
 'use server';
 
-import { auth } from "@clerk/nextjs/server";
+import { auth, currentUser } from "@clerk/nextjs/server";
 import pool from "@/lib/db";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { tonsToBales, getDefaultWeight, normalizePrice, lineAmount, resolveLineRate } from "@/lib/units";
-import { Permissions, requirePermission } from "@/lib/permissions";
+import { Permissions, requirePermission, Roles } from "@/lib/permissions";
 import { requireActiveSubscription } from "@/lib/billing";
+import { askClaude, sendSupportEmail, type ChatMessage } from "@/lib/support";
 import crypto from 'crypto';
 
 export async function submitTransaction(formData: FormData) {
@@ -1171,4 +1172,216 @@ export async function saveBusinessProfile(formData: FormData) {
 
     revalidatePath('/settings/business');
     revalidatePath('/dispatch/invoices');
+}
+
+// ============ HELP & SUPPORT ACTIONS ============
+// These power the floating Help assistant. They intentionally have NO
+// subscription gate — help must work during trial, onboarding, or if billing
+// lapses. They are auth-first (a signed-in user) but tolerate a missing org.
+
+/**
+ * Route a help question to Claude. Grounds the model in the user's role so
+ * answers match what they can actually do (drivers vs office). Degrades
+ * gracefully: a missing API key returns a friendly fallback instead of throwing.
+ */
+export async function askHelp(messages: ChatMessage[]): Promise<{ reply: string }> {
+    const { userId, has } = await auth();
+    if (!userId) throw new Error("Unauthorized");
+
+    // Sanitize: valid roles only, trimmed, capped in length and count.
+    const safe: ChatMessage[] = (Array.isArray(messages) ? messages : [])
+        .filter(
+            (m) =>
+                m &&
+                (m.role === "user" || m.role === "assistant") &&
+                typeof m.content === "string" &&
+                m.content.trim().length > 0
+        )
+        .slice(-12)
+        .map((m) => ({ role: m.role, content: m.content.slice(0, 4000) }));
+
+    if (safe.length === 0) {
+        return { reply: "Ask me anything about using HayFlow — like how to send an invoice or file a ticket." };
+    }
+
+    const isDriver = has({ role: Roles.DRIVER } as any);
+    const isOffice = has({ permission: Permissions.INVOICES_MANAGE } as any);
+    const roleLabel = isDriver
+        ? "a field driver — they create tickets when hay leaves a barn, and don't handle invoicing"
+        : isOffice
+          ? "an office user (bookkeeper or admin) who manages inventory, sales, and invoices"
+          : "a HayFlow user";
+
+    const reply = await askClaude({ messages: safe, roleLabel });
+    return { reply };
+}
+
+/**
+ * Escalate a question to a human. Persists the request first (so nothing is
+ * lost even if email fails), then best-effort emails the team. Only throws if
+ * BOTH the save and the email fail.
+ */
+export async function escalateSupport(input: {
+    message: string;
+    email?: string;
+    transcript?: ChatMessage[];
+    page?: string;
+}): Promise<{ ok: boolean }> {
+    const { userId, orgId } = await auth();
+    if (!userId) throw new Error("Unauthorized");
+
+    const message = (input.message || "").trim();
+    if (!message) throw new Error("Message is required");
+
+    const transcript: ChatMessage[] = Array.isArray(input.transcript)
+        ? input.transcript
+              .filter(
+                  (m) =>
+                      m &&
+                      (m.role === "user" || m.role === "assistant") &&
+                      typeof m.content === "string"
+              )
+              .slice(-20)
+              .map((m) => ({ role: m.role, content: m.content.slice(0, 4000) }))
+        : [];
+
+    // Who is asking? Best-effort — never block escalation on a Clerk lookup.
+    let userName: string | null = null;
+    let userEmail: string | null = null;
+    try {
+        const user = await currentUser();
+        if (user) {
+            userName = user.fullName || user.firstName || null;
+            userEmail = user.primaryEmailAddress?.emailAddress ?? null;
+        }
+    } catch {
+        // ignore — escalation still goes through
+    }
+
+    const replyTo = (input.email || "").trim() || userEmail || undefined;
+    const page = (input.page || "").trim() || undefined;
+
+    // 1) Persist first so nothing is lost even if email fails.
+    let savedId: number | null = null;
+    try {
+        const client = await pool.connect();
+        try {
+            const res = await client.query(
+                `INSERT INTO support_requests
+                    (org_id, user_id, user_name, user_email, reply_to, message, transcript, page)
+                 VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
+                 RETURNING id`,
+                [
+                    orgId ?? null,
+                    userId,
+                    userName,
+                    userEmail,
+                    replyTo ?? null,
+                    message,
+                    transcript.length > 0 ? JSON.stringify(transcript) : null,
+                    page ?? null,
+                ]
+            );
+            savedId = res.rows[0]?.id ?? null;
+        } finally {
+            client.release();
+        }
+    } catch {
+        savedId = null;
+    }
+
+    // 2) Best-effort email to the team.
+    let emailed = false;
+    try {
+        emailed = await sendSupportEmail({
+            message,
+            fromName: userName || undefined,
+            fromEmail: userEmail || undefined,
+            replyTo,
+            orgId: orgId ?? undefined,
+            page,
+            transcript,
+        });
+    } catch {
+        emailed = false;
+    }
+
+    // 3) Record that the email went out (non-fatal if this update fails).
+    if (savedId !== null && emailed) {
+        try {
+            const client = await pool.connect();
+            try {
+                await client.query(`UPDATE support_requests SET emailed = TRUE WHERE id = $1`, [savedId]);
+            } finally {
+                client.release();
+            }
+        } catch {
+            // non-fatal
+        }
+    }
+
+    // Only fail loudly if we neither saved nor emailed the request.
+    if (savedId === null && !emailed) {
+        throw new Error("Could not record your request. Please try again.");
+    }
+
+    return { ok: true };
+}
+
+/**
+ * Read which guided tours this user has completed. Used to auto-start a tour
+ * only once. Returns [] for signed-out or org-less sessions.
+ */
+export async function getCompletedTours(): Promise<string[]> {
+    const { userId, orgId } = await auth();
+    if (!userId || !orgId) return [];
+
+    const client = await pool.connect();
+    try {
+        const result = await client.query(
+            `SELECT preference_value FROM user_preferences
+             WHERE user_id = $1 AND org_id = $2 AND preference_key = 'completed_tours'`,
+            [userId, orgId]
+        );
+        const stored = result.rows[0]?.preference_value;
+        return Array.isArray(stored) ? stored.filter((t): t is string => typeof t === "string") : [];
+    } finally {
+        client.release();
+    }
+}
+
+/**
+ * Mark a guided tour complete (idempotent). No subscription gate — tours run
+ * during onboarding/trial.
+ */
+export async function markTourComplete(tourId: string): Promise<{ ok: boolean }> {
+    const { userId, orgId } = await auth();
+    if (!userId || !orgId) throw new Error("Unauthorized");
+
+    const id = (tourId || "").trim();
+    if (!id) return { ok: false };
+
+    const client = await pool.connect();
+    try {
+        const existing = await client.query(
+            `SELECT preference_value FROM user_preferences
+             WHERE user_id = $1 AND org_id = $2 AND preference_key = 'completed_tours'`,
+            [userId, orgId]
+        );
+        const prev = existing.rows[0]?.preference_value;
+        const list = Array.isArray(prev) ? prev.filter((t): t is string => typeof t === "string") : [];
+        if (!list.includes(id)) list.push(id);
+
+        await client.query(
+            `INSERT INTO user_preferences (user_id, org_id, preference_key, preference_value, updated_at)
+             VALUES ($1, $2, 'completed_tours', $3, CURRENT_TIMESTAMP)
+             ON CONFLICT (user_id, org_id, preference_key)
+             DO UPDATE SET preference_value = $3, updated_at = CURRENT_TIMESTAMP`,
+            [userId, orgId, JSON.stringify(list)]
+        );
+    } finally {
+        client.release();
+    }
+
+    return { ok: true };
 }

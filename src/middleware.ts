@@ -14,6 +14,7 @@ const isProtectedRoute = createRouteMatcher([
     '/sell(.*)',
     '/welcome(.*)',
     '/billing(.*)',
+    '/help(.*)',
 ]);
 
 // Routes that require an active org (signed-in users without one go to /welcome).

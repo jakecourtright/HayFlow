@@ -1,7 +1,9 @@
-import { auth } from "@clerk/nextjs/server";
+import { auth, clerkClient } from "@clerk/nextjs/server";
 import pool from "@/lib/db";
 import Link from "next/link";
-import { Check, ArrowRight, Sparkles } from "lucide-react";
+import { Check, ArrowRight, Sparkles, BookOpen } from "lucide-react";
+import { getPermissionFlags } from "@/lib/permissions";
+import StartTourButton from "@/components/help/StartTourButton";
 
 interface Step {
     key: string;
@@ -11,10 +13,15 @@ interface Step {
     done: boolean;
 }
 
-async function loadOnboardingState(orgId: string): Promise<Step[]> {
+interface Flags {
+    canManageInvoices: boolean;
+    canManageUsers: boolean;
+}
+
+async function loadOnboardingState(orgId: string, flags: Flags): Promise<Step[]> {
     const client = await pool.connect();
     try {
-        const [profileRes, locationRes, stackRes, txRes] = await Promise.all([
+        const [profileRes, locationRes, stackRes, txRes, invoiceRes, saleTicketRes] = await Promise.all([
             client.query(
                 'SELECT 1 FROM business_profiles WHERE org_id = $1 AND name IS NOT NULL AND name <> \'\' LIMIT 1',
                 [orgId]
@@ -22,9 +29,29 @@ async function loadOnboardingState(orgId: string): Promise<Step[]> {
             client.query('SELECT 1 FROM locations WHERE org_id = $1 LIMIT 1', [orgId]),
             client.query('SELECT 1 FROM stacks WHERE org_id = $1 LIMIT 1', [orgId]),
             client.query('SELECT 1 FROM transactions WHERE org_id = $1 LIMIT 1', [orgId]),
+            client.query('SELECT 1 FROM invoices WHERE org_id = $1 LIMIT 1', [orgId]),
+            client.query("SELECT 1 FROM tickets WHERE org_id = $1 AND type = 'sale' LIMIT 1", [orgId]),
         ]);
 
-        return [
+        const firstSaleDone = invoiceRes.rows.length > 0 || saleTicketRes.rows.length > 0;
+
+        // Team step (admins only). Done once a second member is on the org.
+        // Best-effort Clerk lookup — never block the dashboard on it.
+        let teamInvited = false;
+        if (flags.canManageUsers) {
+            try {
+                const cc = await clerkClient();
+                const memberships = await cc.organizations.getOrganizationMembershipList({
+                    organizationId: orgId,
+                    limit: 2,
+                });
+                teamInvited = (memberships.totalCount ?? memberships.data.length) > 1;
+            } catch {
+                teamInvited = false;
+            }
+        }
+
+        const steps: Step[] = [
             {
                 key: 'business',
                 label: 'Set up your business profile',
@@ -54,6 +81,28 @@ async function loadOnboardingState(orgId: string): Promise<Step[]> {
                 done: txRes.rows.length > 0,
             },
         ];
+
+        if (flags.canManageUsers) {
+            steps.push({
+                key: 'team',
+                label: 'Invite your team',
+                description: 'Add drivers and bookkeepers, and set their roles.',
+                href: '/settings',
+                done: teamInvited,
+            });
+        }
+
+        steps.push({
+            key: 'sale',
+            label: 'Make your first sale',
+            description: flags.canManageInvoices
+                ? 'Use Quick Sale to sell and invoice in one step.'
+                : 'File a sale ticket for a customer.',
+            href: flags.canManageInvoices ? '/sell' : '/tickets/new',
+            done: firstSaleDone,
+        });
+
+        return steps;
     } finally {
         client.release();
     }
@@ -63,7 +112,11 @@ export default async function OnboardingChecklist() {
     const { orgId } = await auth();
     if (!orgId) return null;
 
-    const steps = await loadOnboardingState(orgId);
+    const flags = await getPermissionFlags();
+    const steps = await loadOnboardingState(orgId, {
+        canManageInvoices: flags.canManageInvoices,
+        canManageUsers: flags.canManageUsers,
+    });
     const doneCount = steps.filter(s => s.done).length;
     const allDone = doneCount === steps.length;
     if (allDone) return null;
@@ -71,7 +124,7 @@ export default async function OnboardingChecklist() {
     const nextStep = steps.find(s => !s.done);
 
     return (
-        <section className="glass-card mb-4">
+        <section className="glass-card mb-4" data-tour="onboarding">
             <div className="flex items-center gap-3 mb-4">
                 <div
                     className="w-9 h-9 rounded-xl flex items-center justify-center"
@@ -140,6 +193,18 @@ export default async function OnboardingChecklist() {
                     </li>
                 ))}
             </ul>
+
+            <div className="mt-4 pt-3 flex flex-wrap items-center gap-x-5 gap-y-2" style={{ borderTop: '1px solid var(--glass-border)' }}>
+                <StartTourButton label="Take a quick tour" />
+                <Link
+                    href="/help/how-hayflow-works"
+                    className="inline-flex items-center gap-1.5 text-sm font-bold"
+                    style={{ color: 'var(--primary)' }}
+                >
+                    <BookOpen size={15} />
+                    New here? See how HayFlow works
+                </Link>
+            </div>
         </section>
     );
 }

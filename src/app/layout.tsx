@@ -13,6 +13,10 @@ import RoleNav from "@/components/RoleNav";
 import TrialBanner from "@/components/TrialBanner";
 import { Permissions } from "@/lib/permissions";
 import { ToastProvider } from "@/components/ui/Toast";
+import HelpLauncher from "@/components/help/HelpLauncher";
+import TourGuide from "@/components/help/TourGuide";
+import { getArticlesForRole } from "@/lib/help-content";
+import { getCompletedTours } from "@/app/actions";
 
 const fraunces = Fraunces({
   subsets: ['latin'],
@@ -39,6 +43,7 @@ export default async function RootLayout({
   children: React.ReactNode;
 }>) {
   let canManageTickets = false;
+  let canManageInvoices = false;
   let isDriver = false;
   let isSignedIn = false;
   try {
@@ -46,11 +51,20 @@ export default async function RootLayout({
     if (userId) {
       isSignedIn = true;
       canManageTickets = has({ permission: Permissions.TICKETS_MANAGE } as any);
+      canManageInvoices = has({ permission: Permissions.INVOICES_MANAGE } as any);
       isDriver = has({ role: 'org:driver' } as any);
     }
   } catch {
     // Not authenticated — will use defaults
   }
+
+  // Role-tailored help articles for the floating assistant (signed-in only).
+  const helpArticles = isSignedIn
+    ? getArticlesForRole({ isOffice: canManageInvoices, isDriver })
+    : [];
+
+  // Which guided tours has this user already finished? (signed-in only)
+  const completedTours = isSignedIn ? await getCompletedTours() : [];
 
   return (
     <html lang="en" data-theme="harvest" className={`${fraunces.variable} ${geist.variable}`}>
@@ -121,6 +135,14 @@ export default async function RootLayout({
               {/* Bottom Navigation */}
               {isSignedIn && (
                 <RoleNav isDriver={isDriver} canManageTickets={canManageTickets} />
+              )}
+
+              {/* Floating help & support assistant */}
+              {isSignedIn && <HelpLauncher articles={helpArticles} />}
+
+              {/* Guided coachmark tours (auto-starts the role tour once) */}
+              {isSignedIn && (
+                <TourGuide completedTours={completedTours} isDriver={isDriver} isOffice={canManageInvoices} />
               )}
             </ToastProvider>
           </ThemeProvider>

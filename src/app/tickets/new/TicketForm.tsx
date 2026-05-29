@@ -6,6 +6,7 @@ import { AlertCircle, Info } from "lucide-react";
 import Link from "next/link";
 import CustomSelect from "@/components/CustomSelect";
 import SubmitButton from "@/components/ui/SubmitButton";
+import HelpTip from "@/components/ui/HelpTip";
 
 interface TicketFormProps {
     stacks: any[];
@@ -110,7 +111,12 @@ export default function TicketForm({ stacks, locations, inventory, canManageInvo
                 )}
                 {TICKET_TYPES.length > 1 ? (
                     <div>
-                        <label className="label-modern">Ticket type *</label>
+                        <label className="label-modern">
+                            Ticket type *{' '}
+                            <HelpTip learnMoreHref="/help/creating-a-ticket">
+                                Sale = hay leaving for a customer. Barn-to-barn = moving your own hay between barns (no sale). Pick the one that matches this load.
+                            </HelpTip>
+                        </label>
                         <CustomSelect
                             name="type"
                             value={ticketType}
@@ -126,7 +132,12 @@ export default function TicketForm({ stacks, locations, inventory, canManageInvo
                 )}
 
                 <div>
-                    <label className="label-modern">Product (stack) *</label>
+                    <label className="label-modern">
+                        Product (stack) *{' '}
+                        <HelpTip learnMoreHref="/help/stacks-explained">
+                            A stack is one lot of hay — a cutting or line of product with its own commodity, bale size, and price. Pick the stack this load came from.
+                        </HelpTip>
+                    </label>
                     <CustomSelect
                         name="stackId"
                         required

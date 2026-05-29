@@ -59,7 +59,7 @@ export default async function TicketsPage() {
                 title="Tickets"
                 subtitle={isDriver ? "Your tickets — pending approval appear at the top." : "Every sale and transfer recorded by the team."}
                 actions={
-                    <Link href="/tickets/new" className="btn btn-primary btn-sm">
+                    <Link href="/tickets/new" data-tour="new-ticket" className="btn btn-primary btn-sm">
                         <Plus size={16} />
                         <span className="hidden sm:inline">New ticket</span>
                         <span className="sm:hidden">New</span>

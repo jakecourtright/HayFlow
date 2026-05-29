@@ -6,6 +6,7 @@ import { useState } from "react";
 import CustomSelect from "@/components/CustomSelect";
 import PageHeader from "@/components/ui/PageHeader";
 import SubmitButton from "@/components/ui/SubmitButton";
+import HelpTip from "@/components/ui/HelpTip";
 
 const COMMODITY_OPTIONS = [
     { value: 'Alfalfa', label: 'Alfalfa' },
@@ -69,7 +70,12 @@ export default function NewStackPage() {
 
                 <div className="grid grid-cols-2 gap-4">
                     <div>
-                        <label className="label-modern">Bale size</label>
+                        <label className="label-modern">
+                            Bale size{' '}
+                            <HelpTip learnMoreHref="/help/understanding-units">
+                                The shape of your bales (like 3x4 or 3x3). Picking a size sets a typical weight per bale, which HayFlow uses to convert bales to tons.
+                            </HelpTip>
+                        </label>
                         <CustomSelect
                             name="baleSize"
                             options={baleSizeOptions}
@@ -98,7 +104,12 @@ export default function NewStackPage() {
 
                 <div className="grid grid-cols-2 gap-4">
                     <div>
-                        <label className="label-modern">Base price ($)</label>
+                        <label className="label-modern">
+                            Base price ($){' '}
+                            <HelpTip learnMoreHref="/help/understanding-units">
+                                The default price for this hay. Enter it per bale or per ton — set which on the right. HayFlow stores price as $/ton internally so reports stay consistent.
+                            </HelpTip>
+                        </label>
                         <input
                             type="number"
                             name="basePrice"

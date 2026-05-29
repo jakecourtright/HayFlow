@@ -161,6 +161,25 @@ ALTER TABLE org_billing ALTER COLUMN trial_started_at DROP DEFAULT;
 ALTER TABLE org_billing ALTER COLUMN trial_started_at DROP NOT NULL;
 
 -- ============================================================
+-- Support requests — Help assistant "Reach the team" escalations.
+-- Persisted so a request is never lost even if the email send fails.
+-- ============================================================
+CREATE TABLE IF NOT EXISTS support_requests (
+  id SERIAL PRIMARY KEY,
+  org_id VARCHAR(255),
+  user_id VARCHAR(255),
+  user_name VARCHAR(255),
+  user_email VARCHAR(255),
+  reply_to VARCHAR(255),
+  message TEXT NOT NULL,
+  transcript JSONB,
+  page TEXT,
+  status VARCHAR(20) NOT NULL DEFAULT 'open',
+  emailed BOOLEAN NOT NULL DEFAULT FALSE,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- ============================================================
 -- Foreign keys (added via ALTER so table creation order is flexible)
 -- ============================================================
 DO $$
@@ -193,3 +212,5 @@ CREATE INDEX IF NOT EXISTS idx_invoices_status ON invoices(status, org_id);
 CREATE UNIQUE INDEX IF NOT EXISTS idx_invoices_share_token ON invoices(share_token) WHERE share_token IS NOT NULL;
 CREATE UNIQUE INDEX IF NOT EXISTS idx_business_profiles_org ON business_profiles(org_id);
 CREATE INDEX IF NOT EXISTS idx_org_billing_trial_started ON org_billing(trial_started_at);
+CREATE INDEX IF NOT EXISTS idx_support_requests_org ON support_requests(org_id, created_at);
+CREATE INDEX IF NOT EXISTS idx_support_requests_status ON support_requests(status, created_at);

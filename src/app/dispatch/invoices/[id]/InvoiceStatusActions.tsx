@@ -6,6 +6,7 @@ import { Send, CheckCircle, RotateCcw, Pencil, Trash2, Share2, Check, AlertCircl
 import Link from "next/link";
 import ConfirmDialog from "@/components/ui/ConfirmDialog";
 import { useToast } from "@/components/ui/Toast";
+import HelpTip from "@/components/ui/HelpTip";
 
 interface InvoiceStatusActionsProps {
     invoiceId: number;
@@ -88,6 +89,13 @@ export default function InvoiceStatusActions({ invoiceId, currentStatus, shareTo
                     <p className="text-sm">{error}</p>
                 </div>
             )}
+
+            <p className="flex items-center gap-1.5 text-xs" style={{ color: 'var(--text-dim)' }}>
+                How sending works
+                <HelpTip learnMoreHref="/help/sending-invoices">
+                    HayFlow doesn&apos;t email invoices for you. Tap &ldquo;Share invoice&rdquo; to copy the customer link (text or email it yourself), then &ldquo;Mark as sent&rdquo; so it counts as outstanding until you mark it paid.
+                </HelpTip>
+            </p>
 
             <button
                 type="button"
