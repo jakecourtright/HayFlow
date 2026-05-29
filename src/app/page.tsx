@@ -1,6 +1,6 @@
 import { auth } from "@clerk/nextjs/server";
 import pool from "@/lib/db";
-import { Show, SignInButton, SignUpButton } from "@clerk/nextjs";
+import { SignInButton, SignUpButton } from "@clerk/nextjs";
 import { Tractor, Receipt, ClipboardCheck, Users } from 'lucide-react';
 import { getDashboardLayout } from "./actions";
 import DashboardGrid from "./dashboard/DashboardGrid";
@@ -122,7 +122,7 @@ export default async function Dashboard() {
 
   return (
     <>
-      <Show when="signed-out">
+      {!userId && (
         <section className="py-8 md:py-14 space-y-16">
           {/* Hero */}
           <div className="text-center space-y-6 max-w-2xl mx-auto">
@@ -182,8 +182,8 @@ export default async function Dashboard() {
             </p>
           </div>
         </section>
-      </Show>
-      <Show when="signed-in">
+      )}
+      {userId && (
         <div className="max-w-3xl mx-auto">
           <PageHeader
             eyebrow="Home"
@@ -193,7 +193,7 @@ export default async function Dashboard() {
           <OnboardingChecklist />
           <DashboardGrid stats={stats} layout={layout} canWriteInventory={(await getPermissionFlags()).canWriteInventory} />
         </div>
-      </Show>
+      )}
     </>
   );
 }

@@ -1,7 +1,6 @@
 import {
   ClerkProvider,
   OrganizationSwitcher,
-  Show,
   UserButton,
 } from "@clerk/nextjs";
 import Link from "next/link";
@@ -41,9 +40,11 @@ export default async function RootLayout({
 }>) {
   let canManageTickets = false;
   let isDriver = false;
+  let isSignedIn = false;
   try {
     const { has, userId } = await auth();
     if (userId) {
+      isSignedIn = true;
       canManageTickets = has({ permission: Permissions.TICKETS_MANAGE } as any);
       isDriver = has({ role: 'org:driver' } as any);
     }
@@ -77,40 +78,40 @@ export default async function RootLayout({
                     </span>
                   </Link>
                   <div className="flex items-center gap-2 sm:gap-3">
-                    <Show when="signed-in">
-                      <div className="hidden sm:block">
-                        <OrganizationSwitcher
-                          hidePersonal
+                    {isSignedIn && (
+                      <>
+                        <div className="hidden sm:block">
+                          <OrganizationSwitcher
+                            hidePersonal
+                            appearance={{
+                              elements: {
+                                organizationSwitcherTrigger:
+                                  "rounded-lg px-2 py-1.5 gap-2 hover:bg-[var(--bg-surface)] transition-colors",
+                              },
+                            }}
+                          />
+                        </div>
+                        <Link
+                          href="/settings"
+                          aria-label="Settings"
+                          className="icon-button"
+                        >
+                          <Settings size={18} />
+                        </Link>
+                        <UserButton
                           appearance={{
                             elements: {
-                              organizationSwitcherTrigger:
-                                "rounded-lg px-2 py-1.5 gap-2 hover:bg-[var(--bg-surface)] transition-colors",
-                            },
+                              avatarBox: "w-9 h-9 border-2 border-[var(--primary)]"
+                            }
                           }}
                         />
-                      </div>
-                      <Link
-                        href="/settings"
-                        aria-label="Settings"
-                        className="icon-button"
-                      >
-                        <Settings size={18} />
-                      </Link>
-                      <UserButton
-                        appearance={{
-                          elements: {
-                            avatarBox: "w-9 h-9 border-2 border-[var(--primary)]"
-                          }
-                        }}
-                      />
-                    </Show>
+                      </>
+                    )}
                   </div>
                 </div>
               </header>
 
-              <Show when="signed-in">
-                <TrialBanner />
-              </Show>
+              {isSignedIn && <TrialBanner />}
 
               {/* Main Content */}
               <main className="container mx-auto px-6 py-6 max-w-2xl">
@@ -118,9 +119,9 @@ export default async function RootLayout({
               </main>
 
               {/* Bottom Navigation */}
-              <Show when="signed-in">
+              {isSignedIn && (
                 <RoleNav isDriver={isDriver} canManageTickets={canManageTickets} />
-              </Show>
+              )}
             </ToastProvider>
           </ThemeProvider>
         </ClerkProvider></body>
