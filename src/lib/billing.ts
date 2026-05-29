@@ -69,6 +69,32 @@ async function getTrialStartedAt(orgId: string): Promise<Date | null> {
 }
 
 /**
+ * Stamp trial_started_at = now() the first time we observe an active plan, so our
+ * countdown begins at subscribe time (matching Clerk) rather than at org creation.
+ * Guarded by `WHERE trial_started_at IS NULL` so it's idempotent and race-safe:
+ * concurrent callers either win the UPDATE or read back the already-stamped value.
+ */
+async function startTrialClock(orgId: string): Promise<Date> {
+    const client = await pool.connect();
+    try {
+        const res = await client.query(
+            `UPDATE org_billing SET trial_started_at = now()
+             WHERE org_id = $1 AND trial_started_at IS NULL
+             RETURNING trial_started_at`,
+            [orgId]
+        );
+        if (res.rows[0]?.trial_started_at) return res.rows[0].trial_started_at;
+        const reread = await client.query(
+            'SELECT trial_started_at FROM org_billing WHERE org_id = $1',
+            [orgId]
+        );
+        return reread.rows[0]?.trial_started_at ?? new Date();
+    } finally {
+        client.release();
+    }
+}
+
+/**
  * Returns the current subscription state for the active org.
  * - active: has the Clerk plan (paying OR in trial). Includes trialDaysLeft when within window.
  * - inactive: no plan — user must visit /billing.
@@ -86,8 +112,10 @@ export async function getSubscriptionState(): Promise<SubscriptionState> {
 
     if (!hasPlan) return { kind: "inactive" };
 
-    const trialStart = await getTrialStartedAt(orgId);
-    if (!trialStart) return { kind: "active", trialing: false, trialDaysLeft: null };
+    // Stamp the trial clock the first time we see an active plan, so the countdown
+    // begins at subscribe time (matching Clerk) rather than at org creation.
+    let trialStart = await getTrialStartedAt(orgId);
+    if (!trialStart) trialStart = await startTrialClock(orgId);
 
     const msPerDay = 24 * 60 * 60 * 1000;
     const msElapsed = Date.now() - new Date(trialStart).getTime();

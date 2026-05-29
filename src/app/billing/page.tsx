@@ -17,7 +17,7 @@ export default async function BillingPage() {
             <PageHeader
                 eyebrow="Billing"
                 title="Subscription"
-                subtitle="Manage your HayFlow plan. One tier, no surprises."
+                subtitle="Pick the plan that fits your operation. Upgrade or cancel anytime."
                 backHref="/settings"
                 backLabel="Settings"
             />

@@ -140,11 +140,17 @@ CREATE TABLE IF NOT EXISTS business_profiles (
 -- ============================================================
 CREATE TABLE IF NOT EXISTS org_billing (
   org_id VARCHAR(255) PRIMARY KEY,
-  trial_started_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  trial_started_at TIMESTAMP,                      -- stamped at first active-sub detection; NULL until then
   trial_days INTEGER NOT NULL DEFAULT 14,
   grace_days INTEGER NOT NULL DEFAULT 7,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
+
+-- Legacy DBs stamped trial_started_at at org creation (NOT NULL DEFAULT now()), which
+-- desynced our countdown from Clerk. Drop both so the column stays NULL until we first
+-- observe an active subscription, then stamp it once (see getSubscriptionState in lib/billing.ts).
+ALTER TABLE org_billing ALTER COLUMN trial_started_at DROP DEFAULT;
+ALTER TABLE org_billing ALTER COLUMN trial_started_at DROP NOT NULL;
 
 -- ============================================================
 -- Foreign keys (added via ALTER so table creation order is flexible)
