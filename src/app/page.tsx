@@ -58,12 +58,8 @@ async function getStats(orgId: string) {
     const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
 
     const salesRes = await client.query(`
-      SELECT
-        COALESCE(SUM(
-          t.amount * (COALESCE(s.weight_per_bale, 1200)::decimal / 2000) * t.price
-        ), 0) as sales_total
+      SELECT COALESCE(SUM(t.line_total), 0) as sales_total
       FROM transactions t
-      JOIN stacks s ON t.stack_id = s.id
       WHERE t.org_id = $1
         AND t.type = 'sale'
         AND t.date >= $2

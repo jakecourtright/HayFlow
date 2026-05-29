@@ -79,9 +79,12 @@ export async function submitTransaction(formData: FormData) {
             pricePerTon = normalizePrice(priceValue, priceUnit as 'bale' | 'ton', weightPerBale);
         }
 
+        // Actual dollars for this line (revenue/cost) — single source of truth for reporting
+        const lineTotal = (amountInBales * weightPerBale / 2000) * pricePerTon;
+
         await client.query(`
-            INSERT INTO transactions (type, stack_id, location_id, amount, unit, entity, price, user_id, org_id)
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+            INSERT INTO transactions (type, stack_id, location_id, amount, unit, entity, price, line_total, user_id, org_id)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
         `, [
             type,
             stackId,
@@ -90,6 +93,7 @@ export async function submitTransaction(formData: FormData) {
             'bales', // Always store as bales
             entity,
             pricePerTon, // Always stored as $/ton
+            lineTotal, // Actual USD
             userId,
             orgId
         ]);
@@ -150,6 +154,9 @@ export async function updateTransaction(id: string, formData: FormData) {
             pricePerTon = normalizePrice(priceValue, priceUnit as 'bale' | 'ton', weightPerBale);
         }
 
+        // Keep actual-dollar line total in sync (single source of truth for reporting)
+        const lineTotal = (amountInBales * weightPerBale / 2000) * pricePerTon;
+
         await client.query(`
             UPDATE transactions SET
                 type = $1,
@@ -158,8 +165,9 @@ export async function updateTransaction(id: string, formData: FormData) {
                 amount = $4,
                 unit = $5,
                 entity = $6,
-                price = $7
-            WHERE id = $8 AND org_id = $9
+                price = $7,
+                line_total = $8
+            WHERE id = $9 AND org_id = $10
         `, [
             type,
             stackId,
@@ -168,6 +176,7 @@ export async function updateTransaction(id: string, formData: FormData) {
             'bales',
             entity,
             pricePerTon,
+            lineTotal,
             id,
             orgId
         ]);
@@ -726,6 +735,8 @@ export async function createInvoice(formData: FormData) {
 
     const client = await pool.connect();
     try {
+        await client.query('BEGIN');
+
         // Verify all tickets are approved and belong to this org
         const ticketsRes = await client.query(
             `SELECT * FROM tickets WHERE id = ANY($1) AND org_id = $2 AND status = 'approved'`,
@@ -743,19 +754,14 @@ export async function createInvoice(formData: FormData) {
         );
         const invoiceNumber = `INV-${String(parseInt(countRes.rows[0].count) + 1).padStart(4, '0')}`;
 
-        // Calculate total amount in dollars
+        // Per-line totals: a line keeps its own rate if set (Quick Sale), else the submitted invoice rate.
         let totalAmount = 0;
-        if (pricePerUnit > 0) {
-            if (priceUnit === 'ton') {
-                // Sum net_lbs across tickets, convert to tons, multiply by price
-                const totalNetLbs = ticketsRes.rows.reduce((sum: number, t: any) => sum + (parseFloat(t.net_lbs) || 0), 0);
-                totalAmount = (totalNetLbs / 2000) * pricePerUnit;
-            } else {
-                // Sum bales across tickets, multiply by price
-                const totalBales = ticketsRes.rows.reduce((sum: number, t: any) => sum + parseFloat(t.amount), 0);
-                totalAmount = totalBales * pricePerUnit;
-            }
-        }
+        const lines = ticketsRes.rows.map((t: any) => {
+            const { rate, unit } = resolveLineRate(t.price_per_unit, t.price_unit, pricePerUnit, priceUnit);
+            const amount = lineAmount(parseFloat(t.amount), parseFloat(t.net_lbs) || 0, rate, unit);
+            totalAmount += amount;
+            return { transactionId: t.transaction_id as number | null, amount };
+        });
 
         // Create invoice with share token
         const shareToken = crypto.randomBytes(32).toString('hex');
@@ -772,6 +778,21 @@ export async function createInvoice(formData: FormData) {
             UPDATE tickets SET invoice_id = $1, status = 'invoiced', updated_at = CURRENT_TIMESTAMP
             WHERE id = ANY($2) AND org_id = $3
         `, [invoiceId, ticketIds, orgId]);
+
+        // Push each line's dollars onto its sale transaction (revenue lives on the sale)
+        for (const line of lines) {
+            if (line.transactionId) {
+                await client.query(
+                    'UPDATE transactions SET line_total = $1 WHERE id = $2 AND org_id = $3',
+                    [line.amount, line.transactionId, orgId]
+                );
+            }
+        }
+
+        await client.query('COMMIT');
+    } catch (e) {
+        await client.query('ROLLBACK');
+        throw e;
     } finally {
         client.release();
     }
@@ -819,17 +840,36 @@ export async function deleteInvoice(id: string) {
 
     const client = await pool.connect();
     try {
-        // Un-link tickets — set them back to 'approved' status
+        await client.query('BEGIN');
+
+        // Capture the sale transactions tied to this invoice's tickets before clearing the links
+        const txRes = await client.query(
+            'SELECT transaction_id FROM tickets WHERE invoice_id = $1 AND org_id = $2 AND transaction_id IS NOT NULL',
+            [id, orgId]
+        );
+        const txIds = txRes.rows.map((r: any) => r.transaction_id);
+
+        // Revert tickets to pending and clear their invoice + transaction links
         await client.query(`
-            UPDATE tickets SET invoice_id = NULL, status = 'approved', updated_at = CURRENT_TIMESTAMP
+            UPDATE tickets SET status = 'pending', invoice_id = NULL, transaction_id = NULL, updated_at = CURRENT_TIMESTAMP
             WHERE invoice_id = $1 AND org_id = $2
         `, [id, orgId]);
 
+        // Reverse the sale transactions so inventory returns (deleting the invoice = the sale didn't happen)
+        if (txIds.length > 0) {
+            await client.query(
+                'DELETE FROM transactions WHERE id = ANY($1) AND org_id = $2',
+                [txIds, orgId]
+            );
+        }
+
         // Delete the invoice
-        await client.query(
-            'DELETE FROM invoices WHERE id = $1 AND org_id = $2',
-            [id, orgId]
-        );
+        await client.query('DELETE FROM invoices WHERE id = $1 AND org_id = $2', [id, orgId]);
+
+        await client.query('COMMIT');
+    } catch (e) {
+        await client.query('ROLLBACK');
+        throw e;
     } finally {
         client.release();
     }
@@ -837,6 +877,10 @@ export async function deleteInvoice(id: string) {
     revalidatePath('/tickets');
     revalidatePath('/dispatch');
     revalidatePath('/dispatch/invoices');
+    revalidatePath('/');
+    revalidatePath('/inventory');
+    revalidatePath('/locations');
+    revalidatePath('/transactions');
     redirect('/dispatch/invoices');
 }
 
@@ -857,24 +901,43 @@ export async function updateInvoice(id: string, formData: FormData) {
 
     const client = await pool.connect();
     try {
+        await client.query('BEGIN');
+
         // Recompute total from each line's effective rate: a line keeps its own
         // per-item price (Quick Sale); lines without one use the submitted invoice rate.
         const ticketsRes = await client.query(
-            'SELECT amount, net_lbs, price_per_unit, price_unit FROM tickets WHERE invoice_id = $1 AND org_id = $2',
+            'SELECT id, transaction_id, amount, net_lbs, price_per_unit, price_unit FROM tickets WHERE invoice_id = $1 AND org_id = $2',
             [id, orgId]
         );
 
         let totalAmount = 0;
-        for (const t of ticketsRes.rows) {
+        const lines = ticketsRes.rows.map((t: any) => {
             const { rate, unit } = resolveLineRate(t.price_per_unit, t.price_unit, pricePerUnit, priceUnit);
-            totalAmount += lineAmount(parseFloat(t.amount), parseFloat(t.net_lbs) || 0, rate, unit);
-        }
+            const amount = lineAmount(parseFloat(t.amount), parseFloat(t.net_lbs) || 0, rate, unit);
+            totalAmount += amount;
+            return { transactionId: t.transaction_id as number | null, amount };
+        });
 
         await client.query(`
-            UPDATE invoices 
+            UPDATE invoices
             SET customer = $1, notes = $2, price_per_unit = $3, price_unit = $4, total_amount = $5, updated_at = CURRENT_TIMESTAMP
             WHERE id = $6 AND org_id = $7
         `, [customer || null, notes || null, pricePerUnit || null, priceUnit, totalAmount, id, orgId]);
+
+        // Keep each line's dollars in sync on its sale transaction (revenue lives on the sale)
+        for (const line of lines) {
+            if (line.transactionId) {
+                await client.query(
+                    'UPDATE transactions SET line_total = $1 WHERE id = $2 AND org_id = $3',
+                    [line.amount, line.transactionId, orgId]
+                );
+            }
+        }
+
+        await client.query('COMMIT');
+    } catch (e) {
+        await client.query('ROLLBACK');
+        throw e;
     } finally {
         client.release();
     }
@@ -882,6 +945,8 @@ export async function updateInvoice(id: string, formData: FormData) {
     revalidatePath('/dispatch');
     revalidatePath('/dispatch/invoices');
     revalidatePath(`/dispatch/invoices/${id}`);
+    revalidatePath('/');
+    revalidatePath('/transactions');
     redirect(`/dispatch/invoices/${id}`);
 }
 
@@ -990,11 +1055,12 @@ export async function quickSale(formData: FormData) {
             `, [it.stackId, it.locationId, it.amount, customer, notes, it.netLbs, it.pricePerUnit || null, it.priceUnit, invoiceId, userId, orgId]);
             const ticketId = ticketRes.rows[0].id;
 
+            const lineTotal = lineAmount(it.amount, it.netLbs || 0, it.pricePerUnit, it.priceUnit);
             const txRes = await client.query(`
-                INSERT INTO transactions (type, stack_id, location_id, amount, unit, entity, price, user_id, org_id)
-                VALUES ('sale', $1, $2, $3, 'bales', $4, 0, $5, $6)
+                INSERT INTO transactions (type, stack_id, location_id, amount, unit, entity, price, line_total, user_id, org_id)
+                VALUES ('sale', $1, $2, $3, 'bales', $4, 0, $5, $6, $7)
                 RETURNING id
-            `, [it.stackId, it.locationId, it.amount, customer, userId, orgId]);
+            `, [it.stackId, it.locationId, it.amount, customer, lineTotal, userId, orgId]);
 
             await client.query('UPDATE tickets SET transaction_id = $1 WHERE id = $2', [txRes.rows[0].id, ticketId]);
         }

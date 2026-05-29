@@ -60,8 +60,8 @@ async function getReportData(orgId: string): Promise<ReportData> {
         // ---- KPI Totals ----
         const totalsRes = await client.query(`
             SELECT
-                COALESCE(SUM(CASE WHEN t.type = 'sale' THEN t.amount * (COALESCE(s.weight_per_bale, 1200)::decimal / 2000) * t.price ELSE 0 END), 0) as total_revenue,
-                COALESCE(SUM(CASE WHEN t.type = 'purchase' THEN t.amount * (COALESCE(s.weight_per_bale, 1200)::decimal / 2000) * t.price ELSE 0 END), 0) as total_cost,
+                COALESCE(SUM(CASE WHEN t.type = 'sale' THEN t.line_total ELSE 0 END), 0) as total_revenue,
+                COALESCE(SUM(CASE WHEN t.type = 'purchase' THEN t.line_total ELSE 0 END), 0) as total_cost,
                 COALESCE(SUM(CASE WHEN t.type = 'production' THEN t.amount ELSE 0 END), 0) as total_production,
                 COALESCE(SUM(CASE WHEN t.type = 'sale' THEN t.amount ELSE 0 END), 0) as total_sales_bales,
                 COALESCE(SUM(CASE WHEN t.type = 'purchase' THEN t.amount ELSE 0 END), 0) as total_purchase_bales
@@ -75,8 +75,8 @@ async function getReportData(orgId: string): Promise<ReportData> {
             SELECT
                 TO_CHAR(t.date, 'YYYY-MM') as month_key,
                 TO_CHAR(t.date, 'Mon YYYY') as month_label,
-                COALESCE(SUM(CASE WHEN t.type = 'sale' THEN t.amount * (COALESCE(s.weight_per_bale, 1200)::decimal / 2000) * t.price ELSE 0 END), 0) as revenue,
-                COALESCE(SUM(CASE WHEN t.type = 'purchase' THEN t.amount * (COALESCE(s.weight_per_bale, 1200)::decimal / 2000) * t.price ELSE 0 END), 0) as cost,
+                COALESCE(SUM(CASE WHEN t.type = 'sale' THEN t.line_total ELSE 0 END), 0) as revenue,
+                COALESCE(SUM(CASE WHEN t.type = 'purchase' THEN t.line_total ELSE 0 END), 0) as cost,
                 COALESCE(SUM(CASE WHEN t.type = 'production' THEN t.amount ELSE 0 END), 0) as production,
                 COALESCE(SUM(CASE WHEN t.type = 'sale' THEN t.amount ELSE 0 END), 0) as sales_bales,
                 COALESCE(SUM(CASE WHEN t.type = 'purchase' THEN t.amount ELSE 0 END), 0) as purchase_bales,
@@ -122,7 +122,7 @@ async function getReportData(orgId: string): Promise<ReportData> {
         const revByCommodityRes = await client.query(`
             SELECT
                 s.commodity,
-                COALESCE(SUM(t.amount * (COALESCE(s.weight_per_bale, 1200)::decimal / 2000) * t.price), 0) as revenue
+                COALESCE(SUM(t.line_total), 0) as revenue
             FROM transactions t
             JOIN stacks s ON t.stack_id = s.id
             WHERE t.org_id = $1 AND t.type = 'sale'
@@ -135,7 +135,7 @@ async function getReportData(orgId: string): Promise<ReportData> {
             SELECT
                 t.entity,
                 SUM(t.amount) as bales,
-                SUM(t.amount * (COALESCE(s.weight_per_bale, 1200)::decimal / 2000) * t.price) as revenue,
+                SUM(t.line_total) as revenue,
                 COUNT(*) as transactions
             FROM transactions t
             LEFT JOIN stacks s ON t.stack_id = s.id
@@ -149,7 +149,7 @@ async function getReportData(orgId: string): Promise<ReportData> {
             SELECT
                 t.entity,
                 SUM(t.amount) as bales,
-                SUM(t.amount * (COALESCE(s.weight_per_bale, 1200)::decimal / 2000) * t.price) as cost,
+                SUM(t.line_total) as cost,
                 COUNT(*) as transactions
             FROM transactions t
             LEFT JOIN stacks s ON t.stack_id = s.id

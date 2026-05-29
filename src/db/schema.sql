@@ -46,9 +46,13 @@ CREATE TABLE IF NOT EXISTS transactions (
   unit VARCHAR(50),                                -- always 'bales'
   entity VARCHAR(255),                             -- buyer or seller
   price DECIMAL(10, 2) DEFAULT 0,                  -- always stored as $/ton
+  line_total DECIMAL(12, 2) DEFAULT 0,             -- actual USD for this line: revenue (sale) / cost (purchase); 0 for production/adjustment/transfer
   user_id VARCHAR(255) NOT NULL,
   org_id VARCHAR(255) NOT NULL
 );
+
+-- Backfill column on pre-existing transactions tables (idempotent)
+ALTER TABLE transactions ADD COLUMN IF NOT EXISTS line_total DECIMAL(12, 2) DEFAULT 0;
 
 -- ============================================================
 -- User preferences (dashboard layout, theme, etc.)
