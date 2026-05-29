@@ -3,6 +3,7 @@
 import { createTicket } from "@/app/actions";
 import { useState } from "react";
 import { AlertCircle, Info } from "lucide-react";
+import Link from "next/link";
 import CustomSelect from "@/components/CustomSelect";
 import SubmitButton from "@/components/ui/SubmitButton";
 
@@ -10,15 +11,19 @@ interface TicketFormProps {
     stacks: any[];
     locations: any[];
     inventory: any[];
+    canManageInvoices?: boolean;
 }
 
-const TICKET_TYPES = [
-    { value: 'sale', label: 'Sale — load out to a customer' },
-    { value: 'barn_to_barn', label: 'Transfer — move between barns' },
-];
-
-export default function TicketForm({ stacks, locations, inventory }: TicketFormProps) {
-    const [ticketType, setTicketType] = useState('sale');
+export default function TicketForm({ stacks, locations, inventory, canManageInvoices = false }: TicketFormProps) {
+    // Office (can invoice) sells via Quick Sale, so here they only file transfers.
+    // Drivers file a sale ticket that routes to the office for approval.
+    const TICKET_TYPES = canManageInvoices
+        ? [{ value: 'barn_to_barn', label: 'Transfer — move between barns' }]
+        : [
+            { value: 'sale', label: 'Sale — load out to a customer' },
+            { value: 'barn_to_barn', label: 'Transfer — move between barns' },
+        ];
+    const [ticketType, setTicketType] = useState(TICKET_TYPES[0].value);
     const [selectedStack, setSelectedStack] = useState('');
     const [selectedLocation, setSelectedLocation] = useState('');
     const [selectedDestination, setSelectedDestination] = useState('');
@@ -90,18 +95,35 @@ export default function TicketForm({ stacks, locations, inventory }: TicketFormP
             )}
 
             <form action={handleSubmit} className="surface-card space-y-5">
-                <div>
-                    <label className="label-modern">Ticket type *</label>
-                    <CustomSelect
-                        name="type"
-                        value={ticketType}
-                        onChange={(val) => {
-                            setTicketType(val);
-                            setSelectedDestination('');
-                        }}
-                        options={TICKET_TYPES}
-                    />
-                </div>
+                {canManageInvoices && (
+                    <div
+                        className="flex items-start gap-2 p-3 rounded-xl text-sm"
+                        style={{ background: 'color-mix(in srgb, var(--primary) 10%, transparent)', color: 'var(--text-dim)' }}
+                    >
+                        <Info size={16} className="flex-shrink-0 mt-0.5" style={{ color: 'var(--primary)' }} />
+                        <span>
+                            Selling to a customer? Use{' '}
+                            <Link href="/sell" className="font-bold underline" style={{ color: 'var(--primary)' }}>Quick Sale</Link>
+                            {' '}to sell and invoice in one step. Tickets here move bales between barns.
+                        </span>
+                    </div>
+                )}
+                {TICKET_TYPES.length > 1 ? (
+                    <div>
+                        <label className="label-modern">Ticket type *</label>
+                        <CustomSelect
+                            name="type"
+                            value={ticketType}
+                            onChange={(val) => {
+                                setTicketType(val);
+                                setSelectedDestination('');
+                            }}
+                            options={TICKET_TYPES}
+                        />
+                    </div>
+                ) : (
+                    <input type="hidden" name="type" value={ticketType} />
+                )}
 
                 <div>
                     <label className="label-modern">Product (stack) *</label>

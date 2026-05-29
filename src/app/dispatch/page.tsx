@@ -2,7 +2,7 @@ import { auth } from "@clerk/nextjs/server";
 import pool from "@/lib/db";
 import { redirect } from "next/navigation";
 import Link from "next/link";
-import { FileText, ArrowRight } from "lucide-react";
+import { FileText, ArrowRight, Ticket } from "lucide-react";
 import { Permissions } from "@/lib/permissions";
 import DispatchQueue from "./DispatchQueue";
 import PageHeader from "@/components/ui/PageHeader";
@@ -67,10 +67,16 @@ export default async function DispatchPage() {
                 title="Invoicing queue"
                 subtitle="Review pending tickets and bundle approved loads into clean invoices."
                 actions={
-                    <Link href="/dispatch/invoices" className="btn btn-secondary btn-sm">
-                        <FileText size={16} />
-                        All invoices
-                    </Link>
+                    <div className="flex gap-2">
+                        <Link href="/tickets" className="btn btn-secondary btn-sm">
+                            <Ticket size={16} />
+                            All tickets
+                        </Link>
+                        <Link href="/dispatch/invoices" className="btn btn-secondary btn-sm">
+                            <FileText size={16} />
+                            All invoices
+                        </Link>
+                    </div>
                 }
             />
 

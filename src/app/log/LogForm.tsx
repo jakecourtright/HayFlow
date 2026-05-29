@@ -78,9 +78,7 @@ export default function LogForm({ stacks, locations, type: initialType, inventor
 
     const typeOptions = [
         { value: 'production', label: 'Production (In)' },
-        { value: 'sale', label: 'Sale (Out)' },
         { value: 'purchase', label: 'Purchase (In)' },
-        { value: 'move', label: 'Move' },
         { value: 'adjustment', label: 'Adjustment' },
     ];
 

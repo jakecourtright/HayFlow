@@ -1,6 +1,7 @@
 import { auth } from "@clerk/nextjs/server";
 import pool from "@/lib/db";
 import { redirect } from "next/navigation";
+import { Permissions } from "@/lib/permissions";
 import QuickSaleForm from "./QuickSaleForm";
 
 async function getData(orgId: string) {
@@ -38,8 +39,11 @@ async function getData(orgId: string) {
 }
 
 export default async function QuickSalePage() {
-    const { userId, orgId } = await auth();
+    const { userId, orgId, has } = await auth();
     if (!userId || !orgId) redirect("/sign-in");
+    // Quick Sale creates an invoice on the spot — office only. Drivers sell by
+    // filing a field ticket that routes to the office for approval.
+    if (!has({ permission: Permissions.INVOICES_MANAGE } as any)) redirect("/tickets/new");
 
     const data = await getData(orgId);
 

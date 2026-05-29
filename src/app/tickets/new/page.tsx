@@ -5,6 +5,7 @@ import Link from "next/link";
 import TicketForm from "./TicketForm";
 import PageHeader from "@/components/ui/PageHeader";
 import EmptyState from "@/components/ui/EmptyState";
+import { getPermissionFlags } from "@/lib/permissions";
 import { Package, MapPin } from "lucide-react";
 
 async function getData(orgId: string) {
@@ -46,6 +47,7 @@ export default async function NewTicketPage() {
     const { userId, orgId } = await auth();
     if (!userId || !orgId) redirect("/sign-in");
 
+    const { canManageInvoices } = await getPermissionFlags();
     const data = await getData(orgId);
 
     const missingPrereqs: Array<{ href: string; label: string; icon: React.ReactNode; reason: string }> = [];
@@ -67,7 +69,7 @@ export default async function NewTicketPage() {
             <PageHeader
                 eyebrow="New ticket"
                 title="Record a load"
-                subtitle="Capture a sale to a customer or a barn-to-barn transfer."
+                subtitle={canManageInvoices ? "Move bales between barns. To sell, use Quick Sale." : "Capture a sale to a customer or a barn-to-barn transfer."}
                 backHref="/tickets"
                 backLabel="Tickets"
             />
@@ -86,7 +88,7 @@ export default async function NewTicketPage() {
                     ))}
                 </div>
             ) : (
-                <TicketForm stacks={data.stacks} locations={data.locations} inventory={data.inventory} />
+                <TicketForm stacks={data.stacks} locations={data.locations} inventory={data.inventory} canManageInvoices={canManageInvoices} />
             )}
 
             {data.stacks.length > 0 && data.locations.length === 0 && (

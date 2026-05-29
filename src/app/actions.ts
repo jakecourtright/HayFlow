@@ -27,6 +27,12 @@ export async function submitTransaction(formData: FormData) {
         throw new Error("Missing required fields");
     }
 
+    // The log records inventory events only. Sales flow through Quick Sale
+    // (office) or tickets (field) so they always produce proper paperwork.
+    if (!['production', 'purchase', 'adjustment'].includes(type)) {
+        throw new Error("Invalid log type — record sales via Quick Sale or a ticket.");
+    }
+
     const client = await pool.connect();
     try {
         // Get stack info to get weight per bale for conversion
