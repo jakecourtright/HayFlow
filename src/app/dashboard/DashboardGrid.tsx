@@ -8,9 +8,11 @@ import StatCard from './StatCard';
 
 interface DashboardStats {
     totalStock: number;
+    totalTons: number;
     stockByCommodity: { commodity: string; tons: number }[];
     salesThisMonth: number;
-    balesMovedThisMonth: number;
+    outstandingAmount: number;
+    outstandingCount: number;
     recentActivity: any[];
 }
 
@@ -18,18 +20,19 @@ interface DashboardGridProps {
     stats: DashboardStats;
     layout: DashboardLayout;
     canWriteInventory: boolean;
+    canManageInvoices: boolean;
 }
 
 const ALL_CARDS = [
-    { id: 'total-stock', label: 'Total Stock' },
+    { id: 'sales-this-month', label: 'Revenue This Month' },
+    { id: 'outstanding-invoices', label: 'Outstanding Invoices' },
+    { id: 'total-stock', label: 'Inventory on Hand' },
     { id: 'stock-by-commodity', label: 'Stock by Commodity' },
-    { id: 'sales-this-month', label: 'Sales This Month' },
-    { id: 'bales-moved', label: 'Bales Moved' },
     { id: 'action-cards', label: 'Quick Actions' },
     { id: 'recent-activity', label: 'Recent Activity' },
 ];
 
-export default function DashboardGrid({ stats, layout: initialLayout, canWriteInventory }: DashboardGridProps) {
+export default function DashboardGrid({ stats, layout: initialLayout, canWriteInventory, canManageInvoices }: DashboardGridProps) {
     const [layout, setLayout] = useState<DashboardLayout>(initialLayout);
     const [editMode, setEditMode] = useState(false);
     const [draggedId, setDraggedId] = useState<string | null>(null);
@@ -131,11 +134,21 @@ export default function DashboardGrid({ stats, layout: initialLayout, canWriteIn
         switch (cardId) {
             case 'total-stock':
                 return (
-                    <StatCard
-                        label="Total Stock"
-                        value={Number(stats.totalStock).toLocaleString()}
-                        subtitle="Bales on hand"
-                    />
+                    <div className="glass-card flex items-center justify-between py-6 px-8">
+                        <div>
+                            <span className="label-modern" style={{ marginBottom: 0 }}>Inventory on Hand</span>
+                            <p className="text-sm mt-1" style={{ color: 'var(--text-dim)' }}>Across all barns</p>
+                        </div>
+                        <div className="text-right">
+                            <div className="text-4xl font-extrabold" style={{ color: 'var(--primary-light)' }}>
+                                {Number(stats.totalStock).toLocaleString()}
+                                <span className="text-lg font-bold ml-1" style={{ color: 'var(--text-dim)' }}>bales</span>
+                            </div>
+                            <div className="text-sm font-medium mt-0.5" style={{ color: 'var(--text-dim)' }}>
+                                {Number(stats.totalTons).toLocaleString(undefined, { maximumFractionDigits: 1 })} tons
+                            </div>
+                        </div>
+                    </div>
                 );
 
             case 'stock-by-commodity':
@@ -167,19 +180,24 @@ export default function DashboardGrid({ stats, layout: initialLayout, canWriteIn
                 if (!canWriteInventory) return null;
                 return (
                     <StatCard
-                        label="Sales This Month"
+                        label="Revenue This Month"
                         value={`$${Number(stats.salesThisMonth).toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`}
                         subtitle={new Date().toLocaleString('default', { month: 'long', year: 'numeric' })}
                         accent
                     />
                 );
 
-            case 'bales-moved':
+            case 'outstanding-invoices':
+                if (!canManageInvoices) return null;
                 return (
                     <StatCard
-                        label="Bales Moved"
-                        value={Number(stats.balesMovedThisMonth).toLocaleString()}
-                        subtitle="This month (all types)"
+                        label="Outstanding"
+                        value={`$${Number(stats.outstandingAmount).toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`}
+                        subtitle={
+                            stats.outstandingCount === 0
+                                ? 'All invoices paid'
+                                : `${stats.outstandingCount} invoice${stats.outstandingCount === 1 ? '' : 's'} awaiting payment`
+                        }
                     />
                 );
 

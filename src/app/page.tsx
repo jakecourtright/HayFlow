@@ -45,8 +45,10 @@ async function getStats(orgId: string) {
     `, [orgId]);
 
     const commodityMap = new Map<string, number>();
+    let totalTons = 0;
     for (const row of commodityRes.rows) {
       const tons = (parseFloat(row.bales) * parseFloat(row.weight_per_bale)) / 2000;
+      totalTons += tons;
       const existing = commodityMap.get(row.commodity) || 0;
       commodityMap.set(row.commodity, existing + tons);
     }
@@ -65,11 +67,14 @@ async function getStats(orgId: string) {
         AND t.date >= $2
     `, [orgId, monthStart]);
 
-    const movedRes = await client.query(`
-      SELECT COALESCE(SUM(t.amount), 0) as bales_moved
-      FROM transactions t
-      WHERE t.org_id = $1 AND t.date >= $2
-    `, [orgId, monthStart]);
+    // Outstanding A/R: invoices sent to the customer but not yet marked paid.
+    const outstandingRes = await client.query(`
+      SELECT
+        COALESCE(SUM(total_amount), 0) as outstanding_amount,
+        COUNT(*) as outstanding_count
+      FROM invoices
+      WHERE org_id = $1 AND status = 'sent'
+    `, [orgId]);
 
     const activityRes = await client.query(`
       SELECT t.*, s.name as stack_name, s.commodity
@@ -82,9 +87,11 @@ async function getStats(orgId: string) {
 
     return {
       totalStock: parseFloat(stockRes.rows[0]?.total_stock) || 0,
+      totalTons,
       stockByCommodity,
       salesThisMonth: parseFloat(salesRes.rows[0]?.sales_total) || 0,
-      balesMovedThisMonth: parseFloat(movedRes.rows[0]?.bales_moved) || 0,
+      outstandingAmount: parseFloat(outstandingRes.rows[0]?.outstanding_amount) || 0,
+      outstandingCount: parseInt(outstandingRes.rows[0]?.outstanding_count) || 0,
       recentActivity: activityRes.rows,
     };
   } finally {
@@ -107,14 +114,17 @@ export default async function Dashboard() {
 
   const defaultStats = {
     totalStock: 0,
+    totalTons: 0,
     stockByCommodity: [],
     salesThisMonth: 0,
-    balesMovedThisMonth: 0,
+    outstandingAmount: 0,
+    outstandingCount: 0,
     recentActivity: [],
   };
 
   const stats = orgId ? await getStats(orgId) : defaultStats;
   const layout = await getDashboardLayout();
+  const perms = await getPermissionFlags();
 
   return (
     <>
@@ -187,7 +197,7 @@ export default async function Dashboard() {
             subtitle="Your inventory and activity at a glance."
           />
           <OnboardingChecklist />
-          <DashboardGrid stats={stats} layout={layout} canWriteInventory={(await getPermissionFlags()).canWriteInventory} />
+          <DashboardGrid stats={stats} layout={layout} canWriteInventory={perms.canWriteInventory} canManageInvoices={perms.canManageInvoices} />
         </div>
       )}
     </>

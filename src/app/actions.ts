@@ -434,7 +434,7 @@ export interface DashboardLayout {
 }
 
 const DEFAULT_LAYOUT: DashboardLayout = {
-    order: ['total-stock', 'stock-by-commodity', 'sales-this-month', 'bales-moved', 'action-cards', 'recent-activity'],
+    order: ['sales-this-month', 'outstanding-invoices', 'total-stock', 'stock-by-commodity', 'action-cards', 'recent-activity'],
     hidden: [],
 };
 
@@ -450,7 +450,16 @@ export async function getDashboardLayout(): Promise<DashboardLayout> {
             [userId, orgId]
         );
         if (result.rows.length > 0) {
-            return result.rows[0].preference_value as DashboardLayout;
+            const stored = result.rows[0].preference_value as DashboardLayout;
+            // Reconcile saved layouts against the current card set: drop cards that
+            // no longer exist, append newly added cards so they show up for existing users.
+            const known = DEFAULT_LAYOUT.order;
+            const order = [
+                ...stored.order.filter((id) => known.includes(id)),
+                ...known.filter((id) => !stored.order.includes(id)),
+            ];
+            const hidden = (stored.hidden || []).filter((id) => known.includes(id));
+            return { order, hidden };
         }
         return DEFAULT_LAYOUT;
     } finally {
