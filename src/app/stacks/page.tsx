@@ -17,8 +17,8 @@ async function getStacksWithInventory(orgId: string) {
                 s.*,
                 COALESCE(SUM(
                     CASE
-                        WHEN t.type IN ('production', 'purchase') THEN t.amount
-                        WHEN t.type = 'sale' THEN -t.amount
+                        WHEN t.type IN ('production', 'purchase', 'transfer_in') THEN t.amount
+                        WHEN t.type IN ('sale', 'transfer_out') THEN -t.amount
                         ELSE 0
                     END
                 ), 0) as current_stock
@@ -36,8 +36,8 @@ async function getStacksWithInventory(orgId: string) {
                 l.name as location_name,
                 COALESCE(SUM(
                     CASE
-                        WHEN t.type IN ('production', 'purchase') THEN t.amount
-                        WHEN t.type = 'sale' THEN -t.amount
+                        WHEN t.type IN ('production', 'purchase', 'transfer_in') THEN t.amount
+                        WHEN t.type IN ('sale', 'transfer_out') THEN -t.amount
                         ELSE 0
                     END
                 ), 0) as stock
@@ -47,8 +47,8 @@ async function getStacksWithInventory(orgId: string) {
             GROUP BY t.stack_id, l.id, l.name
             HAVING COALESCE(SUM(
                 CASE
-                    WHEN t.type IN ('production', 'purchase') THEN t.amount
-                    WHEN t.type = 'sale' THEN -t.amount
+                    WHEN t.type IN ('production', 'purchase', 'transfer_in') THEN t.amount
+                    WHEN t.type IN ('sale', 'transfer_out') THEN -t.amount
                     ELSE 0
                 END
             ), 0) != 0

@@ -93,7 +93,7 @@ async function getReportData(orgId: string): Promise<ReportData> {
             SELECT
                 s.commodity,
                 COALESCE(SUM(
-                    CASE WHEN t.type IN ('production', 'purchase') THEN t.amount ELSE -t.amount END
+                    CASE WHEN t.type IN ('production', 'purchase', 'transfer_in') THEN t.amount ELSE -t.amount END
                 ), 0) as bales,
                 COALESCE(s.weight_per_bale, 1200) as weight_per_bale
             FROM stacks s
@@ -184,7 +184,7 @@ async function getReportData(orgId: string): Promise<ReportData> {
                 l.capacity,
                 l.unit,
                 COALESCE(SUM(
-                    CASE WHEN t.type IN ('production', 'purchase') THEN t.amount ELSE -t.amount END
+                    CASE WHEN t.type IN ('production', 'purchase', 'transfer_in') THEN t.amount ELSE -t.amount END
                 ), 0) as used
             FROM locations l
             LEFT JOIN transactions t ON l.id = t.location_id AND t.org_id = $1

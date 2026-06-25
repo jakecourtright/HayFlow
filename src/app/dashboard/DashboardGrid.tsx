@@ -257,7 +257,7 @@ export default function DashboardGrid({ stats, layout: initialLayout, canWriteIn
                                         <div className="glass-card flex items-center justify-between py-4 px-5 !rounded-2xl hover:brightness-110 transition-all">
                                             <div>
                                                 <div className="font-semibold text-sm" style={{ color: 'var(--accent)' }}>
-                                                    {tx.type === 'production' ? 'Baled' : tx.type.charAt(0).toUpperCase() + tx.type.slice(1)}: {tx.stack_name || 'Unknown Stack'}
+                                                    {tx.type === 'production' ? 'Baled' : tx.type === 'transfer_out' ? 'Transferred out' : tx.type === 'transfer_in' ? 'Transferred in' : tx.type.charAt(0).toUpperCase() + tx.type.slice(1)}: {tx.stack_name || 'Unknown Stack'}
                                                 </div>
                                                 <div className="text-xs mt-0.5" style={{ color: 'var(--text-dim)' }}>
                                                     {tx.commodity} • {new Date(tx.date).toLocaleDateString()}
@@ -267,7 +267,7 @@ export default function DashboardGrid({ stats, layout: initialLayout, canWriteIn
                                                 className="font-mono font-bold"
                                                 style={{ color: tx.type === 'sale' ? '#ef4444' : 'var(--primary-light)' }}
                                             >
-                                                {tx.type === 'sale' ? '−' : '+'}{Number(tx.amount).toLocaleString()}
+                                                {tx.type === 'sale' || tx.type === 'transfer_out' ? '−' : '+'}{Number(tx.amount).toLocaleString()}
                                             </div>
                                         </div>
                                     </Link>

@@ -2,8 +2,9 @@ import { auth } from "@clerk/nextjs/server";
 import pool from "@/lib/db";
 import { redirect, notFound } from "next/navigation";
 import Link from "next/link";
-import { Pencil, Tractor, ShoppingCart, Banknote, Wrench, MapPin } from "lucide-react";
+import { Pencil, Tractor, ShoppingCart, Banknote, Wrench, MapPin, ArrowLeftRight } from "lucide-react";
 import { balesToTons, resolveWeight } from "@/lib/units";
+import { getPermissionFlags } from "@/lib/permissions";
 import PageHeader from "@/components/ui/PageHeader";
 import EmptyState from "@/components/ui/EmptyState";
 
@@ -23,8 +24,8 @@ async function getStackWithDetails(stackId: string, orgId: string) {
                 l.name as location_name,
                 COALESCE(SUM(
                     CASE
-                        WHEN t.type IN ('production', 'purchase') THEN t.amount
-                        WHEN t.type = 'sale' THEN -t.amount
+                        WHEN t.type IN ('production', 'purchase', 'transfer_in') THEN t.amount
+                        WHEN t.type IN ('sale', 'transfer_out') THEN -t.amount
                         ELSE 0
                     END
                 ), 0) as stock
@@ -34,8 +35,8 @@ async function getStackWithDetails(stackId: string, orgId: string) {
             GROUP BY l.id, l.name
             HAVING COALESCE(SUM(
                 CASE
-                    WHEN t.type IN ('production', 'purchase') THEN t.amount
-                    WHEN t.type = 'sale' THEN -t.amount
+                    WHEN t.type IN ('production', 'purchase', 'transfer_in') THEN t.amount
+                    WHEN t.type IN ('sale', 'transfer_out') THEN -t.amount
                     ELSE 0
                 END
             ), 0) != 0
@@ -45,8 +46,8 @@ async function getStackWithDetails(stackId: string, orgId: string) {
         const totalResult = await client.query(`
             SELECT COALESCE(SUM(
                 CASE
-                    WHEN type IN ('production', 'purchase') THEN amount
-                    WHEN type = 'sale' THEN -amount
+                    WHEN type IN ('production', 'purchase', 'transfer_in') THEN amount
+                    WHEN type IN ('sale', 'transfer_out') THEN -amount
                     ELSE 0
                 END
             ), 0) as total
@@ -81,6 +82,8 @@ function getTransactionIcon(type: string) {
         case 'production': return <Tractor size={16} />;
         case 'purchase': return <ShoppingCart size={16} />;
         case 'sale': return <Banknote size={16} />;
+        case 'transfer_out':
+        case 'transfer_in': return <ArrowLeftRight size={16} />;
         default: return <Wrench size={16} />;
     }
 }
@@ -90,6 +93,8 @@ function getTransactionLabel(type: string) {
         case 'production': return 'Baled';
         case 'purchase': return 'Purchased';
         case 'sale': return 'Sold';
+        case 'transfer_out': return 'Transferred out';
+        case 'transfer_in': return 'Transferred in';
         default: return 'Adjusted';
     }
 }
@@ -102,6 +107,7 @@ export default async function StackDetailPage({ params }: { params: Promise<{ id
     const stack = await getStackWithDetails(id, orgId);
     if (!stack) notFound();
 
+    const { canManageTickets } = await getPermissionFlags();
     const weight = resolveWeight(stack.weight_per_bale, stack.bale_size);
     const tons = balesToTons(stack.total_stock, weight);
 
@@ -113,9 +119,17 @@ export default async function StackDetailPage({ params }: { params: Promise<{ id
                 backHref="/stacks"
                 backLabel="Stacks"
                 actions={
-                    <Link href={`/stacks/${stack.id}/edit`} aria-label="Edit stack" className="icon-button">
-                        <Pencil size={16} />
-                    </Link>
+                    <div className="flex items-center gap-2">
+                        {canManageTickets && stack.total_stock > 0 && (
+                            <Link href={`/transfer?stack=${stack.id}`} className="btn btn-secondary btn-sm">
+                                <ArrowLeftRight size={16} />
+                                <span>Move bales</span>
+                            </Link>
+                        )}
+                        <Link href={`/stacks/${stack.id}/edit`} aria-label="Edit stack" className="icon-button">
+                            <Pencil size={16} />
+                        </Link>
+                    </div>
                 }
             />
 
@@ -205,6 +219,7 @@ export default async function StackDetailPage({ params }: { params: Promise<{ id
                     <div className="space-y-2">
                         {stack.transactions.map((tx: any) => {
                             const isSale = tx.type === 'sale';
+                            const isOutflow = isSale || tx.type === 'transfer_out';
                             return (
                                 <Link key={tx.id} href={`/transactions/${tx.id}`} className="block">
                                     <div className="glass-card glass-card-link p-4">
@@ -236,7 +251,7 @@ export default async function StackDetailPage({ params }: { params: Promise<{ id
                                                     className="font-bold text-lg tabular-nums"
                                                     style={{ color: isSale ? 'var(--error)' : 'var(--primary-light)' }}
                                                 >
-                                                    {isSale ? '−' : '+'}
+                                                    {isOutflow ? '−' : '+'}
                                                     {parseFloat(tx.amount).toLocaleString()}
                                                 </p>
                                                 <p className="text-xs" style={{ color: 'var(--text-dim)' }}>

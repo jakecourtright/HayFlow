@@ -59,6 +59,12 @@ export default async function EditTransactionPage({ params }: { params: Promise<
 
     if (!transaction) notFound();
 
+    // Transfer legs are a paired unit — editing one through the generic single-row
+    // editor would orphan the other leg, so send them back to the read-only detail view.
+    if (transaction.type === 'transfer_in' || transaction.type === 'transfer_out') {
+        redirect(`/transactions/${id}`);
+    }
+
     return (
         <div>
             <PageHeader

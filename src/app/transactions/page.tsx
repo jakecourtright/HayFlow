@@ -2,7 +2,7 @@ import { auth } from "@clerk/nextjs/server";
 import pool from "@/lib/db";
 import { redirect } from "next/navigation";
 import Link from "next/link";
-import { Tractor, ShoppingCart, Banknote, Wrench, History } from "lucide-react";
+import { Tractor, ShoppingCart, Banknote, Wrench, History, ArrowLeftRight } from "lucide-react";
 import { balesToTons, getDefaultWeight } from "@/lib/units";
 import PageHeader from "@/components/ui/PageHeader";
 import EmptyState from "@/components/ui/EmptyState";
@@ -36,6 +36,8 @@ function getTransactionIcon(type: string) {
         case 'production': return <Tractor size={16} />;
         case 'purchase': return <ShoppingCart size={16} />;
         case 'sale': return <Banknote size={16} />;
+        case 'transfer_out':
+        case 'transfer_in': return <ArrowLeftRight size={16} />;
         default: return <Wrench size={16} />;
     }
 }
@@ -46,6 +48,8 @@ function getTransactionLabel(type: string) {
         case 'purchase': return 'Purchased';
         case 'sale': return 'Sold';
         case 'adjustment': return 'Adjusted';
+        case 'transfer_out': return 'Transferred out';
+        case 'transfer_in': return 'Transferred in';
         default: return 'Transaction';
     }
 }
@@ -95,6 +99,7 @@ export default async function TransactionsPage() {
                                     const weight = tx.weight_per_bale || getDefaultWeight(tx.bale_size || '3x4');
                                     const tons = balesToTons(amount, weight);
                                     const isSale = tx.type === 'sale';
+                                    const isOutflow = isSale || tx.type === 'transfer_out';
                                     const tintColor = isSale ? 'var(--error)' : 'var(--primary-light)';
                                     const tintBg = isSale
                                         ? 'color-mix(in srgb, var(--error) 16%, transparent)'
@@ -123,7 +128,7 @@ export default async function TransactionsPage() {
                                                     </div>
                                                     <div className="text-right shrink-0">
                                                         <p className="text-display-sm" style={{ color: tintColor }}>
-                                                            {isSale ? '−' : '+'}{amount.toLocaleString()}
+                                                            {isOutflow ? '−' : '+'}{amount.toLocaleString()}
                                                         </p>
                                                         <p className="text-xs" style={{ color: 'var(--text-dim)' }}>
                                                             {tons.toFixed(2)} tons

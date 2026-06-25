@@ -64,8 +64,8 @@ export async function submitTransaction(formData: FormData) {
             const inventoryRes = await client.query(`
                 SELECT 
                     SUM(CASE 
-                        WHEN type IN ('production', 'purchase') THEN amount 
-                        WHEN type IN ('sale') THEN -amount 
+                        WHEN type IN ('production', 'purchase', 'transfer_in') THEN amount 
+                        WHEN type IN ('sale', 'transfer_out') THEN -amount 
                         ELSE 0 
                     END) as quantity
                 FROM transactions
@@ -537,8 +537,8 @@ export async function createTicket(formData: FormData) {
         const inventoryRes = await client.query(`
             SELECT 
                 SUM(CASE 
-                    WHEN type IN ('production', 'purchase') THEN amount 
-                    WHEN type IN ('sale') THEN -amount 
+                    WHEN type IN ('production', 'purchase', 'transfer_in') THEN amount 
+                    WHEN type IN ('sale', 'transfer_out') THEN -amount 
                     ELSE 0 
                 END) as quantity
             FROM transactions
@@ -585,6 +585,7 @@ export async function approveTicket(id: string) {
 
     const client = await pool.connect();
     try {
+        await client.query('BEGIN');
         // Get ticket details
         const ticketRes = await client.query(
             'SELECT * FROM tickets WHERE id = $1 AND org_id = $2 AND status = $3',
@@ -598,33 +599,43 @@ export async function approveTicket(id: string) {
         let transactionId: number;
 
         if (ticket.type === 'barn_to_barn') {
-            // Barn to Barn: create a sale (deduct from source) and a purchase (add to destination)
-            const saleRes = await client.query(`
+            // Barn-to-barn: move bales between two of our own barns. Recorded as a paired
+            // transfer_out (deduct from source) + transfer_in (add to destination) at price 0 —
+            // keeps inventory whole without polluting the sales/purchase books.
+            const locRes = await client.query(
+                'SELECT id, name FROM locations WHERE org_id = $1 AND id IN ($2, $3)',
+                [orgId, ticket.location_id, ticket.destination_id]
+            );
+            const nameById = new Map<string, string>(locRes.rows.map((r: any) => [String(r.id), r.name]));
+            const srcName = nameById.get(String(ticket.location_id)) || 'source barn';
+            const destName = nameById.get(String(ticket.destination_id)) || 'destination barn';
+
+            const outRes = await client.query(`
                 INSERT INTO transactions (type, stack_id, location_id, amount, unit, entity, price, user_id, org_id)
-                VALUES ('sale', $1, $2, $3, 'bales', $4, 0, $5, $6)
+                VALUES ('transfer_out', $1, $2, $3, 'bales', $4, 0, $5, $6)
                 RETURNING id
             `, [
                 ticket.stack_id,
                 ticket.location_id,
                 ticket.amount,
-                'Transfer to destination',
+                `Transfer to ${destName}`,
                 userId,
                 orgId
             ]);
 
             await client.query(`
                 INSERT INTO transactions (type, stack_id, location_id, amount, unit, entity, price, user_id, org_id)
-                VALUES ('purchase', $1, $2, $3, 'bales', $4, 0, $5, $6)
+                VALUES ('transfer_in', $1, $2, $3, 'bales', $4, 0, $5, $6)
             `, [
                 ticket.stack_id,
                 ticket.destination_id,
                 ticket.amount,
-                'Transfer from source',
+                `Transfer from ${srcName}`,
                 userId,
                 orgId
             ]);
 
-            transactionId = saleRes.rows[0].id;
+            transactionId = outRes.rows[0].id;
         } else {
             // Sale: create a sale transaction to deduct inventory
             const txRes = await client.query(`
@@ -648,6 +659,11 @@ export async function approveTicket(id: string) {
             UPDATE tickets SET status = 'approved', transaction_id = $1, updated_at = CURRENT_TIMESTAMP
             WHERE id = $2 AND org_id = $3
         `, [transactionId, id, orgId]);
+
+        await client.query('COMMIT');
+    } catch (e) {
+        await client.query('ROLLBACK');
+        throw e;
     } finally {
         client.release();
     }
@@ -658,6 +674,107 @@ export async function approveTicket(id: string) {
     revalidatePath('/inventory');
     revalidatePath('/locations');
     revalidatePath('/transactions');
+}
+
+export async function createTransfer(formData: FormData) {
+    const { userId, orgId, has } = await auth();
+    if (!userId || !orgId) throw new Error("Unauthorized");
+    await requireActiveSubscription();
+
+    // An immediate transfer carries the same authority as approving a ticket, so it's
+    // gated on TICKETS_MANAGE. Field users without it file a barn_to_barn ticket instead.
+    if (!has({ permission: Permissions.TICKETS_MANAGE } as any)) {
+        throw new Error("You don't have permission to move inventory directly — file a transfer ticket instead.");
+    }
+
+    const stackId = formData.get('stackId') as string;
+    const sourceId = formData.get('sourceId') as string;
+    const destinationId = formData.get('destinationId') as string;
+    const enteredAmount = formData.get('amount') as string;
+    const unit = (formData.get('unit') as string) || 'bales';
+    const notes = (formData.get('notes') as string)?.trim() || null;
+
+    if (!stackId) throw new Error("Stack is required");
+    if (!sourceId || sourceId === 'none') throw new Error("Source barn is required");
+    if (!destinationId || destinationId === 'none') throw new Error("Destination barn is required");
+    if (sourceId === destinationId) throw new Error("Source and destination must be different barns");
+
+    const amountValue = parseFloat(enteredAmount);
+    if (isNaN(amountValue) || amountValue <= 0) throw new Error("Amount must be a positive number");
+
+    const client = await pool.connect();
+    try {
+        await client.query('BEGIN');
+
+        // Stack (org-scoped) — needed to convert tons -> bales for storage
+        const stackRes = await client.query(
+            'SELECT weight_per_bale, bale_size FROM stacks WHERE id = $1 AND org_id = $2',
+            [stackId, orgId]
+        );
+        if (stackRes.rows.length === 0) throw new Error("Stack not found");
+        const stack = stackRes.rows[0];
+        const weightPerBale = stack.weight_per_bale || getDefaultWeight(stack.bale_size || '3x4');
+
+        let amountInBales = amountValue;
+        if (unit === 'tons') amountInBales = tonsToBales(amountValue, weightPerBale);
+        if (amountInBales <= 0) throw new Error("That's less than a whole bale — nothing to move");
+
+        // Resolve both barn names (org-scoped) for the ledger entity text
+        const locRes = await client.query(
+            'SELECT id, name FROM locations WHERE org_id = $1 AND id IN ($2, $3)',
+            [orgId, sourceId, destinationId]
+        );
+        const nameById = new Map<string, string>(locRes.rows.map((r: any) => [String(r.id), r.name]));
+        if (!nameById.has(String(sourceId)) || !nameById.has(String(destinationId))) {
+            throw new Error("Source or destination barn not found");
+        }
+        const srcName = nameById.get(String(sourceId))!;
+        const destName = nameById.get(String(destinationId))!;
+
+        // Enough stock at the source?
+        const invRes = await client.query(`
+            SELECT COALESCE(SUM(CASE
+                WHEN type IN ('production', 'purchase', 'transfer_in') THEN amount
+                WHEN type IN ('sale', 'transfer_out') THEN -amount
+                ELSE 0
+            END), 0) as quantity
+            FROM transactions
+            WHERE stack_id = $1 AND location_id = $2 AND org_id = $3
+        `, [stackId, sourceId, orgId]);
+        const available = parseFloat(invRes.rows[0]?.quantity || '0');
+        if (available < amountInBales) {
+            throw new Error(`Not enough stock at ${srcName}. Available: ${available.toLocaleString()} bales, requested: ${amountInBales.toLocaleString()} bales`);
+        }
+
+        const outEntity = notes ? `Transfer to ${destName} — ${notes}` : `Transfer to ${destName}`;
+        const inEntity = notes ? `Transfer from ${srcName} — ${notes}` : `Transfer from ${srcName}`;
+
+        // Deduct from the source barn
+        await client.query(`
+            INSERT INTO transactions (type, stack_id, location_id, amount, unit, entity, price, user_id, org_id)
+            VALUES ('transfer_out', $1, $2, $3, 'bales', $4, 0, $5, $6)
+        `, [stackId, sourceId, amountInBales, outEntity, userId, orgId]);
+
+        // Add to the destination barn
+        await client.query(`
+            INSERT INTO transactions (type, stack_id, location_id, amount, unit, entity, price, user_id, org_id)
+            VALUES ('transfer_in', $1, $2, $3, 'bales', $4, 0, $5, $6)
+        `, [stackId, destinationId, amountInBales, inEntity, userId, orgId]);
+
+        await client.query('COMMIT');
+    } catch (e) {
+        await client.query('ROLLBACK');
+        throw e;
+    } finally {
+        client.release();
+    }
+
+    revalidatePath('/');
+    revalidatePath('/inventory');
+    revalidatePath('/stacks');
+    revalidatePath('/locations');
+    revalidatePath('/transactions');
+    redirect(`/stacks/${stackId}`);
 }
 
 export async function rejectTicket(id: string) {
@@ -1028,8 +1145,8 @@ export async function quickSale(formData: FormData) {
             const invRes = await client.query(`
                 SELECT
                     SUM(CASE
-                        WHEN type IN ('production', 'purchase') THEN amount
-                        WHEN type IN ('sale') THEN -amount
+                        WHEN type IN ('production', 'purchase', 'transfer_in') THEN amount
+                        WHEN type IN ('sale', 'transfer_out') THEN -amount
                         ELSE 0
                     END) as quantity
                 FROM transactions

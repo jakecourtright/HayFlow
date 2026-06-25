@@ -39,7 +39,8 @@ CREATE TABLE IF NOT EXISTS stacks (
 CREATE TABLE IF NOT EXISTS transactions (
   id SERIAL PRIMARY KEY,
   date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  type VARCHAR(50) NOT NULL,                       -- 'production' | 'purchase' | 'sale' | 'adjustment'
+  type VARCHAR(50) NOT NULL,                       -- 'production' | 'purchase' | 'sale' | 'adjustment' | 'transfer_in' | 'transfer_out'
+                                                   -- transfer_in/out are paired legs of a barn-to-barn move (price 0); excluded from sales/purchase reports
   stack_id INTEGER REFERENCES stacks(id) ON DELETE SET NULL,
   location_id INTEGER REFERENCES locations(id) ON DELETE SET NULL,
   amount DECIMAL(10, 2) NOT NULL,                  -- always in bales

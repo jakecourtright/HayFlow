@@ -1,8 +1,7 @@
 import { auth } from "@clerk/nextjs/server";
 import pool from "@/lib/db";
 import { redirect } from "next/navigation";
-import Link from "next/link";
-import TicketForm from "./TicketForm";
+import TransferForm from "./TransferForm";
 import PageHeader from "@/components/ui/PageHeader";
 import EmptyState from "@/components/ui/EmptyState";
 import { getPermissionFlags } from "@/lib/permissions";
@@ -43,35 +42,39 @@ async function getData(orgId: string) {
     }
 }
 
-export default async function NewTicketPage() {
+export default async function TransferPage({ searchParams }: { searchParams: Promise<{ stack?: string; source?: string }> }) {
     const { userId, orgId } = await auth();
     if (!userId || !orgId) redirect("/sign-in");
 
-    const { canManageInvoices } = await getPermissionFlags();
+    const { canManageTickets } = await getPermissionFlags();
+    // An instant transfer is an office action. Field users route through the ticket queue.
+    if (!canManageTickets) redirect("/tickets/new");
+
     const data = await getData(orgId);
+    const { stack: presetStack, source: presetSource } = await searchParams;
 
     const missingPrereqs: Array<{ href: string; label: string; icon: React.ReactNode; reason: string }> = [];
     if (data.stacks.length === 0) missingPrereqs.push({
         href: "/stacks/new",
         label: "Add a stack",
         icon: <Package className="w-7 h-7" />,
-        reason: "Stacks are the products you sell — define one before you can ticket it.",
+        reason: "A stack is the lot of hay you're moving — define one first.",
     });
-    if (data.locations.length === 0) missingPrereqs.push({
+    if (data.locations.length < 2) missingPrereqs.push({
         href: "/locations/new",
-        label: "Add a location",
+        label: "Add a barn",
         icon: <MapPin className="w-7 h-7" />,
-        reason: "Every ticket tracks inventory between locations. Add a barn or yard first.",
+        reason: "A transfer moves bales between two barns — you need at least two.",
     });
 
     return (
         <div>
             <PageHeader
-                eyebrow="New ticket"
-                title="Record a load"
-                subtitle={canManageInvoices ? "Move bales between barns. To sell, use Quick Sale." : "Capture a sale to a customer or a barn-to-barn transfer."}
-                backHref="/tickets"
-                backLabel="Tickets"
+                eyebrow="Move inventory"
+                title="Transfer bales"
+                subtitle="Move hay from one barn to another. No sale — inventory just changes location."
+                backHref="/stacks"
+                backLabel="Stacks"
             />
 
             {missingPrereqs.length > 0 ? (
@@ -88,13 +91,13 @@ export default async function NewTicketPage() {
                     ))}
                 </div>
             ) : (
-                <TicketForm stacks={data.stacks} locations={data.locations} inventory={data.inventory} canManageInvoices={canManageInvoices} />
-            )}
-
-            {data.stacks.length > 0 && data.locations.length === 0 && (
-                <p className="text-xs text-center mt-4" style={{ color: "var(--text-dim)" }}>
-                    Or <Link href="/locations/new" className="underline">add another location</Link>.
-                </p>
+                <TransferForm
+                    stacks={data.stacks}
+                    locations={data.locations}
+                    inventory={data.inventory}
+                    presetStackId={presetStack}
+                    presetSourceId={presetSource}
+                />
             )}
         </div>
     );

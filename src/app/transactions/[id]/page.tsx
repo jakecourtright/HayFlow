@@ -2,7 +2,7 @@ import { auth } from "@clerk/nextjs/server";
 import pool from "@/lib/db";
 import { redirect, notFound } from "next/navigation";
 import Link from "next/link";
-import { Tractor, ShoppingCart, Banknote, Wrench, MapPin, Package, Pencil } from "lucide-react";
+import { Tractor, ShoppingCart, Banknote, Wrench, MapPin, Package, Pencil, ArrowLeftRight } from "lucide-react";
 import { balesToTons, resolveWeight } from "@/lib/units";
 import PageHeader from "@/components/ui/PageHeader";
 
@@ -35,6 +35,8 @@ function getTransactionIcon(type: string) {
         case 'production': return <Tractor size={24} />;
         case 'purchase': return <ShoppingCart size={24} />;
         case 'sale': return <Banknote size={24} />;
+        case 'transfer_out':
+        case 'transfer_in': return <ArrowLeftRight size={24} />;
         default: return <Wrench size={24} />;
     }
 }
@@ -45,6 +47,8 @@ function getTransactionLabel(type: string) {
         case 'purchase': return 'Purchase';
         case 'sale': return 'Sale';
         case 'adjustment': return 'Adjustment';
+        case 'transfer_out': return 'Transfer out';
+        case 'transfer_in': return 'Transfer in';
         default: return 'Transaction';
     }
 }
@@ -61,6 +65,8 @@ export default async function TransactionDetailPage({ params }: { params: Promis
     const weight = resolveWeight(tx.weight_per_bale, tx.bale_size);
     const tons = balesToTons(amount, weight);
     const isSale = tx.type === 'sale';
+    const isOutflow = isSale || tx.type === 'transfer_out';
+    const isTransfer = tx.type === 'transfer_out' || tx.type === 'transfer_in';
     const tintColor = isSale ? 'var(--error)' : 'var(--primary-light)';
     const tintBg = isSale
         ? 'color-mix(in srgb, var(--error) 16%, transparent)'
@@ -79,14 +85,16 @@ export default async function TransactionDetailPage({ params }: { params: Promis
                 backHref="/transactions"
                 backLabel="Transactions"
                 actions={
-                    <Link
-                        href={`/transactions/${id}/edit`}
-                        className="icon-button"
-                        aria-label="Edit transaction"
-                        title="Edit transaction"
-                    >
-                        <Pencil size={16} />
-                    </Link>
+                    isTransfer ? undefined : (
+                        <Link
+                            href={`/transactions/${id}/edit`}
+                            className="icon-button"
+                            aria-label="Edit transaction"
+                            title="Edit transaction"
+                        >
+                            <Pencil size={16} />
+                        </Link>
+                    )
                 }
             />
 
@@ -102,7 +110,7 @@ export default async function TransactionDetailPage({ params }: { params: Promis
                     <div>
                         <p className="text-eyebrow">{getTransactionLabel(tx.type)}</p>
                         <p className="text-display-md" style={{ color: tintColor }}>
-                            {isSale ? '−' : '+'}{amount.toLocaleString()}
+                            {isOutflow ? '−' : '+'}{amount.toLocaleString()}
                             <span className="text-lg ml-2" style={{ color: 'var(--text-dim)' }}>bales</span>
                         </p>
                         <p className="text-sm" style={{ color: 'var(--text-dim)' }}>
@@ -127,7 +135,7 @@ export default async function TransactionDetailPage({ params }: { params: Promis
                         <div className="flex items-center gap-2 mb-1">
                             <MapPin size={14} style={{ color: 'var(--text-dim)' }} />
                             <span className="text-eyebrow">
-                                {isSale ? 'From' : 'To'}
+                                {isOutflow ? 'From' : 'To'}
                             </span>
                         </div>
                         {tx.location_name ? (

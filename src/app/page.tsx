@@ -17,7 +17,7 @@ async function getStats(orgId: string) {
     const stockRes = await client.query(`
       SELECT
         COALESCE(SUM(
-          CASE WHEN t.type IN ('production', 'purchase') THEN t.amount ELSE -t.amount END
+          CASE WHEN t.type IN ('production', 'purchase', 'transfer_in') THEN t.amount ELSE -t.amount END
         ), 0) as total_stock
       FROM transactions t
       JOIN stacks s ON t.stack_id = s.id
@@ -29,7 +29,7 @@ async function getStats(orgId: string) {
       SELECT
         s.commodity,
         COALESCE(SUM(
-          CASE WHEN t.type IN ('production', 'purchase') THEN t.amount ELSE -t.amount END
+          CASE WHEN t.type IN ('production', 'purchase', 'transfer_in') THEN t.amount ELSE -t.amount END
         ), 0) as bales,
         COALESCE(s.weight_per_bale, 1200) as weight_per_bale
       FROM stacks s
@@ -37,10 +37,10 @@ async function getStats(orgId: string) {
       WHERE s.org_id = $1
       GROUP BY s.commodity, s.weight_per_bale
       HAVING COALESCE(SUM(
-        CASE WHEN t.type IN ('production', 'purchase') THEN t.amount ELSE -t.amount END
+        CASE WHEN t.type IN ('production', 'purchase', 'transfer_in') THEN t.amount ELSE -t.amount END
       ), 0) > 0
       ORDER BY COALESCE(SUM(
-        CASE WHEN t.type IN ('production', 'purchase') THEN t.amount ELSE -t.amount END
+        CASE WHEN t.type IN ('production', 'purchase', 'transfer_in') THEN t.amount ELSE -t.amount END
       ), 0) DESC
     `, [orgId]);
 
