@@ -312,8 +312,9 @@ export async function deleteLocation(id: string) {
         client.release();
     }
 
+    // No redirect: DeleteButton awaits this and does router.push('/locations') itself.
+    // A server redirect() would throw NEXT_REDIRECT into its catch and be swallowed.
     revalidatePath('/locations');
-    redirect('/locations');
 }
 
 // ============ STACK ACTIONS ============
@@ -428,9 +429,52 @@ export async function deleteStack(id: string) {
         client.release();
     }
 
+    // No redirect: this is awaited directly from StackActions (a client handler on
+    // the /stacks list), which shows a toast and calls router.refresh(). A server
+    // redirect() would throw NEXT_REDIRECT into that handler's catch and be swallowed.
     revalidatePath('/stacks');
     revalidatePath('/');
-    redirect('/stacks');
+}
+
+// Archiving is a reversible retire — gated at auth level like create/update stack
+// (not the stricter STACKS_DELETE). Hard delete stays privileged. No redirect: these
+// are awaited from StackActions, which toasts + router.refresh().
+export async function archiveStack(id: string) {
+    const { userId, orgId } = await auth();
+    if (!userId || !orgId) throw new Error("Unauthorized");
+    await requireActiveSubscription();
+
+    const client = await pool.connect();
+    try {
+        await client.query(
+            'UPDATE stacks SET archived_at = CURRENT_TIMESTAMP WHERE id = $1 AND org_id = $2 AND archived_at IS NULL',
+            [id, orgId]
+        );
+    } finally {
+        client.release();
+    }
+
+    revalidatePath('/stacks');
+    revalidatePath(`/stacks/${id}`);
+}
+
+export async function unarchiveStack(id: string) {
+    const { userId, orgId } = await auth();
+    if (!userId || !orgId) throw new Error("Unauthorized");
+    await requireActiveSubscription();
+
+    const client = await pool.connect();
+    try {
+        await client.query(
+            'UPDATE stacks SET archived_at = NULL WHERE id = $1 AND org_id = $2',
+            [id, orgId]
+        );
+    } finally {
+        client.release();
+    }
+
+    revalidatePath('/stacks');
+    revalidatePath(`/stacks/${id}`);
 }
 
 // ============ DASHBOARD LAYOUT ACTIONS ============

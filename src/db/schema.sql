@@ -30,8 +30,12 @@ CREATE TABLE IF NOT EXISTS stacks (
   price_unit VARCHAR(20) DEFAULT 'bale',           -- 'bale' | 'ton'
   user_id VARCHAR(255) NOT NULL,
   org_id VARCHAR(255) NOT NULL,
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  archived_at TIMESTAMP                            -- soft-delete: NULL = active; timestamp = archived (hidden from active lists/pickers, history kept)
 );
+
+-- Backfill column on pre-existing stacks tables (idempotent)
+ALTER TABLE stacks ADD COLUMN IF NOT EXISTS archived_at TIMESTAMP;
 
 -- ============================================================
 -- Transactions (inventory ledger)

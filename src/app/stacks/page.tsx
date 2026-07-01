@@ -80,6 +80,9 @@ export default async function StacksPage() {
     const stacks = await getStacksWithInventory(orgId);
     const perms = await getPermissionFlags();
 
+    const activeStacks = stacks.filter((s: any) => !s.archived_at);
+    const archivedStacks = stacks.filter((s: any) => s.archived_at);
+
     return (
         <div className="space-y-6">
             <PageHeader
@@ -105,8 +108,18 @@ export default async function StacksPage() {
                     ctaLabel="Create your first stack"
                 />
             ) : (
+                <>
+                {activeStacks.length === 0 ? (
+                    <EmptyState
+                        icon={<Package className="w-7 h-7" />}
+                        title="No active stacks"
+                        body="Every stack here is archived. Restore one below, or add a new stack."
+                        ctaHref={perms.canWriteInventory ? "/stacks/new" : undefined}
+                        ctaLabel="New stack"
+                    />
+                ) : (
                 <div className="grid gap-4">
-                    {stacks.map((stack: any) => {
+                    {activeStacks.map((stack: any) => {
                         const weight = resolveWeight(stack.weight_per_bale, stack.bale_size);
                         const tons = balesToTons(stack.current_stock, weight);
                         const isLow = stack.current_stock > 0 && stack.current_stock < 100;
@@ -131,7 +144,7 @@ export default async function StacksPage() {
                                             >
                                                 <Pencil size={14} />
                                             </Link>
-                                            {perms.canDeleteStacks && <StackActions stackId={stack.id} />}
+                                            <StackActions stackId={stack.id} canDelete={perms.canDeleteStacks} />
                                         </div>
                                     )}
                                 </div>
@@ -191,6 +204,37 @@ export default async function StacksPage() {
                         );
                     })}
                 </div>
+                )}
+
+                {archivedStacks.length > 0 && (
+                    <details className="group">
+                        <summary className="cursor-pointer list-none text-eyebrow flex items-center gap-1 select-none py-2">
+                            <span>Archived ({archivedStacks.length})</span>
+                            <span className="opacity-40 group-open:rotate-90 transition-transform">›</span>
+                        </summary>
+                        <div className="grid gap-3 mt-3">
+                            {archivedStacks.map((stack: any) => (
+                                <div key={stack.id} className="glass-card" style={{ opacity: 0.7 }}>
+                                    <div className="flex justify-between items-start gap-3">
+                                        <Link href={`/stacks/${stack.id}`} className="flex-1 min-w-0 hover:opacity-80 transition-opacity">
+                                            <div className="flex items-center gap-2 flex-wrap">
+                                                <h3 className="font-semibold truncate" style={{ color: 'var(--accent)' }}>{stack.name}</h3>
+                                                <span className="chip chip-sm chip-muted">Archived</span>
+                                            </div>
+                                            <span className="text-eyebrow">{stack.commodity} · {stack.current_stock.toLocaleString()} bales</span>
+                                        </Link>
+                                        {perms.canWriteInventory && (
+                                            <div className="flex gap-1 flex-shrink-0">
+                                                <StackActions stackId={stack.id} archived canDelete={perms.canDeleteStacks} />
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    </details>
+                )}
+                </>
             )}
         </div>
     );

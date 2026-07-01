@@ -2,11 +2,12 @@ import { auth } from "@clerk/nextjs/server";
 import pool from "@/lib/db";
 import { redirect, notFound } from "next/navigation";
 import Link from "next/link";
-import { Pencil, Tractor, ShoppingCart, Banknote, Wrench, MapPin, ArrowLeftRight } from "lucide-react";
+import { Pencil, Tractor, ShoppingCart, Banknote, Wrench, MapPin, ArrowLeftRight, Archive } from "lucide-react";
 import { balesToTons, resolveWeight } from "@/lib/units";
 import { getPermissionFlags } from "@/lib/permissions";
 import PageHeader from "@/components/ui/PageHeader";
 import EmptyState from "@/components/ui/EmptyState";
+import StackActions from "@/app/stacks/StackActions";
 
 async function getStackWithDetails(stackId: string, orgId: string) {
     const client = await pool.connect();
@@ -107,7 +108,8 @@ export default async function StackDetailPage({ params }: { params: Promise<{ id
     const stack = await getStackWithDetails(id, orgId);
     if (!stack) notFound();
 
-    const { canManageTickets } = await getPermissionFlags();
+    const { canManageTickets, canWriteInventory } = await getPermissionFlags();
+    const isArchived = !!stack.archived_at;
     const weight = resolveWeight(stack.weight_per_bale, stack.bale_size);
     const tons = balesToTons(stack.total_stock, weight);
 
@@ -120,7 +122,7 @@ export default async function StackDetailPage({ params }: { params: Promise<{ id
                 backLabel="Stacks"
                 actions={
                     <div className="flex items-center gap-2">
-                        {canManageTickets && stack.total_stock > 0 && (
+                        {canManageTickets && stack.total_stock > 0 && !isArchived && (
                             <Link href={`/transfer?stack=${stack.id}`} className="btn btn-secondary btn-sm">
                                 <ArrowLeftRight size={16} />
                                 <span>Move bales</span>
@@ -129,9 +131,20 @@ export default async function StackDetailPage({ params }: { params: Promise<{ id
                         <Link href={`/stacks/${stack.id}/edit`} aria-label="Edit stack" className="icon-button">
                             <Pencil size={16} />
                         </Link>
+                        {canWriteInventory && <StackActions stackId={stack.id} archived={isArchived} />}
                     </div>
                 }
             />
+
+            {isArchived && (
+                <div
+                    className="flex items-start gap-2 p-3 rounded-xl text-sm"
+                    style={{ background: 'color-mix(in srgb, var(--text-dim) 12%, transparent)', color: 'var(--text-dim)' }}
+                >
+                    <Archive size={16} className="flex-shrink-0 mt-0.5" />
+                    <span>This stack is <strong>archived</strong> — hidden from active lists, and it can't be sold or transferred. Restore it (top right) to use it again.</span>
+                </div>
+            )}
 
             <div className="glass-card">
                 <div className="grid grid-cols-2 gap-4">

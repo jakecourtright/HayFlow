@@ -6,7 +6,7 @@ import LogForm from "./LogForm";
 async function getData(userId: string, orgId: string) {
     const client = await pool.connect();
     try {
-        const stacks = await client.query('SELECT * FROM stacks WHERE org_id = $1 ORDER BY name ASC', [orgId]);
+        const stacks = await client.query('SELECT * FROM stacks WHERE org_id = $1 AND archived_at IS NULL ORDER BY name ASC', [orgId]);
         const locations = await client.query('SELECT * FROM locations WHERE org_id = $1 ORDER BY name ASC', [orgId]);
         const inventoryRes = await client.query(`
             SELECT 
