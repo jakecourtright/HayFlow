@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>HayFlow — Deck Preview</title>
+<style>
+  :root { --cream:#F7F2E7; --pine:#1F3A2E; --pinedeep:#0F1A14; --amber:#B45309; --amberlt:#D97706; --dim:#78716C; --hair:#E4DDCB; }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--cream); color:var(--pine);
+         font-family: ui-serif, Georgia, "Times New Roman", serif; }
+  header { position:sticky; top:0; z-index:10; background:var(--pinedeep); color:var(--cream);
+           padding:18px 28px; display:flex; align-items:center; gap:18px; box-shadow:0 2px 14px rgba(0,0,0,.25); }
+  header .mark { font-weight:800; font-size:26px; }
+  header .mark .flow { color:var(--amberlt); }
+  header .sub { font-family: ui-sans-serif, system-ui, sans-serif; color:#B8C4BC; font-size:13px; letter-spacing:.5px; }
+  nav { margin-left:auto; display:flex; gap:8px; }
+  nav a { font-family: ui-sans-serif, system-ui, sans-serif; font-size:12px; text-transform:uppercase;
+          letter-spacing:1.5px; color:var(--amberlt); text-decoration:none; padding:8px 14px; border:1px solid #2C4A3B; border-radius:10px; }
+  nav a:hover { background:#16271E; }
+  main { max-width:1120px; margin:0 auto; padding:30px 24px 80px; }
+  h2 { font-size:22px; margin:34px 0 6px; color:var(--pine); }
+  h2 .tag { font-family: ui-sans-serif, system-ui, sans-serif; font-size:11px; letter-spacing:2px;
+            text-transform:uppercase; color:var(--amber); display:block; margin-bottom:4px; }
+  .grid { display:grid; grid-template-columns:repeat(2, 1fr); gap:18px; margin-top:14px; }
+  figure { margin:0; background:#fff; border:1px solid var(--hair); border-radius:14px; overflow:hidden;
+           box-shadow:0 6px 20px rgba(28,25,23,.07); }
+  figure img { display:block; width:100%; height:auto; background:#fff; }
+  figcaption { font-family: ui-sans-serif, system-ui, sans-serif; font-size:12px; color:var(--dim);
+               padding:8px 12px; border-top:1px solid var(--hair); }
+  .empty { font-family: ui-sans-serif, system-ui, sans-serif; color:var(--dim); padding:40px; text-align:center;
+           border:1px dashed var(--hair); border-radius:14px; }
+  footer { font-family: ui-sans-serif, system-ui, sans-serif; text-align:center; color:var(--dim); font-size:12px; padding:30px; }
+</style>
+</head>
+<body>
+<header>
+  <span class="mark">Hay<span class="flow">Flow</span></span>
+  <span class="sub">Deck preview &middot; visual QA</span>
+  <nav>
+    <a href="#product">Product Overview</a>
+    <a href="#pitch">Pitch Deck</a>
+  </nav>
+</header>
+<main>
+  <section id="product">
+    <h2><span class="tag">13 slides</span>Product Overview</h2>
+    <div class="grid" id="product-grid"></div>
+  </section>
+  <section id="pitch">
+    <h2><span class="tag">10 slides</span>Pitch Deck</h2>
+    <div class="grid" id="pitch-grid"></div>
+  </section>
+</main>
+<footer>Rendered from the generated .pptx files &middot; refresh after re-render to see updates</footer>
+<script>
+  // Probe for slide images; stop at first gap. Cache-bust so re-renders show up on refresh.
+  const bust = Date.now();
+  function load(prefix, gridId, max) {
+    const grid = document.getElementById(gridId);
+    let found = 0;
+    function tryOne(n) {
+      const pad = String(n).padStart(2, '0');
+      const img = new Image();
+      const src = `img/${prefix}-${pad}.png?b=${bust}`;
+      img.onload = () => {
+        const fig = document.createElement('figure');
+        const im = document.createElement('img'); im.src = src; im.alt = `${prefix} slide ${n}`;
+        const cap = document.createElement('figcaption'); cap.textContent = `Slide ${n}`;
+        fig.appendChild(im); fig.appendChild(cap); grid.appendChild(fig);
+        found++; tryOne(n + 1);
+      };
+      img.onerror = () => {
+        if (found === 0) grid.innerHTML = '<div class="empty">Slides not rendered yet — run the render step, then refresh.</div>';
+      };
+      img.src = src;
+    }
+    tryOne(1);
+  }
+  load('product', 'product-grid', 13);
+  load('pitch', 'pitch-grid', 10);
+</script>
+</body>
+</html>

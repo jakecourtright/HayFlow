@@ -1,5 +1,6 @@
 import { clerkMiddleware, createRouteMatcher } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
+import { checkInvoiceRateLimit } from "@/lib/ratelimit";
 
 // Routes that require authentication
 const isProtectedRoute = createRouteMatcher([
@@ -34,6 +35,16 @@ const isOrgRequiredRoute = createRouteMatcher([
 ]);
 
 export default clerkMiddleware(async (auth, req) => {
+    // Rate-limit the public, unauthenticated invoice share endpoint by IP.
+    // No-op unless Upstash env vars are configured (see lib/ratelimit.ts).
+    if (req.nextUrl.pathname.startsWith('/invoice/')) {
+        const ip = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || '127.0.0.1';
+        const { success } = await checkInvoiceRateLimit(ip);
+        if (!success) {
+            return new NextResponse('Too many requests. Please slow down and try again shortly.', { status: 429 });
+        }
+    }
+
     if (isProtectedRoute(req)) {
         await auth.protect();
     }
