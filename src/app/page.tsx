@@ -7,7 +7,7 @@ import DashboardGrid from "./dashboard/DashboardGrid";
 import OnboardingChecklist from "./dashboard/OnboardingChecklist";
 import { getPermissionFlags } from "@/lib/permissions";
 import { redirect } from "next/navigation";
-import { Roles } from "@/lib/permissions";
+import { Roles, checkRole } from "@/lib/permissions";
 import PageHeader from "@/components/ui/PageHeader";
 
 async function getStats(orgId: string) {
@@ -100,7 +100,7 @@ async function getStats(orgId: string) {
 }
 
 export default async function Dashboard() {
-  const { userId, orgId, has } = await auth();
+  const { userId, orgId } = await auth();
 
   // Signed-in users without an org land on /welcome to create one
   if (userId && !orgId) {
@@ -108,7 +108,7 @@ export default async function Dashboard() {
   }
 
   // Drivers should not see the dashboard (financial data) — redirect to tickets
-  if (has({ role: Roles.DRIVER } as any)) {
+  if (await checkRole(Roles.DRIVER)) {
     redirect('/tickets');
   }
 

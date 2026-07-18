@@ -3,7 +3,7 @@ import pool from "@/lib/db";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { FileText, ArrowRight, Ticket } from "lucide-react";
-import { Permissions } from "@/lib/permissions";
+import { Permissions, checkPermission } from "@/lib/permissions";
 import DispatchQueue from "./DispatchQueue";
 import PageHeader from "@/components/ui/PageHeader";
 import EmptyState from "@/components/ui/EmptyState";
@@ -46,10 +46,10 @@ async function getDispatchData(orgId: string) {
 }
 
 export default async function DispatchPage() {
-    const { userId, orgId, has } = await auth();
+    const { userId, orgId } = await auth();
     if (!userId || !orgId) redirect("/sign-in");
 
-    if (!has({ permission: Permissions.TICKETS_MANAGE } as any)) {
+    if (!(await checkPermission(Permissions.TICKETS_MANAGE))) {
         redirect("/tickets");
     }
 

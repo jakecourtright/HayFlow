@@ -1,14 +1,40 @@
 'use server';
 
-import { auth, currentUser } from "@clerk/nextjs/server";
+import { auth, currentUser, clerkClient } from "@clerk/nextjs/server";
 import pool from "@/lib/db";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { tonsToBales, getDefaultWeight, normalizePrice, lineAmount, resolveLineRate } from "@/lib/units";
-import { Permissions, requirePermission, Roles } from "@/lib/permissions";
+import { Permissions, requirePermission, checkPermission, checkRole, getPermissionFlags, isAppRole, Roles, type AppRole } from "@/lib/permissions";
 import { requireActiveSubscription } from "@/lib/billing";
 import { askClaude, sendSupportEmail, type ChatMessage } from "@/lib/support";
 import crypto from 'crypto';
+
+// Race-safe, monotonic per-org invoice number. Seeds from existing invoices the
+// first time it runs for an org, then increments an atomic counter row. The
+// ON CONFLICT row-lock serializes concurrent callers, and the counter never
+// goes backwards even if invoices are later deleted. MUST be called inside an
+// open transaction (so the number is rolled back with the rest if the txn fails).
+async function nextInvoiceNumber(client: any, orgId: string): Promise<string> {
+    const res = await client.query(
+        `INSERT INTO invoice_counters (org_id, last_number)
+         VALUES ($1, (
+             SELECT COALESCE(MAX(CAST(SUBSTRING(invoice_number FROM 5) AS INTEGER)), 0) + 1
+             FROM invoices WHERE org_id = $1 AND invoice_number ~ '^INV-[0-9]+$'
+         ))
+         ON CONFLICT (org_id) DO UPDATE SET last_number = invoice_counters.last_number + 1
+         RETURNING last_number`,
+        [orgId]
+    );
+    return `INV-${String(res.rows[0].last_number).padStart(4, '0')}`;
+}
+
+// Serialize stock-sensitive work (ticket creation / approval) for a given
+// (org, stack, location) bin within the current transaction, so two concurrent
+// operations can't both pass a stock check and oversell.
+async function lockStockBin(client: any, orgId: string, stackId: string | number, locationId: string | number): Promise<void> {
+    await client.query('SELECT pg_advisory_xact_lock(hashtext($1))', [`stockbin:${orgId}:${stackId}:${locationId}`]);
+}
 
 export async function submitTransaction(formData: FormData) {
     const { userId, orgId } = await auth();
@@ -284,12 +310,12 @@ export async function updateLocation(id: string, formData: FormData) {
 }
 
 export async function deleteLocation(id: string) {
-    const { userId, orgId, has } = await auth();
+    const { userId, orgId } = await auth();
     if (!userId) throw new Error("Not authenticated - please sign in");
     if (!orgId) throw new Error("No organization selected - please select an organization");
     await requireActiveSubscription();
 
-    if (!has({ permission: Permissions.LOCATIONS_DELETE } as any)) {
+    if (!(await checkPermission(Permissions.LOCATIONS_DELETE))) {
         throw new Error("You do not have permission to delete locations");
     }
 
@@ -410,12 +436,12 @@ export async function updateStack(id: string, formData: FormData) {
 }
 
 export async function deleteStack(id: string) {
-    const { userId, orgId, has } = await auth();
+    const { userId, orgId } = await auth();
     if (!userId) throw new Error("Not authenticated - please sign in");
     if (!orgId) throw new Error("No organization selected - please select an organization");
     await requireActiveSubscription();
 
-    if (!has({ permission: Permissions.STACKS_DELETE } as any)) {
+    if (!(await checkPermission(Permissions.STACKS_DELETE))) {
         throw new Error("You do not have permission to delete stacks");
     }
 
@@ -577,13 +603,18 @@ export async function createTicket(formData: FormData) {
 
     const client = await pool.connect();
     try {
+        await client.query('BEGIN');
+        // Serialize against other ticket creation / approval on the same bin so
+        // concurrent requests read a consistent stock figure.
+        await lockStockBin(client, orgId, stackId, locationId);
+
         // Verify stock exists at source location
         const inventoryRes = await client.query(`
-            SELECT 
-                SUM(CASE 
-                    WHEN type IN ('production', 'purchase', 'transfer_in') THEN amount 
-                    WHEN type IN ('sale', 'transfer_out') THEN -amount 
-                    ELSE 0 
+            SELECT
+                SUM(CASE
+                    WHEN type IN ('production', 'purchase', 'transfer_in') THEN amount
+                    WHEN type IN ('sale', 'transfer_out') THEN -amount
+                    ELSE 0
                 END) as quantity
             FROM transactions
             WHERE stack_id = $1 AND location_id = $2 AND org_id = $3
@@ -609,6 +640,10 @@ export async function createTicket(formData: FormData) {
             userId,
             orgId
         ]);
+        await client.query('COMMIT');
+    } catch (e) {
+        await client.query('ROLLBACK');
+        throw e;
     } finally {
         client.release();
     }
@@ -619,20 +654,21 @@ export async function createTicket(formData: FormData) {
 }
 
 export async function approveTicket(id: string) {
-    const { userId, orgId, has } = await auth();
+    const { userId, orgId } = await auth();
     if (!userId || !orgId) throw new Error("Unauthorized");
     await requireActiveSubscription();
 
-    if (!has({ permission: Permissions.TICKETS_MANAGE } as any)) {
+    if (!(await checkPermission(Permissions.TICKETS_MANAGE))) {
         throw new Error("You do not have permission to manage tickets");
     }
 
     const client = await pool.connect();
     try {
         await client.query('BEGIN');
-        // Get ticket details
+
+        // Lock the ticket row so two concurrent approvals can't both proceed.
         const ticketRes = await client.query(
-            'SELECT * FROM tickets WHERE id = $1 AND org_id = $2 AND status = $3',
+            'SELECT * FROM tickets WHERE id = $1 AND org_id = $2 AND status = $3 FOR UPDATE',
             [id, orgId, 'pending']
         );
         if (ticketRes.rows.length === 0) {
@@ -641,6 +677,25 @@ export async function approveTicket(id: string) {
 
         const ticket = ticketRes.rows[0];
         let transactionId: number;
+
+        // Approval is where inventory is actually deducted from the source bin.
+        // Serialize on that bin and re-verify stock now (a ticket may have been
+        // created when stock was sufficient but depleted by other approvals since).
+        await lockStockBin(client, orgId, ticket.stack_id, ticket.location_id);
+        const stockRes = await client.query(`
+            SELECT
+                SUM(CASE
+                    WHEN type IN ('production', 'purchase') THEN amount
+                    WHEN type IN ('sale') THEN -amount
+                    ELSE 0
+                END) as quantity
+            FROM transactions
+            WHERE stack_id = $1 AND location_id = $2 AND org_id = $3
+        `, [ticket.stack_id, ticket.location_id, orgId]);
+        const available = parseFloat(stockRes.rows[0]?.quantity || '0');
+        if (available < parseFloat(ticket.amount)) {
+            throw new Error(`Insufficient stock to approve. Available: ${available} bales, this ticket: ${ticket.amount} bales`);
+        }
 
         if (ticket.type === 'barn_to_barn') {
             // Barn-to-barn: move bales between two of our own barns. Recorded as a paired
@@ -721,13 +776,13 @@ export async function approveTicket(id: string) {
 }
 
 export async function createTransfer(formData: FormData) {
-    const { userId, orgId, has } = await auth();
+    const { userId, orgId } = await auth();
     if (!userId || !orgId) throw new Error("Unauthorized");
     await requireActiveSubscription();
 
     // An immediate transfer carries the same authority as approving a ticket, so it's
     // gated on TICKETS_MANAGE. Field users without it file a barn_to_barn ticket instead.
-    if (!has({ permission: Permissions.TICKETS_MANAGE } as any)) {
+    if (!(await checkPermission(Permissions.TICKETS_MANAGE))) {
         throw new Error("You don't have permission to move inventory directly — file a transfer ticket instead.");
     }
 
@@ -822,11 +877,11 @@ export async function createTransfer(formData: FormData) {
 }
 
 export async function rejectTicket(id: string) {
-    const { userId, orgId, has } = await auth();
+    const { userId, orgId } = await auth();
     if (!userId || !orgId) throw new Error("Unauthorized");
     await requireActiveSubscription();
 
-    if (!has({ permission: Permissions.TICKETS_MANAGE } as any)) {
+    if (!(await checkPermission(Permissions.TICKETS_MANAGE))) {
         throw new Error("You do not have permission to manage tickets");
     }
 
@@ -870,8 +925,7 @@ export async function deleteTicket(id: string) {
 
         // Driver can only delete their own tickets
         if (ticket.driver_id !== userId) {
-            const { has } = await auth();
-            if (!has({ permission: Permissions.TICKETS_MANAGE } as any)) {
+            if (!(await checkPermission(Permissions.TICKETS_MANAGE))) {
                 throw new Error("You can only delete your own tickets");
             }
         }
@@ -889,11 +943,11 @@ export async function deleteTicket(id: string) {
 // ============ INVOICE ACTIONS ============
 
 export async function createInvoice(formData: FormData) {
-    const { userId, orgId, has } = await auth();
+    const { userId, orgId } = await auth();
     if (!userId || !orgId) throw new Error("Unauthorized");
     await requireActiveSubscription();
 
-    if (!has({ permission: Permissions.INVOICES_MANAGE } as any)) {
+    if (!(await checkPermission(Permissions.INVOICES_MANAGE))) {
         throw new Error("You do not have permission to manage invoices");
     }
 
@@ -924,12 +978,8 @@ export async function createInvoice(formData: FormData) {
             throw new Error("Some tickets are not approved or not found");
         }
 
-        // Generate invoice number
-        const countRes = await client.query(
-            'SELECT COUNT(*) FROM invoices WHERE org_id = $1',
-            [orgId]
-        );
-        const invoiceNumber = `INV-${String(parseInt(countRes.rows[0].count) + 1).padStart(4, '0')}`;
+        // Generate a race-safe, monotonic invoice number (inside this transaction)
+        const invoiceNumber = await nextInvoiceNumber(client, orgId);
 
         // Per-line totals: a line keeps its own rate if set (Quick Sale), else the submitted invoice rate.
         let totalAmount = 0;
@@ -980,11 +1030,11 @@ export async function createInvoice(formData: FormData) {
 }
 
 export async function updateInvoiceStatus(id: string, status: string) {
-    const { userId, orgId, has } = await auth();
+    const { userId, orgId } = await auth();
     if (!userId || !orgId) throw new Error("Unauthorized");
     await requireActiveSubscription();
 
-    if (!has({ permission: Permissions.INVOICES_MANAGE } as any)) {
+    if (!(await checkPermission(Permissions.INVOICES_MANAGE))) {
         throw new Error("You do not have permission to manage invoices");
     }
 
@@ -1007,11 +1057,11 @@ export async function updateInvoiceStatus(id: string, status: string) {
 }
 
 export async function deleteInvoice(id: string) {
-    const { userId, orgId, has } = await auth();
+    const { userId, orgId } = await auth();
     if (!userId || !orgId) throw new Error("Unauthorized");
     await requireActiveSubscription();
 
-    if (!has({ permission: Permissions.INVOICES_MANAGE } as any)) {
+    if (!(await checkPermission(Permissions.INVOICES_MANAGE))) {
         throw new Error("You do not have permission to manage invoices");
     }
 
@@ -1062,11 +1112,11 @@ export async function deleteInvoice(id: string) {
 }
 
 export async function updateInvoice(id: string, formData: FormData) {
-    const { userId, orgId, has } = await auth();
+    const { userId, orgId } = await auth();
     if (!userId || !orgId) throw new Error("Unauthorized");
     await requireActiveSubscription();
 
-    if (!has({ permission: Permissions.INVOICES_MANAGE } as any)) {
+    if (!(await checkPermission(Permissions.INVOICES_MANAGE))) {
         throw new Error("You do not have permission to manage invoices");
     }
 
@@ -1128,11 +1178,11 @@ export async function updateInvoice(id: string, formData: FormData) {
 }
 
 export async function quickSale(formData: FormData) {
-    const { userId, orgId, has } = await auth();
+    const { userId, orgId } = await auth();
     if (!userId || !orgId) throw new Error("Unauthorized");
     await requireActiveSubscription();
 
-    if (!has({ permission: Permissions.INVOICES_MANAGE } as any)) {
+    if (!(await checkPermission(Permissions.INVOICES_MANAGE))) {
         throw new Error("You do not have permission to create invoices");
     }
 
@@ -1211,9 +1261,8 @@ export async function quickSale(formData: FormData) {
         const invoiceRate = uniform ? items[0].pricePerUnit : null;
         const invoiceUnit = uniform ? items[0].priceUnit : (items[0].priceUnit || 'ton');
 
-        // Create the invoice (one per sale)
-        const countRes = await client.query('SELECT COUNT(*) FROM invoices WHERE org_id = $1', [orgId]);
-        const invoiceNumber = `INV-${String(parseInt(countRes.rows[0].count) + 1).padStart(4, '0')}`;
+        // Create the invoice (one per sale) — race-safe, monotonic number
+        const invoiceNumber = await nextInvoiceNumber(client, orgId);
         const shareToken = crypto.randomBytes(32).toString('hex');
 
         const invoiceRes = await client.query(`
@@ -1346,7 +1395,7 @@ export async function saveBusinessProfile(formData: FormData) {
  * gracefully: a missing API key returns a friendly fallback instead of throwing.
  */
 export async function askHelp(messages: ChatMessage[]): Promise<{ reply: string }> {
-    const { userId, has } = await auth();
+    const { userId } = await auth();
     if (!userId) throw new Error("Unauthorized");
 
     // Sanitize: valid roles only, trimmed, capped in length and count.
@@ -1365,8 +1414,8 @@ export async function askHelp(messages: ChatMessage[]): Promise<{ reply: string 
         return { reply: "Ask me anything about using HayFlow — like how to send an invoice or file a ticket." };
     }
 
-    const isDriver = has({ role: Roles.DRIVER } as any);
-    const isOffice = has({ permission: Permissions.INVOICES_MANAGE } as any);
+    const isDriver = await checkRole(Roles.DRIVER);
+    const isOffice = await checkPermission(Permissions.INVOICES_MANAGE);
     const roleLabel = isDriver
         ? "a field driver — they create tickets when hay leaves a barn, and don't handle invoicing"
         : isOffice
@@ -1545,4 +1594,213 @@ export async function markTourComplete(tourId: string): Promise<{ ok: boolean }>
     }
 
     return { ok: true };
+}
+
+// ============ TEAM MANAGEMENT ACTIONS ============
+// Roles live in org_member_roles (see lib/permissions.ts). Clerk only knows its
+// built-in org:admin / org:member roles: HayFlow admins are Clerk org:admins
+// (so they can manage the org), everyone else is org:member. These actions
+// return { error } instead of throwing so the client can show real messages
+// (thrown server-action errors are masked in production).
+
+export type TeamActionResult = { ok: boolean; error?: string };
+
+async function requireTeamManager(): Promise<{ userId: string; orgId: string } | { error: string }> {
+    const { userId, orgId } = await auth();
+    if (!userId || !orgId) return { error: "Unauthorized" };
+    if (!(await checkPermission(Permissions.USERS_MANAGE))) {
+        return { error: "You do not have permission to manage the team" };
+    }
+    return { userId, orgId };
+}
+
+/**
+ * Data for the Team Management card. canManage=false → the card renders nothing.
+ * memberRoles: userId → app role; inviteRoles: lowercased email → intended role.
+ */
+export async function getTeamData(): Promise<{
+    canManage: boolean;
+    memberRoles: Record<string, AppRole>;
+    inviteRoles: Record<string, AppRole>;
+}> {
+    const gate = await requireTeamManager();
+    if ("error" in gate) return { canManage: false, memberRoles: {}, inviteRoles: {} };
+
+    const client = await pool.connect();
+    try {
+        const [members, invites] = await Promise.all([
+            client.query('SELECT user_id, role FROM org_member_roles WHERE org_id = $1', [gate.orgId]),
+            client.query('SELECT email, role FROM org_invited_roles WHERE org_id = $1', [gate.orgId]),
+        ]);
+        const memberRoles: Record<string, AppRole> = {};
+        for (const r of members.rows) if (isAppRole(r.role)) memberRoles[r.user_id] = r.role;
+        const inviteRoles: Record<string, AppRole> = {};
+        for (const r of invites.rows) if (isAppRole(r.role)) inviteRoles[r.email.toLowerCase()] = r.role;
+        return { canManage: true, memberRoles, inviteRoles };
+    } finally {
+        client.release();
+    }
+}
+
+export async function inviteTeamMember(email: string, role: string): Promise<TeamActionResult> {
+    const gate = await requireTeamManager();
+    if ("error" in gate) return { ok: false, error: gate.error };
+
+    const cleanEmail = (email || "").trim().toLowerCase();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleanEmail)) {
+        return { ok: false, error: "Enter a valid email address" };
+    }
+    if (!isAppRole(role)) return { ok: false, error: "Invalid role" };
+
+    const client = await pool.connect();
+    try {
+        // Record the intended role first so it exists whenever the invitee joins.
+        await client.query(
+            `INSERT INTO org_invited_roles (org_id, email, role) VALUES ($1, $2, $3)
+             ON CONFLICT (org_id, email) DO UPDATE SET role = EXCLUDED.role`,
+            [gate.orgId, cleanEmail, role]
+        );
+    } finally {
+        client.release();
+    }
+
+    try {
+        const clerk = await clerkClient();
+        await clerk.organizations.createOrganizationInvitation({
+            organizationId: gate.orgId,
+            emailAddress: cleanEmail,
+            // HayFlow admins get Clerk org:admin so they can manage members; all
+            // other app roles are Clerk org:members.
+            role: role === Roles.ADMIN ? "org:admin" : "org:member",
+            inviterUserId: gate.userId,
+        });
+    } catch (e: any) {
+        const msg = e?.errors?.[0]?.longMessage || e?.errors?.[0]?.message || "Failed to send invitation";
+        return { ok: false, error: msg };
+    }
+
+    return { ok: true };
+}
+
+export async function setTeamMemberRole(targetUserId: string, role: string): Promise<TeamActionResult> {
+    const gate = await requireTeamManager();
+    if ("error" in gate) return { ok: false, error: gate.error };
+    if (!targetUserId) return { ok: false, error: "Missing user" };
+    if (!isAppRole(role)) return { ok: false, error: "Invalid role" };
+
+    const client = await pool.connect();
+    try {
+        // Never let the org demote its last admin — someone must be able to manage the team.
+        if (role !== Roles.ADMIN) {
+            const admins = await client.query(
+                `SELECT user_id FROM org_member_roles WHERE org_id = $1 AND role = 'admin'`,
+                [gate.orgId]
+            );
+            const adminIds = admins.rows.map((r) => r.user_id);
+            if (adminIds.length <= 1 && adminIds.includes(targetUserId)) {
+                return { ok: false, error: "You can't demote the last admin. Promote someone else first." };
+            }
+        }
+        await client.query(
+            `INSERT INTO org_member_roles (org_id, user_id, role) VALUES ($1, $2, $3)
+             ON CONFLICT (org_id, user_id) DO UPDATE SET role = EXCLUDED.role, updated_at = CURRENT_TIMESTAMP`,
+            [gate.orgId, targetUserId, role]
+        );
+    } finally {
+        client.release();
+    }
+
+    // Keep Clerk's built-in role in sync (admin ↔ member) so Clerk-side org
+    // abilities (member management) follow the app role. Best-effort: the app
+    // role above is what authorization actually uses.
+    try {
+        const clerk = await clerkClient();
+        await clerk.organizations.updateOrganizationMembership({
+            organizationId: gate.orgId,
+            userId: targetUserId,
+            role: role === Roles.ADMIN ? "org:admin" : "org:member",
+        });
+    } catch (e) {
+        console.error("[team] Clerk role sync failed", e);
+    }
+
+    revalidatePath('/settings');
+    return { ok: true };
+}
+
+export async function removeTeamMember(targetUserId: string): Promise<TeamActionResult> {
+    const gate = await requireTeamManager();
+    if ("error" in gate) return { ok: false, error: gate.error };
+    if (!targetUserId) return { ok: false, error: "Missing user" };
+
+    const client = await pool.connect();
+    try {
+        const res = await client.query(
+            'SELECT role FROM org_member_roles WHERE org_id = $1 AND user_id = $2',
+            [gate.orgId, targetUserId]
+        );
+        if (res.rows[0]?.role === 'admin') {
+            return { ok: false, error: "Admins can't be removed. Change their role first." };
+        }
+
+        const clerk = await clerkClient();
+        await clerk.organizations.deleteOrganizationMembership({
+            organizationId: gate.orgId,
+            userId: targetUserId,
+        });
+
+        await client.query(
+            'DELETE FROM org_member_roles WHERE org_id = $1 AND user_id = $2',
+            [gate.orgId, targetUserId]
+        );
+    } catch (e: any) {
+        const msg = e?.errors?.[0]?.longMessage || e?.errors?.[0]?.message || "Failed to remove member";
+        return { ok: false, error: msg };
+    } finally {
+        client.release();
+    }
+
+    revalidatePath('/settings');
+    return { ok: true };
+}
+
+export async function revokeTeamInvitation(invitationId: string, email: string): Promise<TeamActionResult> {
+    const gate = await requireTeamManager();
+    if ("error" in gate) return { ok: false, error: gate.error };
+    if (!invitationId) return { ok: false, error: "Missing invitation" };
+
+    try {
+        const clerk = await clerkClient();
+        await clerk.organizations.revokeOrganizationInvitation({
+            organizationId: gate.orgId,
+            invitationId,
+            requestingUserId: gate.userId,
+        });
+    } catch (e: any) {
+        const msg = e?.errors?.[0]?.longMessage || e?.errors?.[0]?.message || "Failed to revoke invitation";
+        return { ok: false, error: msg };
+    }
+
+    if (email) {
+        const client = await pool.connect();
+        try {
+            await client.query(
+                'DELETE FROM org_invited_roles WHERE org_id = $1 AND lower(email) = $2',
+                [gate.orgId, email.trim().toLowerCase()]
+            );
+        } finally {
+            client.release();
+        }
+    }
+
+    revalidatePath('/settings');
+    return { ok: true };
+}
+
+/**
+ * Client-callable, read-only permission flags for UI gating (e.g. the client-side
+ * settings page). Pages and mutating actions still enforce server-side.
+ */
+export async function getMyPermissionFlags() {
+    return getPermissionFlags();
 }

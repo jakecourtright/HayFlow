@@ -1,7 +1,7 @@
 import { auth } from "@clerk/nextjs/server";
 import pool from "@/lib/db";
 import { redirect, notFound } from "next/navigation";
-import { Permissions } from "@/lib/permissions";
+import { Permissions, checkPermission } from "@/lib/permissions";
 import InvoiceEditForm from "./InvoiceEditForm";
 import PageHeader from "@/components/ui/PageHeader";
 import { resolveLineRate, lineAmount } from "@/lib/units";
@@ -39,10 +39,10 @@ async function getInvoice(invoiceId: string, orgId: string) {
 }
 
 export default async function InvoiceEditPage({ params }: { params: Promise<{ id: string }> }) {
-    const { userId, orgId, has } = await auth();
+    const { userId, orgId } = await auth();
     if (!userId || !orgId) redirect("/sign-in");
 
-    if (!has({ permission: Permissions.INVOICES_MANAGE } as any)) {
+    if (!(await checkPermission(Permissions.INVOICES_MANAGE))) {
         redirect("/tickets");
     }
 

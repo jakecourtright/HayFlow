@@ -1,20 +1,44 @@
 'use client';
 
 import { useOrganization } from '@clerk/nextjs';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Users, Mail, Trash2, Shield } from 'lucide-react';
 import CustomSelect from '@/components/CustomSelect';
+import {
+    getTeamData,
+    inviteTeamMember,
+    setTeamMemberRole,
+    removeTeamMember,
+    revokeTeamInvitation,
+} from '@/app/actions';
 
 const ROLE_OPTIONS = [
-    { value: 'org:admin', label: 'Admin' },
-    { value: 'org:bookkeeper', label: 'Bookkeeper / Dispatcher' },
-    { value: 'org:driver', label: 'Driver' },
+    { value: 'admin', label: 'Admin' },
+    { value: 'bookkeeper', label: 'Bookkeeper / Dispatcher' },
+    { value: 'driver', label: 'Driver' },
 ];
 
-function roleLabel(role: string) {
+function roleLabel(role: string | undefined) {
     const found = ROLE_OPTIONS.find(r => r.value === role);
-    return found?.label || role.replace('org:', '');
+    return found?.label || 'Member';
 }
+
+// Members who haven't been resolved into org_member_roles yet (legacy Clerk
+// custom roles, or brand-new joins) — derive a display role from their Clerk role.
+function fallbackRole(clerkRole: string): string {
+    switch (clerkRole) {
+        case 'org:admin': return 'admin';
+        case 'org:bookkeeper': return 'bookkeeper';
+        case 'org:driver': return 'driver';
+        default: return 'driver';
+    }
+}
+
+type TeamData = {
+    canManage: boolean;
+    memberRoles: Record<string, string>;
+    inviteRoles: Record<string, string>;
+};
 
 export default function TeamManagement() {
     const { organization, memberships, invitations } = useOrganization({
@@ -22,23 +46,24 @@ export default function TeamManagement() {
         invitations: { infinite: true },
     });
 
+    const [team, setTeam] = useState<TeamData | null>(null);
     const [email, setEmail] = useState('');
-    const [role, setRole] = useState('org:driver');
+    const [role, setRole] = useState('driver');
     const [inviting, setInviting] = useState(false);
     const [error, setError] = useState('');
     const [success, setSuccess] = useState('');
     const [editingMemberId, setEditingMemberId] = useState<string | null>(null);
 
-    if (!organization) return null;
+    const refreshTeam = () => { getTeamData().then(setTeam).catch(() => {}); };
+    useEffect(refreshTeam, []);
 
-    function extractClerkError(err: any, fallback: string): string {
-        console.error('[Clerk Error] Full error:', JSON.stringify(err?.errors || err, null, 2));
-        const clerkError = err?.errors?.[0];
-        if (clerkError) {
-            return clerkError.longMessage || clerkError.message || clerkError.code || fallback;
-        }
-        return err?.message || fallback;
-    }
+    // Hidden until the server confirms this user can manage the team.
+    if (!organization || !team?.canManage) return null;
+
+    const displayRole = (membership: any): string => {
+        const userId = membership.publicUserData?.userId;
+        return (userId && team.memberRoles[userId]) || fallbackRole(membership.role);
+    };
 
     const handleInvite = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -46,12 +71,17 @@ export default function TeamManagement() {
         setSuccess('');
         setInviting(true);
         try {
-            await organization.inviteMember({ emailAddress: email, role });
-            setSuccess(`Invitation sent to ${email}`);
-            setEmail('');
-            invitations?.revalidate?.();
-        } catch (err: any) {
-            setError(extractClerkError(err, 'Failed to send invitation'));
+            const res = await inviteTeamMember(email, role);
+            if (!res.ok) {
+                setError(res.error || 'Failed to send invitation');
+            } else {
+                setSuccess(`Invitation sent to ${email}`);
+                setEmail('');
+                invitations?.revalidate?.();
+                refreshTeam();
+            }
+        } catch {
+            setError('Failed to send invitation');
         } finally {
             setInviting(false);
         }
@@ -63,43 +93,49 @@ export default function TeamManagement() {
             setError('Cannot update role: user ID is missing.');
             return;
         }
-        console.log('[Role Update] userId:', userId, 'newRole:', newRole, 'orgId:', organization.id);
-        try {
-            await organization.updateMember({ userId, role: newRole });
-            memberships?.revalidate?.();
-            setEditingMemberId(null);
-            setSuccess('Role updated successfully');
-            setTimeout(() => setSuccess(''), 3000);
-        } catch (err: any) {
-            setError(extractClerkError(err, 'Failed to update role'));
+        const res = await setTeamMemberRole(userId, newRole);
+        if (!res.ok) {
+            setError(res.error || 'Failed to update role');
+            return;
         }
+        memberships?.revalidate?.();
+        refreshTeam();
+        setEditingMemberId(null);
+        setSuccess('Role updated successfully');
+        setTimeout(() => setSuccess(''), 3000);
     };
 
     const handleRemoveMember = async (userId: string) => {
         if (!confirm('Remove this member from the organization?')) return;
-        try {
-            await organization.removeMember(userId);
-            memberships?.revalidate?.();
-        } catch (err: any) {
-            setError(err?.errors?.[0]?.message || 'Failed to remove member');
+        setError('');
+        const res = await removeTeamMember(userId);
+        if (!res.ok) {
+            setError(res.error || 'Failed to remove member');
+            return;
         }
+        memberships?.revalidate?.();
+        refreshTeam();
     };
 
-    const handleRevokeInvitation = async (invitationId: string) => {
+    const handleRevokeInvitation = async (invitationId: string, emailAddress: string) => {
         if (!confirm('Revoke this invitation?')) return;
-        try {
-            const inv = invitations?.data?.find((i: any) => i.id === invitationId);
-            if (inv) {
-                await inv.revoke();
-                invitations?.revalidate?.();
-            }
-        } catch (err: any) {
-            setError(err?.errors?.[0]?.message || 'Failed to revoke invitation');
+        setError('');
+        const res = await revokeTeamInvitation(invitationId, emailAddress);
+        if (!res.ok) {
+            setError(res.error || 'Failed to revoke invitation');
+            return;
         }
+        invitations?.revalidate?.();
+        refreshTeam();
     };
 
     return (
-        <div className="space-y-5">
+        <div className="glass-card">
+            <h2 className="text-lg font-bold mb-3" style={{ color: 'var(--text-main)' }}>Team Management</h2>
+            <p className="text-sm mb-4" style={{ color: 'var(--text-dim)' }}>
+                Invite members, assign roles, and manage your team.
+            </p>
+            <div className="space-y-5">
             {/* Invite Form */}
             <form onSubmit={handleInvite} className="space-y-3">
                 <div>
@@ -153,6 +189,7 @@ export default function TeamManagement() {
                     {memberships?.data?.map((membership: any) => {
                         const userId = membership.publicUserData?.userId;
                         const isEditing = editingMemberId === membership.id;
+                        const memberRole = displayRole(membership);
 
                         return (
                             <div
@@ -193,9 +230,9 @@ export default function TeamManagement() {
                                             title="Click to change role"
                                         >
                                             <Shield size={10} />
-                                            {roleLabel(membership.role)}
+                                            {roleLabel(memberRole)}
                                         </button>
-                                        {membership.role !== 'org:admin' && (
+                                        {memberRole !== 'admin' && (
                                             <button
                                                 onClick={() => handleRemoveMember(userId)}
                                                 className="p-1.5 rounded-lg transition-colors hover:bg-red-500/10"
@@ -215,7 +252,7 @@ export default function TeamManagement() {
                                         <CustomSelect
                                             name={`role-${membership.id}`}
                                             options={ROLE_OPTIONS}
-                                            value={membership.role}
+                                            value={memberRole}
                                             onChange={(newRole) => handleUpdateRole(userId, newRole)}
                                         />
                                     </div>
@@ -244,11 +281,11 @@ export default function TeamManagement() {
                                         {invitation.emailAddress}
                                     </p>
                                     <p className="text-xs" style={{ color: 'var(--text-dim)' }}>
-                                        {roleLabel(invitation.role)} • Invited {new Date(invitation.createdAt).toLocaleDateString()}
+                                        {roleLabel(team.inviteRoles[invitation.emailAddress?.toLowerCase()])} • Invited {new Date(invitation.createdAt).toLocaleDateString()}
                                     </p>
                                 </div>
                                 <button
-                                    onClick={() => handleRevokeInvitation(invitation.id)}
+                                    onClick={() => handleRevokeInvitation(invitation.id, invitation.emailAddress)}
                                     className="p-1.5 rounded-lg transition-colors hover:bg-red-500/10 flex-shrink-0"
                                     style={{ color: '#ef4444' }}
                                     title="Revoke invitation"
@@ -260,6 +297,7 @@ export default function TeamManagement() {
                     </div>
                 </div>
             )}
+            </div>
         </div>
     );
 }

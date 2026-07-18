@@ -1,9 +1,11 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { useTheme } from "../contexts/theme-context";
+import { getMyPermissionFlags } from "@/app/actions";
 import { Check, Building2, ChevronRight, CreditCard } from "lucide-react";
 import Link from "next/link";
-import { OrganizationSwitcher, Show } from "@clerk/nextjs";
+import { OrganizationSwitcher } from "@clerk/nextjs";
 import TeamManagement from "@/components/TeamManagement";
 import PageHeader from "@/components/ui/PageHeader";
 
@@ -160,6 +162,14 @@ const THEMES = [
 export default function SettingsPage() {
     const { theme, setTheme } = useTheme();
 
+    // UI gating only — /settings/business enforces server-side.
+    const [canManageInvoices, setCanManageInvoices] = useState(false);
+    useEffect(() => {
+        getMyPermissionFlags()
+            .then((f) => setCanManageInvoices(f.canManageInvoices))
+            .catch(() => {});
+    }, []);
+
     const brandThemes = THEMES.filter(t => t.label === "Brand");
     const darkThemes = THEMES.filter(t => t.label === "Dark");
     const lightThemes = THEMES.filter(t => t.label === "Light");
@@ -174,9 +184,7 @@ export default function SettingsPage() {
                 backLabel="Home"
             />
             <div className="space-y-6">
-            <Show when={{
-                permission: "org:invoices:manage"
-            }}>
+            {canManageInvoices && (
                 <Link href="/settings/business" className="glass-card flex items-center gap-4 hover:brightness-110 transition-all">
                     <div
                         className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
@@ -195,7 +203,7 @@ export default function SettingsPage() {
                     </div>
                     <ChevronRight size={18} style={{ color: 'var(--text-dim)' }} className="flex-shrink-0" />
                 </Link>
-            </Show>
+            )}
 
             <Link href="/billing" className="glass-card flex items-center gap-4 hover:brightness-110 transition-all">
                 <div
@@ -237,18 +245,9 @@ export default function SettingsPage() {
                 />
             </div>
 
-            {/* Team Management — only visible to users with manage permission */}
-            <Show when={{
-                permission: "org:users:manage"
-            }}>
-                <div className="glass-card">
-                    <h2 className="text-lg font-bold mb-3" style={{ color: 'var(--text-main)' }}>Team Management</h2>
-                    <p className="text-sm mb-4" style={{ color: 'var(--text-dim)' }}>
-                        Invite members, assign roles, and manage your team.
-                    </p>
-                    <TeamManagement />
-                </div>
-            </Show>
+            {/* Team Management — self-gating: renders nothing unless the server
+                confirms the user can manage users (see getTeamData in actions.ts) */}
+            <TeamManagement />
 
             {/* Theme Selection */}
             <div className="glass-card">

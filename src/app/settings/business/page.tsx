@@ -1,15 +1,15 @@
 import { auth } from "@clerk/nextjs/server";
 import { redirect } from "next/navigation";
-import { Permissions } from "@/lib/permissions";
+import { Permissions, checkPermission } from "@/lib/permissions";
 import { getBusinessProfile, saveBusinessProfile } from "@/app/actions";
 import PageHeader from "@/components/ui/PageHeader";
 import SubmitButton from "@/components/ui/SubmitButton";
 import { Save } from "lucide-react";
 
 export default async function BusinessSettingsPage() {
-    const { userId, orgId, has } = await auth();
+    const { userId, orgId } = await auth();
     if (!userId || !orgId) redirect("/sign-in");
-    if (!has({ permission: Permissions.INVOICES_MANAGE } as any)) redirect("/settings");
+    if (!(await checkPermission(Permissions.INVOICES_MANAGE))) redirect("/settings");
 
     const profile = await getBusinessProfile();
 

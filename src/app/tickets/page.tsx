@@ -3,7 +3,7 @@ import pool from "@/lib/db";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { Plus, Ticket, Package, MapPin, ArrowRight } from "lucide-react";
-import { Roles } from "@/lib/permissions";
+import { Roles, checkRole } from "@/lib/permissions";
 import PageHeader from "@/components/ui/PageHeader";
 import EmptyState from "@/components/ui/EmptyState";
 import StatusChip from "@/components/ui/StatusChip";
@@ -47,10 +47,10 @@ async function getTickets(orgId: string, driverIdOrNull: string | null) {
 }
 
 export default async function TicketsPage() {
-    const { userId, orgId, has } = await auth();
+    const { userId, orgId } = await auth();
     if (!userId || !orgId) redirect("/sign-in");
 
-    const isDriver = has({ role: Roles.DRIVER } as any);
+    const isDriver = await checkRole(Roles.DRIVER);
     const tickets = await getTickets(orgId, isDriver ? userId : null);
 
     return (

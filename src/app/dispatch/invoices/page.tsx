@@ -3,7 +3,7 @@ import pool from "@/lib/db";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { FileText } from "lucide-react";
-import { Permissions } from "@/lib/permissions";
+import { Permissions, checkPermission } from "@/lib/permissions";
 import PageHeader from "@/components/ui/PageHeader";
 import EmptyState from "@/components/ui/EmptyState";
 import StatusChip from "@/components/ui/StatusChip";
@@ -25,10 +25,10 @@ async function getInvoices(orgId: string) {
 }
 
 export default async function InvoicesPage() {
-    const { userId, orgId, has } = await auth();
+    const { userId, orgId } = await auth();
     if (!userId || !orgId) redirect("/sign-in");
 
-    if (!has({ permission: Permissions.INVOICES_MANAGE } as any)) {
+    if (!(await checkPermission(Permissions.INVOICES_MANAGE))) {
         redirect("/tickets");
     }
 

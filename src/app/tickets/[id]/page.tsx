@@ -4,7 +4,7 @@ import { redirect, notFound } from "next/navigation";
 import Link from "next/link";
 import { Package, MapPin, User, Clock, ArrowRight, Scale, Receipt, FileText } from "lucide-react";
 import TicketActions from "./TicketActions";
-import { Permissions } from "@/lib/permissions";
+import { Permissions, checkPermission } from "@/lib/permissions";
 import PageHeader from "@/components/ui/PageHeader";
 import StatusChip from "@/components/ui/StatusChip";
 
@@ -54,7 +54,7 @@ function DetailRow({
 }
 
 export default async function TicketDetailPage({ params }: { params: Promise<{ id: string }> }) {
-    const { userId, orgId, has } = await auth();
+    const { userId, orgId } = await auth();
     if (!userId || !orgId) redirect("/sign-in");
 
     const { id } = await params;
@@ -62,7 +62,7 @@ export default async function TicketDetailPage({ params }: { params: Promise<{ i
 
     if (!ticket) notFound();
 
-    const canManage = has({ permission: Permissions.TICKETS_MANAGE } as any);
+    const canManage = await checkPermission(Permissions.TICKETS_MANAGE);
     const isOwner = ticket.driver_id === userId;
     const isBarnToBarn = ticket.type === 'barn_to_barn';
 

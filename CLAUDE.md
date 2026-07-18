@@ -1,6 +1,6 @@
 # HayFlow — Claude Context
 
-Modern inventory and invoicing SaaS for hay/forage growers and dealers. Built with Next.js 16 App Router, Clerk (orgs + roles), and Neon Postgres (raw SQL, no ORM).
+Modern inventory and invoicing SaaS for hay/forage growers and dealers. Built with Next.js 16 App Router, Clerk (authN + orgs; app roles live in our Postgres `org_member_roles`, not Clerk), and Neon Postgres (raw SQL, no ORM).
 
 ## Mental model — the business
 

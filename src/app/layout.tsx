@@ -11,7 +11,7 @@ import { ThemeProvider } from "./contexts/theme-context";
 import { auth } from "@clerk/nextjs/server";
 import RoleNav from "@/components/RoleNav";
 import TrialBanner from "@/components/TrialBanner";
-import { Permissions } from "@/lib/permissions";
+import { getPermissionFlags } from "@/lib/permissions";
 import { ToastProvider } from "@/components/ui/Toast";
 import HelpLauncher from "@/components/help/HelpLauncher";
 import TourGuide from "@/components/help/TourGuide";
@@ -47,12 +47,13 @@ export default async function RootLayout({
   let isDriver = false;
   let isSignedIn = false;
   try {
-    const { has, userId } = await auth();
+    const { userId } = await auth();
     if (userId) {
       isSignedIn = true;
-      canManageTickets = has({ permission: Permissions.TICKETS_MANAGE } as any);
-      canManageInvoices = has({ permission: Permissions.INVOICES_MANAGE } as any);
-      isDriver = has({ role: 'org:driver' } as any);
+      const flags = await getPermissionFlags();
+      canManageTickets = flags.canManageTickets;
+      canManageInvoices = flags.canManageInvoices;
+      isDriver = flags.isDriver;
     }
   } catch {
     // Not authenticated — will use defaults

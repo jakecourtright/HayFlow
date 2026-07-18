@@ -166,6 +166,31 @@ ALTER TABLE org_billing ALTER COLUMN trial_started_at DROP DEFAULT;
 ALTER TABLE org_billing ALTER COLUMN trial_started_at DROP NOT NULL;
 
 -- ============================================================
+-- App-level roles — one row per org member (admin | bookkeeper | driver).
+-- Roles live here (not in Clerk) so we don't need Clerk's custom-roles
+-- add-on. Clerk still owns authN + org membership; lib/permissions.ts
+-- resolves the role and derives permissions from it.
+-- ============================================================
+CREATE TABLE IF NOT EXISTS org_member_roles (
+  org_id VARCHAR(255) NOT NULL,
+  user_id VARCHAR(255) NOT NULL,
+  role VARCHAR(20) NOT NULL CHECK (role IN ('admin', 'bookkeeper', 'driver')),
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (org_id, user_id)
+);
+
+-- Role recorded at invite time, keyed by email. Consumed (deleted) the first
+-- time the invited user's role is resolved after they join the org.
+CREATE TABLE IF NOT EXISTS org_invited_roles (
+  org_id VARCHAR(255) NOT NULL,
+  email VARCHAR(255) NOT NULL,
+  role VARCHAR(20) NOT NULL CHECK (role IN ('admin', 'bookkeeper', 'driver')),
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (org_id, email)
+);
+
+-- ============================================================
 -- Support requests — Help assistant "Reach the team" escalations.
 -- Persisted so a request is never lost even if the email send fails.
 -- ============================================================
@@ -182,6 +207,17 @@ CREATE TABLE IF NOT EXISTS support_requests (
   status VARCHAR(20) NOT NULL DEFAULT 'open',
   emailed BOOLEAN NOT NULL DEFAULT FALSE,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- ============================================================
+-- Invoice numbering counter (monotonic per org; race-safe).
+-- Seeded from existing invoices on first use, incremented atomically thereafter.
+-- Replaces COUNT(*)+1 numbering, which both raced under concurrency and reused
+-- numbers after an invoice was deleted.
+-- ============================================================
+CREATE TABLE IF NOT EXISTS invoice_counters (
+  org_id VARCHAR(255) PRIMARY KEY,
+  last_number INTEGER NOT NULL DEFAULT 0
 );
 
 -- ============================================================
