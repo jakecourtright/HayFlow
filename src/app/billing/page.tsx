@@ -1,4 +1,5 @@
 import { auth } from "@clerk/nextjs/server";
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { PricingTable } from "@clerk/nextjs";
 import { Sparkles, Check, CreditCard } from "lucide-react";
@@ -92,6 +93,11 @@ export default async function BillingPage() {
 
                 <p className="text-center text-xs" style={{ color: 'var(--text-dim)' }}>
                     Secure checkout powered by Stripe · Cancel anytime from here
+                </p>
+                <p className="text-center text-xs" style={{ color: 'var(--text-dim)' }}>
+                    By subscribing you agree to the{' '}
+                    <Link href="/terms" className="underline">Terms of Service</Link> and{' '}
+                    <Link href="/privacy" className="underline">Privacy Policy</Link>.
                 </p>
             </div>
         </div>

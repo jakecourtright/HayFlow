@@ -4,8 +4,8 @@
 
 **Operator:** Dune Summit LLC ("Dune Summit," "we," "us")
 **Service:** HayFlow (the "Service")
-**Effective date:** [EFFECTIVE DATE]
-**Contact:** [PRIVACY EMAIL] · Dune Summit LLC, [BUSINESS MAILING ADDRESS]
+**Effective date:** July 18, 2026
+**Contact:** support@hayflow.io · Dune Summit LLC
 
 This Privacy Policy explains what information HayFlow collects, how we use it, and the choices you have. It supplements the [Terms of Service](./terms-of-service.md).
 
@@ -61,20 +61,20 @@ We share information only with vendors that help us run the Service, under contr
 | Anthropic | AI help assistant (processes support questions you submit) |
 | Upstash | Rate limiting / abuse prevention |
 | Sentry | Error and performance monitoring |
-| [Email provider] | Transactional and support email |
+| Email provider (when configured) | Transactional and support email |
 
 We may also disclose information **to comply with law**, respond to lawful requests, protect rights and safety, or in connection with a **business transfer** (merger, acquisition, or sale of assets) — in which case we will notify you and the data-use commitments in Section 4 will be addressed.
 
 ## 6. Data location, security, and retention
 
-- Customer Data is stored in our hosted Postgres database (Neon) and processed in the United States **[CONFIRM REGION]**.
+- Customer Data is stored in our hosted Postgres database (Neon) and processed in the United States (AWS us-west-2 region).
 - We use multi-tenant isolation (every record is scoped to your organization), encrypted connections, scoped access, and access controls. No system is perfectly secure.
-- We retain Customer Data while your account is active. After termination, you may request an export for **[30] days**, after which we may delete or anonymize it, subject to legal retention requirements and routine backups.
+- We retain Customer Data while your account is active. After termination, you may request an export for **30 days**, after which we may delete or anonymize it, subject to legal retention requirements and routine backups.
 
 ## 7. Your choices and rights
 
 - **Access / export / correct / delete:** Organization admins can view and edit Customer Data in-app, and may request export or deletion by contacting us.
-- Depending on where you live, you may have rights under laws such as the **CCPA/CPRA** or others. To exercise rights, contact **[PRIVACY EMAIL]**. We will not discriminate against you for exercising them.
+- Depending on where you live, you may have rights under laws such as the **CCPA/CPRA** or others. To exercise rights, contact **support@hayflow.io**. We will not discriminate against you for exercising them.
 - For Customer Data, individuals whose information you entered should direct requests to you (the controller); we will assist you as required.
 
 ## 8. Changes and notice
@@ -87,4 +87,4 @@ HayFlow is a business tool and is **not directed to children under 16**. We do n
 
 ## 10. Contact
 
-Privacy questions or requests: **[PRIVACY EMAIL]**, Dune Summit LLC, **[BUSINESS MAILING ADDRESS]**.
+Privacy questions or requests: **support@hayflow.io**, Dune Summit LLC. Mailing address available on request.

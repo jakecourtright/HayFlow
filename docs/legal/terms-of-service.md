@@ -4,8 +4,8 @@
 
 **Operator:** Dune Summit LLC ("Dune Summit," "we," "us," "our")
 **Service:** HayFlow, a web-based inventory and invoicing application for hay and forage growers and dealers (the "Service")
-**Effective date:** [EFFECTIVE DATE]
-**Contact:** [SUPPORT EMAIL] · [BUSINESS MAILING ADDRESS]
+**Effective date:** July 18, 2026
+**Contact:** support@hayflow.io
 
 By creating an account, accessing, or using HayFlow, you ("Customer," "you") agree to these Terms of Service ("Terms"). If you are agreeing on behalf of a business, you represent that you are authorized to bind that business.
 
@@ -28,7 +28,7 @@ HayFlow lets you track hay inventory (locations, stacks, transactions), record a
 - Billing and payment processing are handled by our vendors (Clerk Billing and Stripe). By subscribing you also agree to Stripe's applicable terms.
 - Fees are billed in advance and are **non-refundable except where required by law**. You can cancel anytime; cancellation stops future renewals and your access continues until the end of the paid period.
 - If payment fails or a subscription lapses, your organization may move to **read-only mode** until billing is restored.
-- We may change pricing on prospective renewals with at least **[30] days'** notice.
+- We may change pricing on prospective renewals with at least **30 days'** notice.
 
 ## 4. Customer Data and ownership
 
@@ -73,7 +73,7 @@ We aim for high availability but do not guarantee uninterrupted or error-free se
 
 ## 11. Limitation of liability
 
-To the maximum extent permitted by law, Dune Summit will not be liable for any indirect, incidental, special, consequential, or punitive damages, or for lost profits, revenues, data, or goodwill. Our total aggregate liability for any claim arising out of or relating to the Service will not exceed the **greater of (a) the amounts you paid us in the [12] months before the claim, or (b) [$100]**. Some jurisdictions do not allow these limits, so they may not fully apply to you.
+To the maximum extent permitted by law, Dune Summit will not be liable for any indirect, incidental, special, consequential, or punitive damages, or for lost profits, revenues, data, or goodwill. Our total aggregate liability for any claim arising out of or relating to the Service will not exceed the **greater of (a) the amounts you paid us in the 12 months before the claim, or (b) $100**. Some jurisdictions do not allow these limits, so they may not fully apply to you.
 
 ## 12. Indemnification
 
@@ -81,7 +81,7 @@ You agree to indemnify and hold harmless Dune Summit from claims arising out of 
 
 ## 13. Termination
 
-You may stop using and cancel the Service at any time. We may suspend or terminate your access for material breach of these Terms, non-payment, or to comply with law. On termination, you may request an export of your Customer Data for **[30] days**, after which we may delete it per our retention practices.
+You may stop using and cancel the Service at any time. We may suspend or terminate your access for material breach of these Terms, non-payment, or to comply with law. On termination, you may request an export of your Customer Data for **30 days**, after which we may delete it per our retention practices.
 
 ## 14. Changes to these Terms
 
@@ -89,8 +89,8 @@ We may update these Terms. We will post the updated version with a new effective
 
 ## 15. Governing law; disputes
 
-These Terms are governed by the laws of the State of **[STATE]**, without regard to conflict-of-laws rules. **[Choose: courts of [COUNTY/STATE] / binding arbitration — have counsel advise.]**
+These Terms are governed by the laws of the State of **Washington**, without regard to conflict-of-laws rules. Any dispute arising out of or relating to these Terms or the Service will be resolved exclusively in the state or federal courts located in Washington, and both parties consent to their jurisdiction and venue. *(Counsel: confirm venue county and advise whether binding arbitration is preferable.)*
 
 ## 16. Contact
 
-Questions about these Terms: **[SUPPORT EMAIL]**, Dune Summit LLC, **[BUSINESS MAILING ADDRESS]**.
+Questions about these Terms: **support@hayflow.io**, Dune Summit LLC. Mailing address available on request.

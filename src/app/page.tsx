@@ -1,5 +1,6 @@
 import { auth } from "@clerk/nextjs/server";
 import pool from "@/lib/db";
+import Link from "next/link";
 import { SignInButton, SignUpButton } from "@clerk/nextjs";
 import { Tractor, Receipt, ClipboardCheck, Users } from 'lucide-react';
 import { getDashboardLayout } from "./actions";
@@ -182,9 +183,15 @@ export default async function Dashboard() {
           </div>
 
           {/* Small print */}
-          <div className="text-center pt-4">
+          <div className="text-center pt-4 space-y-3">
             <p className="text-xs uppercase tracking-wider font-bold" style={{ color: 'var(--text-dim)' }}>
               Designed for the field. Engineered for the books.
+            </p>
+            <p className="text-xs" style={{ color: 'var(--text-dim)' }}>
+              <Link href="/terms" className="underline hover:brightness-110">Terms of Service</Link>
+              {' · '}
+              <Link href="/privacy" className="underline hover:brightness-110">Privacy Policy</Link>
+              {' · '}© {new Date().getFullYear()} Dune Summit LLC
             </p>
           </div>
         </section>
