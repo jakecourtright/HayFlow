@@ -16,15 +16,18 @@ import crypto from 'crypto';
 // goes backwards even if invoices are later deleted. MUST be called inside an
 // open transaction (so the number is rolled back with the rest if the txn fails).
 async function nextInvoiceNumber(client: any, orgId: string): Promise<string> {
+    // orgId is passed twice on purpose: reusing one placeholder across both
+    // org_id columns makes Postgres deduce a single type for it, which fails
+    // (42P08) when the columns' types have drifted (text vs varchar in prod).
     const res = await client.query(
         `INSERT INTO invoice_counters (org_id, last_number)
          VALUES ($1, (
              SELECT COALESCE(MAX(CAST(SUBSTRING(invoice_number FROM 5) AS INTEGER)), 0) + 1
-             FROM invoices WHERE org_id = $1 AND invoice_number ~ '^INV-[0-9]+$'
+             FROM invoices WHERE org_id = $2 AND invoice_number ~ '^INV-[0-9]+$'
          ))
          ON CONFLICT (org_id) DO UPDATE SET last_number = invoice_counters.last_number + 1
          RETURNING last_number`,
-        [orgId]
+        [orgId, orgId]
     );
     return `INV-${String(res.rows[0].last_number).padStart(4, '0')}`;
 }

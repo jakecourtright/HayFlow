@@ -237,6 +237,29 @@ BEGIN
 END$$;
 
 -- ============================================================
+-- Type normalization — heals drift left by legacy ad-hoc scripts.
+-- Some live tables got org_id added as TEXT (scripts/migrate_orgs.js) or were
+-- created by hand, while this schema declares VARCHAR(255). Mixed types break
+-- any query that binds one parameter against org_id on two tables at once
+-- (Postgres 42P08 "inconsistent types deduced for parameter"). Only touches
+-- columns that are actually text, so re-runs are no-ops.
+-- ============================================================
+DO $$
+DECLARE
+  r RECORD;
+BEGIN
+  FOR r IN
+    SELECT table_name, column_name
+    FROM information_schema.columns
+    WHERE table_schema = 'public'
+      AND column_name IN ('org_id', 'user_id')
+      AND data_type = 'text'
+  LOOP
+    EXECUTE format('ALTER TABLE %I ALTER COLUMN %I TYPE VARCHAR(255)', r.table_name, r.column_name);
+  END LOOP;
+END$$;
+
+-- ============================================================
 -- Indexes
 -- ============================================================
 CREATE INDEX IF NOT EXISTS idx_locations_org_id ON locations(org_id);
