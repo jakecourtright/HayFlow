@@ -23,8 +23,13 @@ src/
     dispatch/           # approved-ticket queue + invoices/[id]
     invoice/[token]/    # PUBLIC invoice share page (no auth)
     sell/               # Quick Sale (one-step ticket→tx→invoice)
+    billing/            # state-aware billing hub: manage card (subscribed) / PricingTable (not)
     settings/           # theme picker, team management
+    settings/organization/[[...rest]]/  # Clerk <OrganizationProfile> — payment methods,
+                        # invoices, cancel plan (NEVER edit cards in the Stripe dashboard;
+                        # Clerk charges the payment method IT has on record)
     stacks/ locations/ inventory/ transactions/ reports/ log/
+    api/health/         # GET health check (uptime monitoring)
   components/
     RoleNav.tsx         # bottom nav (driver vs admin/bookkeeper)
     CustomSelect.tsx UnitSelect.tsx TeamManagement.tsx
@@ -34,8 +39,10 @@ src/
     units.ts            # tons<->bales, normalizePrice
   db/
     schema.sql          # consolidated schema (source of truth)
-  middleware.ts         # clerkMiddleware — protects /log, /locations, /stacks, /inventory,
-                        # /reports, /settings, /tickets, /dispatch, /sell
+  middleware.ts         # 308s hay-flow.vercel.app → hayflow.io (prod Clerk is domain-locked),
+                        # rate-limits /invoice/*, clerkMiddleware protects /log, /locations,
+                        # /stacks, /inventory, /reports, /settings, /tickets, /dispatch, /sell,
+                        # /transfer, /welcome, /billing, /help; orgless users → /welcome
 scripts/                # one-off migration scripts (ad hoc, no tracking)
 docs/                   # project knowledge (read these for deeper context)
 public/

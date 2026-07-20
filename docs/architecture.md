@@ -2,11 +2,12 @@
 
 ## Stack
 
-- **Next.js 16.1.4** App Router, **React 19.2.3**, **TypeScript strict**
-- **Clerk 6.36** (`@clerk/nextjs`) — auth, Organizations (multi-tenant boundary), custom permissions
+- **Next.js 16.2** App Router, **React 19.2**, **TypeScript strict**
+- **Clerk 7.5** (`@clerk/nextjs`) — auth, Organizations (multi-tenant boundary), Clerk Billing (Stripe live). App roles live in our Postgres (`org_member_roles`), not Clerk — see [roles-and-permissions.md](roles-and-permissions.md).
 - **Neon Postgres** via `@neondatabase/serverless` + `ws` (WebSocket pool; no ORM)
 - **Tailwind CSS v4** (@tailwindcss/postcss)
 - **Zod 4** validation, **Recharts 3.7** charts, **Lucide-react** icons
+- **Sentry** (`@sentry/nextjs`, server/edge/client — no-op until DSN env vars set), **Upstash Ratelimit** (public invoice route — no-op until env vars set)
 
 ## Routing
 
@@ -19,11 +20,24 @@ src/app/layout.tsx                 → ClerkProvider + ThemeProvider + header + 
   src/app/dispatch/                → queue + invoices/[id]/edit/
   src/app/invoice/[token]/         → PUBLIC (no layout wrapping for print styling)
   src/app/sell/                    → Quick Sale shortcut
-  src/app/stacks/, /locations/, /inventory/, /transactions/, /reports/, /settings/, /log/
+  src/app/billing/                 → state-aware billing hub: subscribed orgs get a "manage
+                                     payment methods & invoices" card first + plan picker under
+                                     "Change plan"; unsubscribed orgs get the PricingTable
+  src/app/settings/organization/[[...rest]]/ → Clerk <OrganizationProfile> (path routing) —
+                                     Members + Billing tabs; payment methods, invoices, cancel
+  src/app/welcome/                 → Clerk <CreateOrganization> for orgless users
+  src/app/terms/, /privacy/        → PUBLIC legal pages
+  src/app/api/health/              → GET health check for uptime monitoring
+  src/app/stacks/, /locations/, /inventory/, /transactions/, /reports/, /settings/, /log/, /help/
 ```
 
-**Middleware** (`src/middleware.ts`) uses `clerkMiddleware` with `createRouteMatcher` to gate:
-`/log`, `/locations`, `/stacks`, `/inventory`, `/reports`, `/settings`, `/tickets`, `/dispatch`, `/sell`. Anything under `/invoice/[token]` is public.
+**Middleware** (`src/middleware.ts`), in order:
+1. **Canonical-host redirect** — exact host `hay-flow.vercel.app` 308s to `https://hayflow.io` (path + query preserved). Production Clerk is domain-locked to hayflow.io; auth/billing fail silently on the alias. Exact match keeps `hay-flow-git-*` preview deployments working.
+2. **Rate limit** on `/invoice/*` (Upstash, no-op without env vars).
+3. `clerkMiddleware` + `createRouteMatcher` gates: `/log`, `/locations`, `/stacks`, `/inventory`, `/reports`, `/settings`, `/tickets`, `/dispatch`, `/sell`, `/transfer`, `/welcome`, `/billing`, `/help`. Anything under `/invoice/[token]`, `/terms`, `/privacy` is public.
+4. **Org gate** — signed-in users with no active org are redirected to `/welcome` on org-required routes.
+
+**Billing gating:** write-path server actions call `requireActiveSubscription()` (`src/lib/billing.ts`); access derives from Clerk Billing plans (`hayflow_pro`, `hayflow_pro_team`) via `auth().has({ plan })`. `org_billing.trial_started_at` mirrors the trial start locally for countdown UX only. `BILLING_BYPASS_USER_IDS`/`BILLING_BYPASS_ORG_IDS` env vars exempt internal accounts. **Payment methods must be managed through the app (Clerk), never edited directly in the Stripe dashboard** — Clerk charges the payment method it has on record.
 
 ## Data access
 
@@ -42,16 +56,19 @@ src/app/layout.tsx                 → ClerkProvider + ThemeProvider + header + 
 
 ## Deployment
 
-- **Target:** Vercel (`vercel.json` is `{ "framework": "nextjs" }`)
-- **Required env:** `DATABASE_URL`, `CLERK_SECRET_KEY`, `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`
-- **Build:** `next build` — standard. No custom build steps.
+- **Target:** Vercel, project `hay-flow`. **Canonical domain: hayflow.io** (the `hay-flow.vercel.app` alias 308-redirects there — see Middleware).
+- **Required env:** `DATABASE_URL`, `CLERK_SECRET_KEY`, `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` (live keys in prod — the Clerk prod instance is domain-locked to hayflow.io).
+- **Optional env (features no-op without them):** `SENTRY_DSN` + `NEXT_PUBLIC_SENTRY_DSN` (error tracking), `UPSTASH_REDIS_REST_URL`/`_TOKEN` (invoice-route rate limiting), `BILLING_BYPASS_USER_IDS`/`BILLING_BYPASS_ORG_IDS` (internal-account billing exemption).
+- **Build:** `next build`, wrapped in `withSentryConfig` (source-map upload skipped without Sentry credentials).
 - **Runtime:** Next.js on Vercel. Server actions run as serverless functions; Neon WebSocket pool is initialized once per cold start.
 
 ## Migrations
 
-Ad-hoc scripts in `scripts/migrate-*.js`. `src/db/schema.sql` is the **consolidated source of truth** (as of 2026-04-21) — running `npm run migrate` applies it idempotently via `CREATE TABLE IF NOT EXISTS` and column-add blocks.
+`src/db/schema.sql` is the **consolidated source of truth** — running `npm run migrate` applies it idempotently via `CREATE TABLE IF NOT EXISTS`, column-add blocks, and a **type-normalization block** that converts any `text`-typed `org_id`/`user_id` column to `VARCHAR(255)`.
 
-No schema-version tracking table. If we need formal migrations before scale, the leading options are Drizzle (type-safe, codegen from schema) or a simple applied-migrations table.
+That normalization exists because drift is not hypothetical: legacy ad-hoc scripts (`scripts/migrate_orgs.js`) added `org_id` as `TEXT` on live tables, and on 2026-07-20 the mismatch broke all production invoice creation (Postgres 42P08 — a single bound parameter can't serve two differently-typed columns). Lesson: **don't add ad-hoc migration scripts; put schema changes in `schema.sql`.** Related code rule: never reuse one SQL placeholder across columns of different tables (bind the value once per usage instead).
+
+No schema-version tracking table yet. If we need formal migrations before scale, the leading options are Drizzle (type-safe, codegen from schema) or a simple applied-migrations table.
 
 ## Scaling considerations (when we hit them)
 

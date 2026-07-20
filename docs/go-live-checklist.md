@@ -1,53 +1,66 @@
 # HayFlow — Go-Live Checklist
 
-**Status as of 2026-05-29.** These are the **must-do items before taking a real paying customer.** The core app and the items below marked _code-complete_ are done; what remains is configuration, provisioning, and legal — mostly external steps only Jake can do.
+**Status as of 2026-07-20: LIVE.** Production runs at **hayflow.io** on the Clerk production instance with Stripe live mode. First real customer (org "TCF BARN") completed a live trial checkout and created their first invoice on 2026-07-20 — their trial converts to a real charge on **Aug 3, 2026**. What remains below is post-launch hardening, not launch blockers.
 
 ---
 
-## 🔴 MUST DO before go-live
+## ✅ DONE — payment wiring (completed & live-verified 2026-07-20)
 
-### 1. Finish payment wiring (go-live config — billing code is done & test-verified)
-Billing is fully coded and verified end-to-end in Stripe **test mode**. Remaining work is flipping it to live:
-- [x] Create the **Clerk production instance** (done 2026-07 — Jake upgraded to the $25/mo Pro tier; custom-roles add-on NOT purchased, see roles note below).
-- [ ] Activate **Stripe live mode** and connect it to the production Clerk instance.
-- [ ] **Re-create in prod** (dev & prod Clerk instances don't share config):
-  - [ ] Both billing plans: `hayflow_pro` ($25/mo, ≤2 users) and `hayflow_pro_team` ($100/mo, unlimited), each with the 14-day trial.
-  - [x] ~~The org roles + permissions~~ — no longer needed: roles moved into our Postgres (`org_member_roles`, 2026-07-18) precisely so prod Clerk needs no custom-role config. See docs/roles-and-permissions.md.
-- [ ] Set production env vars: `pk_live` / `sk_live`, prod `DATABASE_URL`, `CLERK_SECRET_KEY`.
-- [ ] **Migrate the existing free-tier user to the prod instance.** Dev-instance users/orgs do NOT carry over. He must sign up again on prod, then: (a) UPDATE all his rows in Neon from the old `org_id`/`user_id` to the new ones, (b) update `BILLING_BYPASS_ORG_IDS` / `BILLING_BYPASS_USER_IDS` in Vercel to the NEW ids, (c) his admin role self-heals (org creators map to admin).
-- [ ] Run a real checkout with a live card to confirm the gate + trial clock work in prod.
+- [x] Create the **Clerk production instance** (2026-07 — $25/mo Pro tier; custom-roles add-on NOT purchased, roles live in our Postgres instead).
+- [x] Activate **Stripe live mode** and connect it to the production Clerk instance (verified: prod instance serves a `pk_live` Stripe key, org billing enabled).
+- [x] Re-create both billing plans in prod: `hayflow_pro` ($25/mo, ≤2 users) and `hayflow_pro_team` ($100/mo, unlimited), each with the 14-day trial (verified via Clerk API 2026-07-20).
+- [x] ~~Org roles + permissions in prod Clerk~~ — not needed: roles moved into our Postgres (`org_member_roles`, 2026-07-18). See [roles-and-permissions.md](roles-and-permissions.md).
+- [x] Production env vars: `pk_live` / `sk_live`, prod `DATABASE_URL`, `CLERK_SECRET_KEY` (hayflow.io serves the live publishable key).
+- [x] Run a real checkout with a live card (2026-07-20 — first customer trial; the debugging that got there surfaced the fixes listed below).
+- [ ] Migrate the original free-tier user from the dev instance (sign up fresh on prod, re-point his Neon rows to the new `org_id`/`user_id`, update `BILLING_BYPASS_*` in Vercel). Not launch-blocking — new customers sign up directly on prod.
 
-### 2. Database migration (REQUIRED — invoicing breaks without it)
-- [ ] Run `npm run migrate` against the **production** database. This creates the new `invoice_counters` table; the race-safe invoice numbering added 2026-05-29 will error on invoice creation until it exists.
+## ✅ DONE — database migration (2026-07-20)
 
-### 3. Environment variables (recommended for launch)
-- [ ] `UPSTASH_REDIS_REST_URL` + `UPSTASH_REDIS_REST_TOKEN` — enables rate limiting on the public `/invoice/[token]` route. (Without them, rate limiting is a safe no-op.)
-- [ ] `SENTRY_DSN` + `NEXT_PUBLIC_SENTRY_DSN` — enables error tracking. (No-op without them.)
-- [ ] Optional: `SENTRY_ORG` / `SENTRY_PROJECT` / `SENTRY_AUTH_TOKEN` — for source-map upload.
+- [x] `npm run migrate` run against the **production** database. Creates `invoice_counters` and — added the same day — normalizes any `text`-typed `org_id`/`user_id` columns to `VARCHAR(255)` (legacy ad-hoc scripts had left `text` columns, which broke invoice creation with Postgres 42P08; see "launch-day fixes" below).
 
-### 4. Provision the supporting services
-- [ ] Create an **Upstash Redis** database (for #3 rate limiting).
-- [ ] Create a **Sentry** project (free tier is fine).
-- [ ] Set up an **uptime monitor** (UptimeRobot / Better Stack / Pingdom) pointed at `GET /api/health`; alert on non-200.
+## ✅ DONE — legal pages (published 2026-07-18)
 
-### 5. Legal (attorney review required)
-- [ ] Have a licensed attorney review `docs/legal/terms-of-service.md` and `docs/legal/privacy-policy.md` — **especially the conflict-of-interest sections** (ToS §5, Privacy §4) covering Dune Summit LLC's owner working at a hay export company.
-- [ ] Fill all `[BRACKETED]` placeholders (state, addresses, support email, effective date).
-- [ ] Publish both, and link them from the app (signup, footer, billing page).
-
-### 6. Business setup
-- [x] Operating entity: **Dune Summit LLC** (have it).
-- [ ] Stripe payout / bank account connected for the live Stripe account.
-- [ ] A support email address that routes somewhere monitored.
+- [x] All `[BRACKETED]` placeholders filled.
+- [x] ToS + Privacy published at `/terms` and `/privacy`, linked from the homepage and billing page.
+- [ ] **Attorney review still pending** — a licensed attorney should review [terms-of-service.md](legal/terms-of-service.md) and [privacy-policy.md](legal/privacy-policy.md), especially the limitation-of-liability, arbitration, and conflict-of-interest sections (ToS §5, Privacy §4) covering Dune Summit LLC's owner working at a hay export company.
 
 ---
 
-## ✅ Code-complete (shipped 2026-05-29, pending the config above)
+## 🔴 OPEN — post-launch hardening (ordered by urgency)
+
+### 1. Stripe payout account — **needed before Aug 3**
+- [ ] Connect the bank account for payouts on the live Stripe account. The first trial converts Aug 3; without this, Stripe holds the funds.
+
+### 2. Error visibility — would have saved hours on launch day
+- [ ] Set `SENTRY_DSN` + `NEXT_PUBLIC_SENTRY_DSN` in Vercel. The instrumentation shipped 2026-07-18 but is a no-op without these. The 42P08 invoice bug (2026-07-20) had to be diagnosed via manual Vercel log digging; Sentry would have surfaced it instantly.
+- [ ] Optional: `SENTRY_ORG` / `SENTRY_PROJECT` / `SENTRY_AUTH_TOKEN` for source-map upload.
+- [ ] **Return structured errors from server actions.** Next.js masks thrown `Error` messages in production, so users see "An error occurred in the Server Components render…" instead of "Insufficient stock (need 200, have 150)" — every validation, stock, and subscription message in `quickSale` and friends is invisible to real users. Convert user-facing actions to return `{ error: string }` and render it in the forms.
+
+### 3. Supporting services
+- [ ] Upstash Redis (`UPSTASH_REDIS_REST_URL`/`_TOKEN`) — enables rate limiting on the public `/invoice/[token]` route (safe no-op until set).
+- [ ] Uptime monitor (UptimeRobot / Better Stack / Pingdom) on `GET /api/health`; alert on non-200.
+- [ ] Support email address that routes somewhere monitored.
+
+### 4. Schema-migration tracking
+- [ ] The 42P08 incident proved schema drift is real: ad-hoc scripts left prod columns typed differently than `schema.sql`. The new normalization block in `schema.sql` heals the known drift, but a `schema_migrations(name, applied_at)` table (or Drizzle) would prevent the class. See [launch-readiness.md](launch-readiness.md).
+
+---
+
+## 🔧 Launch-day fixes (shipped 2026-07-20)
+
+Debugging the first real customer's signup surfaced and fixed three production issues:
+
+1. **`hay-flow.vercel.app` → `hayflow.io` 308 redirect** (middleware). Production Clerk is domain-locked to hayflow.io; on the Vercel default alias, auth and billing fail *silently* — checkout's "Start free trial" did nothing. Old bookmarks now land on the canonical domain. (Exact-host match keeps preview deployments working.)
+2. **42P08 on invoice creation.** `nextInvoiceNumber` bound `orgId` as one placeholder used against two differently-typed `org_id` columns (prod drift: `text` vs `varchar`). Fixed by binding it as two parameters + the schema normalization block above. Every invoice creation in prod failed until this; Quick Sale was the first code path to hit it.
+3. **Billing management UX.** Subscribed orgs had no way to edit payment methods, view invoices, or cancel — Clerk's `OrganizationProfile` (which contains that Billing tab) was never mounted. Now at `/settings/organization`, linked from a state-aware `/billing` hub. `@clerk/nextjs` bumped 7.3.2 → 7.5.20. **Payment methods must be changed there, not in the Stripe dashboard** — Clerk charges the payment method it has on record and ignores cards added Stripe-side.
+
+## ✅ Code-complete (shipped 2026-05-29 / 2026-07-18)
 - Data-integrity fixes: `approveTicket` transactional + stock re-check under advisory lock; `createTicket` locked; race-/deletion-safe invoice numbering via `invoice_counters`.
 - Rate limiting on the public invoice route (Upstash, graceful no-op fallback).
 - Sentry error tracking (server / edge / client, all DSN-gated).
 - `/api/health` endpoint for uptime monitoring.
-- Legal drafts for Dune Summit LLC with conflict-of-interest disclosure.
+- Legal pages for Dune Summit LLC with conflict-of-interest disclosure (published; attorney review pending).
+- Marketing decks (`marketing/`) + preview site.
 
 ## Nice-to-have (first month after launch)
-See `docs/launch-readiness.md` P1/P2 — tests, invoice PDF/CSV export, "Send Invoice" email, audit log, backups runbook.
+See [launch-readiness.md](launch-readiness.md) P1/P2 — tests, invoice PDF/CSV export, "Send Invoice" email, audit log, backups runbook.
