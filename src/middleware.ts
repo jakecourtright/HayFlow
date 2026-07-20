@@ -2,6 +2,14 @@ import { clerkMiddleware, createRouteMatcher } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
 import { checkInvoiceRateLimit } from "@/lib/ratelimit";
 
+// hay-flow.vercel.app is Vercel's default alias for the production deployment.
+// Production Clerk is domain-locked to hayflow.io, so auth and billing silently
+// fail on the alias (e.g. checkout's "Start free trial" does nothing). Redirect
+// permanently to the canonical domain. Exact-host match keeps per-branch preview
+// deployments (hay-flow-git-*.vercel.app) working.
+const CANONICAL_HOST = "hayflow.io";
+const VERCEL_ALIAS_HOST = "hay-flow.vercel.app";
+
 // Routes that require authentication
 const isProtectedRoute = createRouteMatcher([
     '/log(.*)',
@@ -35,6 +43,11 @@ const isOrgRequiredRoute = createRouteMatcher([
 ]);
 
 export default clerkMiddleware(async (auth, req) => {
+    if (req.headers.get("host") === VERCEL_ALIAS_HOST) {
+        const url = new URL(req.nextUrl.pathname + req.nextUrl.search, `https://${CANONICAL_HOST}`);
+        return NextResponse.redirect(url, 308);
+    }
+
     // Rate-limit the public, unauthenticated invoice share endpoint by IP.
     // No-op unless Upstash env vars are configured (see lib/ratelimit.ts).
     if (req.nextUrl.pathname.startsWith('/invoice/')) {
