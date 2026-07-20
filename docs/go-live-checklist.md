@@ -28,8 +28,8 @@
 
 ## 🔴 OPEN — post-launch hardening (ordered by urgency)
 
-### 1. Stripe payout account — **needed before Aug 3**
-- [ ] Connect the bank account for payouts on the live Stripe account. The first trial converts Aug 3; without this, Stripe holds the funds.
+### 1. Stripe payout account
+- [x] Connect the bank account for payouts on the live Stripe account (done 2026-07-20, ahead of the Aug 3 first trial conversion).
 
 ### 2. Error visibility — would have saved hours on launch day
 - [ ] Set `SENTRY_DSN` + `NEXT_PUBLIC_SENTRY_DSN` in Vercel. The instrumentation shipped 2026-07-18 but is a no-op without these. The 42P08 invoice bug (2026-07-20) had to be diagnosed via manual Vercel log digging; Sentry would have surfaced it instantly.
