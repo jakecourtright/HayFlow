@@ -236,7 +236,15 @@ export default async function InvoiceDetailPage({ params }: { params: Promise<{ 
             </article>
 
             <div className="mt-4 print-hide">
-                <InvoiceStatusActions invoiceId={invoice.id} currentStatus={invoice.status} shareToken={invoice.share_token} />
+                <InvoiceStatusActions
+                    invoiceId={invoice.id}
+                    currentStatus={invoice.status}
+                    shareToken={invoice.share_token}
+                    invoiceNumber={invoice.invoice_number}
+                    customer={invoice.customer}
+                    totalFormatted={`$${Number(invoice.total_amount).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
+                    businessName={businessProfile?.name ?? null}
+                />
             </div>
         </div>
     );

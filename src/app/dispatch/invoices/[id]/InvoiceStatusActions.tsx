@@ -2,7 +2,7 @@
 
 import { updateInvoiceStatus, deleteInvoice } from "@/app/actions";
 import { useState } from "react";
-import { Send, CheckCircle, RotateCcw, Pencil, Trash2, Share2, Check, AlertCircle } from "lucide-react";
+import { Send, CheckCircle, RotateCcw, Pencil, Trash2, Share2, Check, AlertCircle, Mail, MessageSquare } from "lucide-react";
 import Link from "next/link";
 import ConfirmDialog from "@/components/ui/ConfirmDialog";
 import { useToast } from "@/components/ui/Toast";
@@ -12,9 +12,13 @@ interface InvoiceStatusActionsProps {
     invoiceId: number;
     currentStatus: string;
     shareToken: string;
+    invoiceNumber: string;
+    customer: string | null;
+    totalFormatted: string;
+    businessName: string | null;
 }
 
-export default function InvoiceStatusActions({ invoiceId, currentStatus, shareToken }: InvoiceStatusActionsProps) {
+export default function InvoiceStatusActions({ invoiceId, currentStatus, shareToken, invoiceNumber, customer, totalFormatted, businessName }: InvoiceStatusActionsProps) {
     const toast = useToast();
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
@@ -58,6 +62,32 @@ export default function InvoiceStatusActions({ invoiceId, currentStatus, shareTo
         }
     }
 
+    // Send via the user's own mail/SMS app — the message comes from THEIR
+    // address, so replies go to them and deliverability rides on their
+    // identity. No email infrastructure on our side; the share link carries
+    // the invoice. The app can't observe the send, so "Mark as sent" stays a
+    // separate, deliberate step.
+    function shareUrl() {
+        return `${window.location.origin}/invoice/${shareToken}`;
+    }
+
+    function emailHref() {
+        const from = businessName ? ` from ${businessName}` : '';
+        const subject = `Invoice ${invoiceNumber}${from}`;
+        const body =
+            `Hi ${customer || 'there'},\n\n` +
+            `Here's your invoice${from} — you can view and print it here:\n${shareUrl()}\n\n` +
+            `Total due: ${totalFormatted}\n\nThank you!`;
+        return `mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+    }
+
+    function smsHref() {
+        const from = businessName ? `${businessName} — ` : '';
+        const body = `${from}invoice ${invoiceNumber} (total ${totalFormatted}): ${shareUrl()}`;
+        // `?&body=` is the cross-platform quirk: iOS wants `&body`, Android wants `?body`.
+        return `sms:?&body=${encodeURIComponent(body)}`;
+    }
+
     async function handleShare() {
         const url = `${window.location.origin}/invoice/${shareToken}`;
         try {
@@ -93,19 +123,30 @@ export default function InvoiceStatusActions({ invoiceId, currentStatus, shareTo
             <p className="flex items-center gap-1.5 text-xs" style={{ color: 'var(--text-dim)' }}>
                 How sending works
                 <HelpTip learnMoreHref="/help/sending-invoices">
-                    HayFlow doesn&apos;t email invoices for you. Tap &ldquo;Share invoice&rdquo; to copy the customer link (text or email it yourself), then &ldquo;Mark as sent&rdquo; so it counts as outstanding until you mark it paid.
+                    Email or Text opens your own mail or messages app with the invoice link filled in — add the customer&apos;s address and hit send. Then tap &ldquo;Mark as sent&rdquo; so it counts as outstanding until you mark it paid.
                 </HelpTip>
             </p>
 
-            <button
-                type="button"
-                onClick={handleShare}
-                className="btn btn-secondary w-full"
-                style={{ color: copied ? 'var(--success)' : 'var(--text-main)' }}
-            >
-                {copied ? <Check size={16} /> : <Share2 size={16} />}
-                {copied ? 'Link copied' : 'Share invoice'}
-            </button>
+            <div className="flex gap-2">
+                <a href={emailHref()} className="btn btn-secondary flex-1">
+                    <Mail size={16} />
+                    Email
+                </a>
+                <a href={smsHref()} className="btn btn-secondary flex-1">
+                    <MessageSquare size={16} />
+                    Text
+                </a>
+                <button
+                    type="button"
+                    onClick={handleShare}
+                    className="btn btn-secondary"
+                    aria-label={copied ? 'Link copied' : 'Copy or share invoice link'}
+                    title={copied ? 'Link copied' : 'Copy or share invoice link'}
+                    style={{ color: copied ? 'var(--success)' : 'var(--text-main)' }}
+                >
+                    {copied ? <Check size={16} /> : <Share2 size={16} />}
+                </button>
+            </div>
 
             {currentStatus === 'draft' && (
                 <button

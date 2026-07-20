@@ -45,7 +45,7 @@ Original evaluation 2026-04-21; statuses updated 2026-07-20. **We are live** —
 
 - Tests. No coverage today. Vitest + Testing Library. Prioritize: server-action auth checks, approveTicket side effects, multi-org isolation.
 - PDF export of invoices. Today the public invoice page has print CSS + a Print button, so customers can save-as-PDF from the browser — good enough for many. A *generated* PDF (downloadable file / email attachment) via `react-pdf` or Puppeteer-on-Vercel is the P1 ask.
-- "Send Invoice" email. Not built — invoices are shared by copy-link only. Resend plumbing already exists in `src/lib/support.ts` (used for support escalations, gated on `RESEND_API_KEY`); the feature is a customer-facing template + send action + flip status to `sent`.
+- "Send Invoice" — **v1 shipped 2026-07-20** as device-native send: Email/Text buttons on the invoice open the user's own mail/SMS app with recipient-ready subject + body (invoice number, total, share link). Deliberate design: the message comes from the user's own address (their deliverability, their replies), zero email infrastructure. A server-side branded email (with tracking + PDF attachment, likely Resend) is the eventual v2 if customers ask.
 - CSV export of transactions / invoices for QuickBooks import. Not built.
 - Reports — drilldowns, date range, top-customer / top-commodity views.
 - ~~Dashboard drag-and-drop~~ — done: edit mode with drag-to-reorder and show/hide widgets shipped (`DashboardGrid.tsx`), persisted per user/org.

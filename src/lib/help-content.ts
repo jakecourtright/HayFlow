@@ -325,15 +325,15 @@ export const HELP_ARTICLES: HelpArticle[] = [
         summary: 'Share the link, mark it sent, then mark it paid.',
         keywords: ['send invoice', 'share link', 'mark sent', 'mark paid', 'payment', 'email', 'text', 'collect', 'outstanding'],
         body: [
-            { type: 'p', text: 'Invoices are sent by you, on purpose — so you stay in control of how you reach each customer.' },
+            { type: 'p', text: 'Invoices are sent by you, from your own email or messages app — so the message comes from your address and replies land back with you.' },
             { type: 'steps', items: [
                 'Open the invoice.',
-                'Copy the share link and send it to your customer by text or email.',
+                'Tap Email or Text — your mail or messages app opens with the invoice link, number, and total already filled in. Add the customer\'s address and send.',
                 'Mark the invoice Sent so it shows as awaiting payment.',
                 'When the money comes in, mark it Paid.',
             ] },
             { type: 'p', text: 'The customer opens the link with no login and sees a clean invoice they can print. Sent-but-unpaid invoices add up on your dashboard\'s Outstanding card.' },
-            { type: 'callout', tone: 'warning', text: 'HayFlow doesn\'t auto-email invoices yet. Copy the link and send it yourself, then mark it sent.' },
+            { type: 'callout', tone: 'info', text: 'Prefer another channel? The share button copies the plain link for WhatsApp, AirDrop, or anything else.' },
         ],
         related: ['building-invoices', 'business-profile'],
     },
