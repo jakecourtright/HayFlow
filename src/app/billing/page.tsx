@@ -12,13 +12,16 @@ export default async function BillingPage() {
     if (!orgId) redirect("/welcome");
 
     const state = await getSubscriptionState();
+    const subscribed = state.kind === "active";
 
     return (
         <div>
             <PageHeader
                 eyebrow="Billing"
-                title="Subscription"
-                subtitle="Pick the plan that fits your operation. Upgrade or cancel anytime."
+                title={subscribed ? "Billing & subscription" : "Subscription"}
+                subtitle={subscribed
+                    ? "Your plan, payment methods, and invoices."
+                    : "Pick the plan that fits your operation. Upgrade or cancel anytime."}
                 backHref="/settings"
                 backLabel="Settings"
             />
@@ -87,12 +90,37 @@ export default async function BillingPage() {
                     </div>
                 )}
 
+                {subscribed && (
+                    <Link href="/settings/organization" className="glass-card flex items-center gap-4 hover:brightness-110 transition-all">
+                        <div
+                            className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
+                            style={{
+                                background: 'color-mix(in srgb, var(--primary) 18%, transparent)',
+                                color: 'var(--primary)',
+                            }}
+                        >
+                            <CreditCard size={20} />
+                        </div>
+                        <div className="flex-1">
+                            <p className="font-semibold" style={{ color: 'var(--text-main)' }}>Manage payment methods &amp; invoices</p>
+                            <p className="text-sm" style={{ color: 'var(--text-dim)' }}>
+                                Update your card, view invoices, or cancel — in Organization settings → Billing.
+                            </p>
+                        </div>
+                    </Link>
+                )}
+
+                {subscribed && (
+                    <p className="text-sm font-semibold pt-2" style={{ color: 'var(--text-dim)' }}>
+                        Change plan
+                    </p>
+                )}
                 <div className="glass-card">
                     <PricingTable for="organization" />
                 </div>
 
                 <p className="text-center text-xs" style={{ color: 'var(--text-dim)' }}>
-                    Secure checkout powered by Stripe · Cancel anytime from here
+                    Secure checkout powered by Stripe{subscribed ? '' : ' · Cancel anytime from here'}
                 </p>
                 <p className="text-center text-xs" style={{ color: 'var(--text-dim)' }}>
                     By subscribing you agree to the{' '}
