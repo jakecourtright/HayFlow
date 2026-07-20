@@ -44,10 +44,11 @@ Original evaluation 2026-04-21; statuses updated 2026-07-20. **We are live** —
 ## P1 — first month after launch
 
 - Tests. No coverage today. Vitest + Testing Library. Prioritize: server-action auth checks, approveTicket side effects, multi-org isolation.
-- PDF export of invoices (`react-pdf` or Puppeteer-on-Vercel).
-- CSV export of transactions / invoices for QuickBooks import.
+- PDF export of invoices. Today the public invoice page has print CSS + a Print button, so customers can save-as-PDF from the browser — good enough for many. A *generated* PDF (downloadable file / email attachment) via `react-pdf` or Puppeteer-on-Vercel is the P1 ask.
+- "Send Invoice" email. Not built — invoices are shared by copy-link only. Resend plumbing already exists in `src/lib/support.ts` (used for support escalations, gated on `RESEND_API_KEY`); the feature is a customer-facing template + send action + flip status to `sent`.
+- CSV export of transactions / invoices for QuickBooks import. Not built.
 - Reports — drilldowns, date range, top-customer / top-commodity views.
-- Dashboard — expose the widget drag-and-drop UI (state is persisted but reorder controls aren't wired).
+- ~~Dashboard drag-and-drop~~ — done: edit mode with drag-to-reorder and show/hide widgets shipped (`DashboardGrid.tsx`), persisted per user/org.
 
 ## P2 — scale / nice-to-have
 
