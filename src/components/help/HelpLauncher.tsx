@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import {
     MessageCircleQuestion, X, Search, Send, ArrowRight, ArrowLeft,
-    Sparkles, LifeBuoy, Loader2, CheckCircle2, BookOpen, Compass,
+    Sparkles, LifeBuoy, Loader2, CheckCircle2, BookOpen, Compass, Mail,
 } from 'lucide-react';
 import { askHelp, escalateSupport } from '@/app/actions';
 import { searchArticles, type HelpArticle } from '@/lib/help-content';
@@ -98,19 +98,44 @@ export default function HelpLauncher({ articles }: { articles: HelpArticle[] }) 
         }
     }
 
+    // mailto fallback when no server-side email went out (RESEND_API_KEY
+    // unset): the request is safely in the database, but nobody is watching
+    // that table — so we hand the user a prefilled email in their own client.
+    const SUPPORT_EMAIL = 'support@hayflow.io';
+    const [escMailto, setEscMailto] = useState<string | null>(null);
+
+    function buildSupportMailto(message: string, page: string | undefined): string {
+        const subject = 'HayFlow support request';
+        const body = `${message}\n\n—\nSent from ${page || 'the HayFlow app'}`;
+        return `mailto:${SUPPORT_EMAIL}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+    }
+
     async function submitEscalation() {
         if (!escMsg.trim() || escSending) return;
         setEscSending(true);
+        const page = typeof window !== 'undefined' ? window.location.pathname : undefined;
+        const message = escMsg.trim();
         try {
-            await escalateSupport({
-                message: escMsg.trim(),
+            const res = await escalateSupport({
+                message,
                 email: escEmail.trim() || undefined,
                 transcript: messages,
-                page: typeof window !== 'undefined' ? window.location.pathname : undefined,
+                page,
             });
             setEscDone(true);
             setEscMsg('');
-            toast.success('Sent — the team will get back to you.');
+            if (res.emailed) {
+                setEscMailto(null);
+                toast.success('Sent — the team will get back to you.');
+            } else {
+                // Saved, but no email went out — open the user's mail client
+                // with the message prefilled, and keep a button as fallback
+                // (some browsers block navigation this long after the tap).
+                const mailto = buildSupportMailto(message, page);
+                setEscMailto(mailto);
+                toast.success('Request saved — one more tap to email it to us.');
+                window.location.href = mailto;
+            }
         } catch {
             toast.error("Couldn't send just now. Please try again.");
         } finally {
@@ -337,9 +362,21 @@ export default function HelpLauncher({ articles }: { articles: HelpArticle[] }) 
 
                                     {/* Escalation */}
                                     {escDone ? (
-                                        <div className="flex items-start gap-2 rounded-xl p-3 text-[14px]" style={{ background: 'color-mix(in srgb, var(--success) 10%, transparent)', color: 'var(--text-main)' }}>
-                                            <CheckCircle2 size={16} className="mt-0.5 flex-shrink-0" style={{ color: 'var(--success)' }} />
-                                            <span>Your question is on its way to the HayFlow team. We&apos;ll be in touch.</span>
+                                        <div className="rounded-xl p-3 space-y-2.5" style={{ background: 'color-mix(in srgb, var(--success) 10%, transparent)' }}>
+                                            <div className="flex items-start gap-2 text-[14px]" style={{ color: 'var(--text-main)' }}>
+                                                <CheckCircle2 size={16} className="mt-0.5 flex-shrink-0" style={{ color: 'var(--success)' }} />
+                                                <span>
+                                                    {escMailto
+                                                        ? 'Your request is saved. For the fastest response, email us a copy — it opens in your mail app, ready to send.'
+                                                        : "Your question is on its way to the HayFlow team. We'll be in touch."}
+                                                </span>
+                                            </div>
+                                            {escMailto && (
+                                                <a href={escMailto} className="btn btn-primary btn-sm w-full">
+                                                    <Mail size={15} />
+                                                    Email the team
+                                                </a>
+                                            )}
                                         </div>
                                     ) : escOpen ? (
                                         <div className="rounded-xl p-3 space-y-2.5" style={{ border: '1px solid var(--glass-border)' }}>

@@ -1439,7 +1439,7 @@ export async function escalateSupport(input: {
     email?: string;
     transcript?: ChatMessage[];
     page?: string;
-}): Promise<{ ok: boolean }> {
+}): Promise<{ ok: boolean; emailed: boolean }> {
     const { userId, orgId } = await auth();
     if (!userId) throw new Error("Unauthorized");
 
@@ -1538,7 +1538,9 @@ export async function escalateSupport(input: {
         throw new Error("Could not record your request. Please try again.");
     }
 
-    return { ok: true };
+    // `emailed` lets the client offer a mailto fallback when no server-side
+    // email went out (e.g. RESEND_API_KEY unset).
+    return { ok: true, emailed };
 }
 
 /**
