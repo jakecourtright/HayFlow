@@ -32,14 +32,14 @@
 - [x] Connect the bank account for payouts on the live Stripe account (done 2026-07-20, ahead of the Aug 3 first trial conversion).
 
 ### 2. Error visibility — would have saved hours on launch day
-- [ ] Set `SENTRY_DSN` + `NEXT_PUBLIC_SENTRY_DSN` in Vercel. The instrumentation shipped 2026-07-18 but is a no-op without these. The 42P08 invoice bug (2026-07-20) had to be diagnosed via manual Vercel log digging; Sentry would have surfaced it instantly.
+- [x] `SENTRY_DSN` + `NEXT_PUBLIC_SENTRY_DSN` set in Vercel; verified end-to-end 2026-07-20 (test event captured from vercel-production). The instrumentation shipped 2026-07-18 but is a no-op without these. The 42P08 invoice bug (2026-07-20) had to be diagnosed via manual Vercel log digging; Sentry would have surfaced it instantly.
 - [ ] Optional: `SENTRY_ORG` / `SENTRY_PROJECT` / `SENTRY_AUTH_TOKEN` for source-map upload.
 - [ ] **Return structured errors from server actions.** Next.js masks thrown `Error` messages in production, so users see "An error occurred in the Server Components render…" instead of "Insufficient stock (need 200, have 150)" — every validation, stock, and subscription message in `quickSale` and friends is invisible to real users. Convert user-facing actions to return `{ error: string }` and render it in the forms.
 
 ### 3. Supporting services
 - [ ] Upstash Redis (`UPSTASH_REDIS_REST_URL`/`_TOKEN`) — enables rate limiting on the public `/invoice/[token]` route (safe no-op until set).
-- [ ] Uptime monitor (UptimeRobot / Better Stack / Pingdom) on `GET /api/health`; alert on non-200.
-- [ ] Support email address that routes somewhere monitored.
+- [x] Uptime monitor — UptimeRobot on `GET /api/health`, 5-min interval (done 2026-07-20).
+- [x] support@hayflow.io live on iCloud custom domain (2026-07-20); help-widget escalations save to DB and open the user's mail client prefilled.
 
 ### 4. Schema-migration tracking
 - [ ] The 42P08 incident proved schema drift is real: ad-hoc scripts left prod columns typed differently than `schema.sql`. The new normalization block in `schema.sql` heals the known drift, but a `schema_migrations(name, applied_at)` table (or Drizzle) would prevent the class. See [launch-readiness.md](launch-readiness.md).
