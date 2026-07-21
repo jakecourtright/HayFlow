@@ -2,6 +2,19 @@
 
 Scoped 2026-07-20. Status: **approved direction, not yet built.** Sequenced ahead of the AI analyst (docs/launch-readiness P1/P2) because it creates the cost/margin data that makes the analyst compelling.
 
+## ⏸ PICK UP HERE (saved 2026-07-20)
+
+Scope + mockups reviewed with Jake; build starts on **Phase A1 (lot costs)** once these four calls are made — all Jake's domain knowledge, not technical:
+
+1. **Average-cost model OK?** (total costs ÷ total production, spread evenly per bale — no FIFO/lot-splitting)
+2. **Flat dollars only in v1 OK?** (no $/acre or $/ton rate entry until catalogs phase A3)
+3. **Default cost categories** — current guess: Fertilizer, Seed, Chemicals, Water, Custom harvest, Trucking, Tarping, Land rent. Correct/extend (twine? fuel? irrigation power?).
+4. **Cost-splitting across lots** — v1 requires manual split entries (one fertilizer bill over 3 stacks = 3 entries). If splitting is the *common* case, redesign for it now.
+
+Mockup direction locked in: dotted-underline "quiet invitation" is the Level-0 footprint and becomes the house pattern for all opt-in depth. New forms use structured `{ error }` returns from day one.
+
+Context from launch day (2026-07-20): app is LIVE, first customer (TCF BARN / Ty) subscribed + invoicing; hardening done except attorney review; see docs/go-live-checklist.md.
+
 ## Goal
 
 Let users record what a lot **costs** (inputs against production) and what a sale **adds** beyond hay (delivery, fees, discounts) — so HayFlow can answer cost/ton, margin/ton, and lot profitability. Long-term this is the data layer for QuickBooks/ERP integration.
