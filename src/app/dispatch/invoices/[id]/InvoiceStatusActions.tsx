@@ -1,7 +1,7 @@
 'use client';
 
 import { updateInvoiceStatus, deleteInvoice } from "@/app/actions";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Send, CheckCircle, RotateCcw, Pencil, Trash2, Share2, Check, AlertCircle, Mail, MessageSquare } from "lucide-react";
 import Link from "next/link";
 import ConfirmDialog from "@/components/ui/ConfirmDialog";
@@ -67,8 +67,15 @@ export default function InvoiceStatusActions({ invoiceId, currentStatus, shareTo
     // identity. No email infrastructure on our side; the share link carries
     // the invoice. The app can't observe the send, so "Mark as sent" stays a
     // separate, deliberate step.
+    //
+    // These hrefs render on the server too, where `window` doesn't exist —
+    // start from the canonical origin and sync to the real one after mount
+    // (matters only on preview deployments).
+    const [origin, setOrigin] = useState('https://hayflow.io');
+    useEffect(() => { setOrigin(window.location.origin); }, []);
+
     function shareUrl() {
-        return `${window.location.origin}/invoice/${shareToken}`;
+        return `${origin}/invoice/${shareToken}`;
     }
 
     function emailHref() {
