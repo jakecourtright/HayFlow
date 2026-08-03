@@ -34,10 +34,11 @@ A product / lot number (e.g., "Alfalfa Lot 42, 3x4 Premium").
 ### `transactions`
 The inventory ledger and the **single source of truth for revenue**.
 - `id SERIAL PK`, `date TIMESTAMP`, `type` (`production`|`purchase`|`sale`|`adjustment`|`transfer_in`|`transfer_out`)
+- `date` is the business date. Ticket-driven rows (sale, transfer legs) are stamped with the **ticket's created_at** — when the bales left the barn — never the approval/invoice time, so late approvals can't shift revenue into the wrong month.
 - `transfer_in`/`transfer_out` are the paired legs of a barn-to-barn move (price 0); excluded from sales/purchase reports
 - `stack_id FK`, `location_id FK`, `amount DECIMAL(10,2)`, `unit` (always `bales`)
 - `entity VARCHAR` (buyer or seller), `price DECIMAL(10,2)` (always `$/ton` normalized)
-- `line_total DECIMAL(12,2)` — actual USD for the line: revenue (sale) / cost (purchase); 0 for production/adjustment/transfer
+- `line_total DECIMAL(12,2)` — actual USD for the line: revenue (sale) / cost (purchase, production — reports count both in Cost/Net P&L); 0 for adjustment/transfer. Per-ton sale lines without a scale weight estimate dollars from bales × the stack's weight/bale (`lineAmount` fallback) — a priced line is never $0.
 - `user_id`, `org_id`
 - **Current stock at (stack, location) =** `SUM(CASE WHEN type IN ('production','purchase','transfer_in') THEN amount WHEN type IN ('sale','transfer_out') THEN -amount ELSE 0 END)`.
 - `adjustment` is `ELSE 0` in stock math — a free-text note only.

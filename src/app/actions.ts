@@ -4,7 +4,7 @@ import { auth, currentUser, clerkClient } from "@clerk/nextjs/server";
 import pool from "@/lib/db";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { tonsToBales, getDefaultWeight, normalizePrice, lineAmount, resolveLineRate } from "@/lib/units";
+import { tonsToBales, getDefaultWeight, normalizePrice, lineAmount, resolveLineRate, resolveWeight } from "@/lib/units";
 import { Permissions, requirePermission, checkPermission, checkRole, getPermissionFlags, isAppRole, Roles, type AppRole } from "@/lib/permissions";
 import { requireActiveSubscription } from "@/lib/billing";
 import { askClaude, sendSupportEmail, type ChatMessage } from "@/lib/support";
@@ -712,9 +712,11 @@ export async function approveTicket(id: string) {
             const srcName = nameById.get(String(ticket.location_id)) || 'source barn';
             const destName = nameById.get(String(ticket.destination_id)) || 'destination barn';
 
+            // Ledger date = when the bales left the barn (ticket creation), not approval time —
+            // a ticket approved days later must not shift the move into the wrong month.
             const outRes = await client.query(`
-                INSERT INTO transactions (type, stack_id, location_id, amount, unit, entity, price, user_id, org_id)
-                VALUES ('transfer_out', $1, $2, $3, 'bales', $4, 0, $5, $6)
+                INSERT INTO transactions (date, type, stack_id, location_id, amount, unit, entity, price, user_id, org_id)
+                VALUES ($7, 'transfer_out', $1, $2, $3, 'bales', $4, 0, $5, $6)
                 RETURNING id
             `, [
                 ticket.stack_id,
@@ -722,27 +724,30 @@ export async function approveTicket(id: string) {
                 ticket.amount,
                 `Transfer to ${destName}`,
                 userId,
-                orgId
+                orgId,
+                ticket.created_at
             ]);
 
             await client.query(`
-                INSERT INTO transactions (type, stack_id, location_id, amount, unit, entity, price, user_id, org_id)
-                VALUES ('transfer_in', $1, $2, $3, 'bales', $4, 0, $5, $6)
+                INSERT INTO transactions (date, type, stack_id, location_id, amount, unit, entity, price, user_id, org_id)
+                VALUES ($7, 'transfer_in', $1, $2, $3, 'bales', $4, 0, $5, $6)
             `, [
                 ticket.stack_id,
                 ticket.destination_id,
                 ticket.amount,
                 `Transfer from ${srcName}`,
                 userId,
-                orgId
+                orgId,
+                ticket.created_at
             ]);
 
             transactionId = outRes.rows[0].id;
         } else {
-            // Sale: create a sale transaction to deduct inventory
+            // Sale: create a sale transaction to deduct inventory.
+            // Dated from the ticket (the actual sale) so late approvals don't shift revenue into the wrong month.
             const txRes = await client.query(`
-                INSERT INTO transactions (type, stack_id, location_id, amount, unit, entity, price, user_id, org_id)
-                VALUES ('sale', $1, $2, $3, 'bales', $4, 0, $5, $6)
+                INSERT INTO transactions (date, type, stack_id, location_id, amount, unit, entity, price, user_id, org_id)
+                VALUES ($7, 'sale', $1, $2, $3, 'bales', $4, 0, $5, $6)
                 RETURNING id
             `, [
                 ticket.stack_id,
@@ -750,7 +755,8 @@ export async function approveTicket(id: string) {
                 ticket.amount,
                 ticket.customer || 'Ticket #' + id,
                 userId,
-                orgId
+                orgId,
+                ticket.created_at
             ]);
 
             transactionId = txRes.rows[0].id;
@@ -972,8 +978,12 @@ export async function createInvoice(formData: FormData) {
         await client.query('BEGIN');
 
         // Verify all tickets are approved and belong to this org
+        // (stack weight rides along so per-ton lines can estimate when net_lbs is missing)
         const ticketsRes = await client.query(
-            `SELECT * FROM tickets WHERE id = ANY($1) AND org_id = $2 AND status = 'approved'`,
+            `SELECT tk.*, s.weight_per_bale AS stack_weight_per_bale, s.bale_size AS stack_bale_size
+             FROM tickets tk
+             LEFT JOIN stacks s ON s.id = tk.stack_id
+             WHERE tk.id = ANY($1) AND tk.org_id = $2 AND tk.status = 'approved'`,
             [ticketIds, orgId]
         );
 
@@ -988,7 +998,8 @@ export async function createInvoice(formData: FormData) {
         let totalAmount = 0;
         const lines = ticketsRes.rows.map((t: any) => {
             const { rate, unit } = resolveLineRate(t.price_per_unit, t.price_unit, pricePerUnit, priceUnit);
-            const amount = lineAmount(parseFloat(t.amount), parseFloat(t.net_lbs) || 0, rate, unit);
+            const estWeight = resolveWeight(Number(t.stack_weight_per_bale) || null, t.stack_bale_size || '');
+            const amount = lineAmount(parseFloat(t.amount), parseFloat(t.net_lbs) || 0, rate, unit, estWeight);
             totalAmount += amount;
             return { transactionId: t.transaction_id as number | null, amount };
         });
@@ -1136,14 +1147,19 @@ export async function updateInvoice(id: string, formData: FormData) {
         // Recompute total from each line's effective rate: a line keeps its own
         // per-item price (Quick Sale); lines without one use the submitted invoice rate.
         const ticketsRes = await client.query(
-            'SELECT id, transaction_id, amount, net_lbs, price_per_unit, price_unit FROM tickets WHERE invoice_id = $1 AND org_id = $2',
+            `SELECT tk.id, tk.transaction_id, tk.amount, tk.net_lbs, tk.price_per_unit, tk.price_unit,
+                    s.weight_per_bale AS stack_weight_per_bale, s.bale_size AS stack_bale_size
+             FROM tickets tk
+             LEFT JOIN stacks s ON s.id = tk.stack_id
+             WHERE tk.invoice_id = $1 AND tk.org_id = $2`,
             [id, orgId]
         );
 
         let totalAmount = 0;
         const lines = ticketsRes.rows.map((t: any) => {
             const { rate, unit } = resolveLineRate(t.price_per_unit, t.price_unit, pricePerUnit, priceUnit);
-            const amount = lineAmount(parseFloat(t.amount), parseFloat(t.net_lbs) || 0, rate, unit);
+            const estWeight = resolveWeight(Number(t.stack_weight_per_bale) || null, t.stack_bale_size || '');
+            const amount = lineAmount(parseFloat(t.amount), parseFloat(t.net_lbs) || 0, rate, unit, estWeight);
             totalAmount += amount;
             return { transactionId: t.transaction_id as number | null, amount };
         });
@@ -1255,9 +1271,19 @@ export async function quickSale(formData: FormData) {
             }
         }
 
+        // Stack weights let per-ton lines estimate dollars when no scale weight was entered
+        const stackIdList = [...new Set(items.map((it) => it.stackId))];
+        const weightsRes = await client.query(
+            'SELECT id, weight_per_bale, bale_size FROM stacks WHERE id = ANY($1) AND org_id = $2',
+            [stackIdList, orgId]
+        );
+        const weightByStack = new Map<string, number>(
+            weightsRes.rows.map((r: any) => [String(r.id), resolveWeight(Number(r.weight_per_bale) || null, r.bale_size || '')])
+        );
+
         // Compute line amounts + grand total; detect a single shared rate across all lines
         let totalAmount = 0;
-        for (const it of items) totalAmount += lineAmount(it.amount, it.netLbs || 0, it.pricePerUnit, it.priceUnit);
+        for (const it of items) totalAmount += lineAmount(it.amount, it.netLbs || 0, it.pricePerUnit, it.priceUnit, weightByStack.get(it.stackId) || 0);
         const allPriced = items.every((i) => i.pricePerUnit > 0);
         const distinctRates = new Set(items.map((i) => `${i.pricePerUnit}|${i.priceUnit}`));
         const uniform = allPriced && distinctRates.size === 1;
@@ -1284,7 +1310,7 @@ export async function quickSale(formData: FormData) {
             `, [it.stackId, it.locationId, it.amount, customer, notes, it.netLbs, it.pricePerUnit || null, it.priceUnit, invoiceId, userId, orgId]);
             const ticketId = ticketRes.rows[0].id;
 
-            const lineTotal = lineAmount(it.amount, it.netLbs || 0, it.pricePerUnit, it.priceUnit);
+            const lineTotal = lineAmount(it.amount, it.netLbs || 0, it.pricePerUnit, it.priceUnit, weightByStack.get(it.stackId) || 0);
             const txRes = await client.query(`
                 INSERT INTO transactions (type, stack_id, location_id, amount, unit, entity, price, line_total, user_id, org_id)
                 VALUES ('sale', $1, $2, $3, 'bales', $4, 0, $5, $6, $7)
