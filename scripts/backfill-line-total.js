@@ -8,6 +8,8 @@
 // Rules (mirrors lib/units.ts resolveLineRate + lineAmount):
 //   - Sale ticket that's on an invoice  -> price from the ticket's own rate,
 //       else the invoice rate; amount via net_lbs (ton) or bales (bale).
+//       Per-ton lines with no net_lbs estimate from bales × stack weight/bale
+//       (never $0 for a priced line).
 //   - Everything else (/log sales+purchases, approved-but-unbilled, transfers)
 //       -> amount(bales) × weight_per_bale/2000 × price($/ton).
 //       (price is 0 for transfers and unbilled sales, so they come out $0.)
@@ -25,9 +27,11 @@ function resolveLineRate(tRate, tUnit, iRate, iUnit) {
     return { rate: Number(iRate) || 0, unit: iUnit === 'bale' ? 'bale' : 'ton' };
 }
 
-function lineAmount(bales, netLbs, rate, unit) {
+function lineAmount(bales, netLbs, rate, unit, estLbsPerBale = 0) {
     if (!rate || rate <= 0) return 0;
-    return unit === 'ton' ? (netLbs / 2000) * rate : bales * rate;
+    if (unit === 'bale') return bales * rate;
+    const lbs = netLbs > 0 ? netLbs : bales * estLbsPerBale;
+    return (lbs / 2000) * rate;
 }
 
 async function backfill() {
@@ -66,7 +70,7 @@ async function backfill() {
             let lineTotal;
             if (r.ticket_id && r.invoice_id) {
                 const { rate, unit } = resolveLineRate(r.tk_ppu, r.tk_pu, r.inv_ppu, r.inv_pu);
-                lineTotal = lineAmount(Number(r.ticket_amount), Number(r.net_lbs) || 0, rate, unit);
+                lineTotal = lineAmount(Number(r.ticket_amount), Number(r.net_lbs) || 0, rate, unit, Number(r.weight_per_bale) || 0);
             } else {
                 lineTotal = (Number(r.tx_amount) * Number(r.weight_per_bale) / 2000) * (Number(r.tx_price) || 0);
             }

@@ -5,6 +5,7 @@ import { useState, useMemo, useRef } from "react";
 import { ArrowLeft, Plus, Trash2 } from "lucide-react";
 import Link from "next/link";
 import CustomSelect from "@/components/CustomSelect";
+import { resolveWeight, LBS_PER_TON } from "@/lib/units";
 
 interface QuickSaleFormProps {
     stacks: any[];
@@ -69,7 +70,12 @@ export default function QuickSaleForm({ stacks, locations, inventory }: QuickSal
         const bales = parseFloat(it.amount) || 0;
         const lbs = parseFloat(it.netLbs) || 0;
         if (price <= 0) return 0;
-        return it.priceUnit === 'ton' ? price * (lbs / 2000) : price * bales;
+        if (it.priceUnit === 'bale') return price * bales;
+        // No scale weight yet -> estimate from the stack's weight per bale (mirrors lib/units lineAmount)
+        const stack = stacks.find((s: any) => s.id.toString() === it.stackId);
+        const estWeight = stack ? resolveWeight(Number(stack.weight_per_bale) || null, stack.bale_size || '') : 0;
+        const effectiveLbs = lbs > 0 ? lbs : bales * estWeight;
+        return price * (effectiveLbs / LBS_PER_TON);
     }
 
     const grandTotal = items.reduce((sum, it) => sum + calcLine(it), 0);
@@ -248,7 +254,7 @@ export default function QuickSaleForm({ stacks, locations, inventory }: QuickSal
                             )}
                             {priced && it.priceUnit === 'ton' && !(parseFloat(it.netLbs) > 0) && (
                                 <p className="text-xs" style={{ color: '#f59e0b' }}>
-                                    ⚠ Enter net lbs for an accurate total when pricing per ton
+                                    ⚠ Total estimated from bale weight — enter net lbs from the scale for an exact total
                                 </p>
                             )}
                         </div>

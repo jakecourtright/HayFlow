@@ -4,7 +4,7 @@ import { redirect, notFound } from "next/navigation";
 import { Permissions, checkPermission } from "@/lib/permissions";
 import InvoiceEditForm from "./InvoiceEditForm";
 import PageHeader from "@/components/ui/PageHeader";
-import { resolveLineRate, lineAmount } from "@/lib/units";
+import { resolveLineRate, lineAmount, resolveWeight } from "@/lib/units";
 
 async function getInvoice(invoiceId: string, orgId: string) {
     const client = await pool.connect();
@@ -16,14 +16,19 @@ async function getInvoice(invoiceId: string, orgId: string) {
         if (invoiceRes.rows.length === 0) return null;
 
         const ticketsRes = await client.query(
-            'SELECT amount, net_lbs, price_per_unit, price_unit FROM tickets WHERE invoice_id = $1 AND org_id = $2',
+            `SELECT tk.amount, tk.net_lbs, tk.price_per_unit, tk.price_unit,
+                    s.weight_per_bale AS stack_weight_per_bale, s.bale_size AS stack_bale_size
+             FROM tickets tk
+             LEFT JOIN stacks s ON s.id = tk.stack_id
+             WHERE tk.invoice_id = $1 AND tk.org_id = $2`,
             [invoiceId, orgId]
         );
 
         const invoice = invoiceRes.rows[0];
         const lineTotal = ticketsRes.rows.reduce((sum: number, t: any) => {
             const { rate, unit } = resolveLineRate(t.price_per_unit, t.price_unit, invoice.price_per_unit, invoice.price_unit);
-            return sum + lineAmount(parseFloat(t.amount), parseFloat(t.net_lbs) || 0, rate, unit);
+            const estWeight = resolveWeight(Number(t.stack_weight_per_bale) || null, t.stack_bale_size || '');
+            return sum + lineAmount(parseFloat(t.amount), parseFloat(t.net_lbs) || 0, rate, unit, estWeight);
         }, 0);
 
         return {

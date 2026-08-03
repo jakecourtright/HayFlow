@@ -156,7 +156,7 @@ export default function ReportsClient({ data }: { data: ReportData }) {
                         {formatCurrency(filteredKPIs.cost)}
                     </div>
                     <p className="text-xs mt-0.5" style={{ color: 'var(--text-dim)' }}>
-                        Purchases
+                        Purchases + production costs
                     </p>
                 </div>
 

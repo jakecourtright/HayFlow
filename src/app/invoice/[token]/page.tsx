@@ -4,7 +4,7 @@ import PrintButton from "@/components/ui/PrintButton";
 import StatusChip from "@/components/ui/StatusChip";
 import InvoiceFromBlock from "@/components/ui/InvoiceFromBlock";
 import { getBusinessProfileByOrg } from "@/app/actions";
-import { resolveLineRate, lineAmount } from "@/lib/units";
+import { resolveLineRate, lineAmount, resolveWeight } from "@/lib/units";
 
 async function getInvoiceByToken(token: string) {
     const client = await pool.connect();
@@ -22,6 +22,8 @@ async function getInvoiceByToken(token: string) {
                 tk.price_per_unit, tk.price_unit,
                 s.name as stack_name,
                 s.commodity,
+                s.weight_per_bale as stack_weight_per_bale,
+                s.bale_size as stack_bale_size,
                 l.name as location_name
             FROM tickets tk
             LEFT JOIN stacks s ON s.id = tk.stack_id
@@ -49,7 +51,8 @@ export default async function PublicInvoicePage({ params }: { params: Promise<{ 
     // Each line uses its own rate when set (Quick Sale multi-item), else the invoice rate.
     const lines = invoice.tickets.map((t: any) => {
         const { rate, unit } = resolveLineRate(t.price_per_unit, t.price_unit, invoice.price_per_unit, invoice.price_unit);
-        return { rate, unit, amount: lineAmount(parseFloat(t.amount), parseFloat(t.net_lbs) || 0, rate, unit) };
+        const estWeight = resolveWeight(Number(t.stack_weight_per_bale) || null, t.stack_bale_size || '');
+        return { rate, unit, amount: lineAmount(parseFloat(t.amount), parseFloat(t.net_lbs) || 0, rate, unit, estWeight) };
     });
     const totalAmount = lines.reduce((sum: number, l: any) => sum + l.amount, 0);
     const hasPricing = totalAmount > 0 || lines.some((l: any) => l.rate > 0);

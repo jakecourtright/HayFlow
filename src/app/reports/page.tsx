@@ -61,7 +61,7 @@ async function getReportData(orgId: string): Promise<ReportData> {
         const totalsRes = await client.query(`
             SELECT
                 COALESCE(SUM(CASE WHEN t.type = 'sale' THEN t.line_total ELSE 0 END), 0) as total_revenue,
-                COALESCE(SUM(CASE WHEN t.type = 'purchase' THEN t.line_total ELSE 0 END), 0) as total_cost,
+                COALESCE(SUM(CASE WHEN t.type IN ('purchase', 'production') THEN t.line_total ELSE 0 END), 0) as total_cost,
                 COALESCE(SUM(CASE WHEN t.type = 'production' THEN t.amount ELSE 0 END), 0) as total_production,
                 COALESCE(SUM(CASE WHEN t.type = 'sale' THEN t.amount ELSE 0 END), 0) as total_sales_bales,
                 COALESCE(SUM(CASE WHEN t.type = 'purchase' THEN t.amount ELSE 0 END), 0) as total_purchase_bales
@@ -76,7 +76,7 @@ async function getReportData(orgId: string): Promise<ReportData> {
                 TO_CHAR(t.date, 'YYYY-MM') as month_key,
                 TO_CHAR(t.date, 'Mon YYYY') as month_label,
                 COALESCE(SUM(CASE WHEN t.type = 'sale' THEN t.line_total ELSE 0 END), 0) as revenue,
-                COALESCE(SUM(CASE WHEN t.type = 'purchase' THEN t.line_total ELSE 0 END), 0) as cost,
+                COALESCE(SUM(CASE WHEN t.type IN ('purchase', 'production') THEN t.line_total ELSE 0 END), 0) as cost,
                 COALESCE(SUM(CASE WHEN t.type = 'production' THEN t.amount ELSE 0 END), 0) as production,
                 COALESCE(SUM(CASE WHEN t.type = 'sale' THEN t.amount ELSE 0 END), 0) as sales_bales,
                 COALESCE(SUM(CASE WHEN t.type = 'purchase' THEN t.amount ELSE 0 END), 0) as purchase_bales,

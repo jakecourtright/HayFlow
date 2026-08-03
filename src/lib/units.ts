@@ -107,16 +107,21 @@ export function resolveLineRate(
 }
 
 /**
- * Dollar amount for a single line. Per-ton lines need scale weight (net lbs);
- * per-bale lines use the bale count. Returns 0 when unpriced.
+ * Dollar amount for a single line. Per-ton lines use scale weight (net lbs)
+ * when available, else estimate from bale count × the stack's weight per bale
+ * — a per-ton line without a scale weight must never silently price at $0.
+ * Per-bale lines use the bale count. Returns 0 when unpriced.
  */
 export function lineAmount(
     bales: number,
     netLbs: number,
     rate: number,
     unit: 'bale' | 'ton',
+    estLbsPerBale: number = 0,
 ): number {
     if (!rate || rate <= 0) return 0;
-    return unit === 'ton' ? (netLbs / LBS_PER_TON) * rate : bales * rate;
+    if (unit === 'bale') return bales * rate;
+    const lbs = netLbs > 0 ? netLbs : bales * estLbsPerBale;
+    return (lbs / LBS_PER_TON) * rate;
 }
 
