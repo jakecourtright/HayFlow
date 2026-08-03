@@ -688,8 +688,8 @@ export async function approveTicket(id: string) {
         const stockRes = await client.query(`
             SELECT
                 SUM(CASE
-                    WHEN type IN ('production', 'purchase') THEN amount
-                    WHEN type IN ('sale') THEN -amount
+                    WHEN type IN ('production', 'purchase', 'transfer_in') THEN amount
+                    WHEN type IN ('sale', 'transfer_out') THEN -amount
                     ELSE 0
                 END) as quantity
             FROM transactions
