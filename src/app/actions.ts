@@ -83,6 +83,16 @@ export async function submitTransaction(formData: FormData) {
         if (unit === 'tons') {
             amountInBales = tonsToBales(amountInBales, weightPerBale);
         }
+        if (!(amountInBales > 0)) {
+            throw new Error("Amount must be greater than zero");
+        }
+
+        // Adjustments are signed deltas: the form takes a positive count plus an
+        // Add/Remove direction; "remove" stores a negative amount. All stock math
+        // counts adjustments as +amount, so the sign carries the direction.
+        if (type === 'adjustment' && formData.get('adjustDirection') === 'remove') {
+            amountInBales = -amountInBales;
+        }
 
         // Validation for sales: Check if enough stock exists
         if (type === 'sale') {
@@ -93,7 +103,7 @@ export async function submitTransaction(formData: FormData) {
             const inventoryRes = await client.query(`
                 SELECT 
                     SUM(CASE 
-                        WHEN type IN ('production', 'purchase', 'transfer_in') THEN amount 
+                        WHEN type IN ('production', 'purchase', 'transfer_in', 'adjustment') THEN amount 
                         WHEN type IN ('sale', 'transfer_out') THEN -amount 
                         ELSE 0 
                     END) as quantity
@@ -615,7 +625,7 @@ export async function createTicket(formData: FormData) {
         const inventoryRes = await client.query(`
             SELECT
                 SUM(CASE
-                    WHEN type IN ('production', 'purchase', 'transfer_in') THEN amount
+                    WHEN type IN ('production', 'purchase', 'transfer_in', 'adjustment') THEN amount
                     WHEN type IN ('sale', 'transfer_out') THEN -amount
                     ELSE 0
                 END) as quantity
@@ -688,7 +698,7 @@ export async function approveTicket(id: string) {
         const stockRes = await client.query(`
             SELECT
                 SUM(CASE
-                    WHEN type IN ('production', 'purchase', 'transfer_in') THEN amount
+                    WHEN type IN ('production', 'purchase', 'transfer_in', 'adjustment') THEN amount
                     WHEN type IN ('sale', 'transfer_out') THEN -amount
                     ELSE 0
                 END) as quantity
@@ -842,7 +852,7 @@ export async function createTransfer(formData: FormData) {
         // Enough stock at the source?
         const invRes = await client.query(`
             SELECT COALESCE(SUM(CASE
-                WHEN type IN ('production', 'purchase', 'transfer_in') THEN amount
+                WHEN type IN ('production', 'purchase', 'transfer_in', 'adjustment') THEN amount
                 WHEN type IN ('sale', 'transfer_out') THEN -amount
                 ELSE 0
             END), 0) as quantity
@@ -1258,7 +1268,7 @@ export async function quickSale(formData: FormData) {
             const invRes = await client.query(`
                 SELECT
                     SUM(CASE
-                        WHEN type IN ('production', 'purchase', 'transfer_in') THEN amount
+                        WHEN type IN ('production', 'purchase', 'transfer_in', 'adjustment') THEN amount
                         WHEN type IN ('sale', 'transfer_out') THEN -amount
                         ELSE 0
                     END) as quantity

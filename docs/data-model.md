@@ -40,8 +40,8 @@ The inventory ledger and the **single source of truth for revenue**.
 - `entity VARCHAR` (buyer or seller), `price DECIMAL(10,2)` (always `$/ton` normalized)
 - `line_total DECIMAL(12,2)` — actual USD for the line: revenue (sale) / cost (purchase, production — reports count both in Cost/Net P&L); 0 for adjustment/transfer. Per-ton sale lines without a scale weight estimate dollars from bales × the stack's weight/bale (`lineAmount` fallback) — a priced line is never $0.
 - `user_id`, `org_id`
-- **Current stock at (stack, location) =** `SUM(CASE WHEN type IN ('production','purchase','transfer_in') THEN amount WHEN type IN ('sale','transfer_out') THEN -amount ELSE 0 END)`.
-- `adjustment` is `ELSE 0` in stock math — a free-text note only.
+- **Current stock at (stack, location) =** `SUM(CASE WHEN type IN ('production','purchase','transfer_in','adjustment') THEN amount WHEN type IN ('sale','transfer_out') THEN -amount ELSE 0 END)`.
+- `adjustment` is a **signed delta** counted in all stock math (2026-08-04): the form takes a positive count + Add/Remove direction; "remove" stores a negative `amount`. Cutover was forward-only — the 3 pre-launch adjustment rows were zeroed (original amounts preserved in `entity`) via `scripts/neutralize-legacy-adjustments.js`.
 
 ### `tickets`
 Driver-created removal request. Two types:

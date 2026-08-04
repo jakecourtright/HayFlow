@@ -13,7 +13,7 @@ async function getData(userId: string, orgId: string) {
                 stack_id, 
                 location_id, 
                 SUM(CASE 
-                    WHEN type IN ('production', 'purchase', 'transfer_in') THEN amount 
+                    WHEN type IN ('production', 'purchase', 'transfer_in', 'adjustment') THEN amount 
                     WHEN type IN ('sale', 'transfer_out') THEN -amount 
                     ELSE 0 
                 END) as quantity
@@ -21,7 +21,7 @@ async function getData(userId: string, orgId: string) {
             WHERE org_id = $1 AND location_id IS NOT NULL
             GROUP BY stack_id, location_id
             HAVING SUM(CASE 
-                WHEN type IN ('production', 'purchase', 'transfer_in') THEN amount 
+                WHEN type IN ('production', 'purchase', 'transfer_in', 'adjustment') THEN amount 
                 WHEN type IN ('sale', 'transfer_out') THEN -amount 
                 ELSE 0 
             END) > 0

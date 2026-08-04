@@ -29,7 +29,7 @@ async function getLocationWithInventory(locationId: string, orgId: string) {
                 s.bale_size,
                 COALESCE(SUM(
                     CASE
-                        WHEN t.type IN ('production', 'purchase', 'transfer_in') THEN t.amount
+                        WHEN t.type IN ('production', 'purchase', 'transfer_in', 'adjustment') THEN t.amount
                         WHEN t.type IN ('sale', 'transfer_out') THEN -t.amount
                         ELSE 0
                     END
@@ -40,7 +40,7 @@ async function getLocationWithInventory(locationId: string, orgId: string) {
             GROUP BY s.id, s.name, s.commodity, s.quality, s.weight_per_bale, s.bale_size
             HAVING COALESCE(SUM(
                 CASE
-                    WHEN t.type IN ('production', 'purchase', 'transfer_in') THEN t.amount
+                    WHEN t.type IN ('production', 'purchase', 'transfer_in', 'adjustment') THEN t.amount
                     WHEN t.type IN ('sale', 'transfer_out') THEN -t.amount
                     ELSE 0
                 END

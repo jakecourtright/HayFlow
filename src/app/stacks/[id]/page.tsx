@@ -25,7 +25,7 @@ async function getStackWithDetails(stackId: string, orgId: string) {
                 l.name as location_name,
                 COALESCE(SUM(
                     CASE
-                        WHEN t.type IN ('production', 'purchase', 'transfer_in') THEN t.amount
+                        WHEN t.type IN ('production', 'purchase', 'transfer_in', 'adjustment') THEN t.amount
                         WHEN t.type IN ('sale', 'transfer_out') THEN -t.amount
                         ELSE 0
                     END
@@ -36,7 +36,7 @@ async function getStackWithDetails(stackId: string, orgId: string) {
             GROUP BY l.id, l.name
             HAVING COALESCE(SUM(
                 CASE
-                    WHEN t.type IN ('production', 'purchase', 'transfer_in') THEN t.amount
+                    WHEN t.type IN ('production', 'purchase', 'transfer_in', 'adjustment') THEN t.amount
                     WHEN t.type IN ('sale', 'transfer_out') THEN -t.amount
                     ELSE 0
                 END
@@ -47,7 +47,7 @@ async function getStackWithDetails(stackId: string, orgId: string) {
         const totalResult = await client.query(`
             SELECT COALESCE(SUM(
                 CASE
-                    WHEN type IN ('production', 'purchase', 'transfer_in') THEN amount
+                    WHEN type IN ('production', 'purchase', 'transfer_in', 'adjustment') THEN amount
                     WHEN type IN ('sale', 'transfer_out') THEN -amount
                     ELSE 0
                 END

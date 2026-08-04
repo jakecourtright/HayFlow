@@ -19,6 +19,7 @@ export default function LogForm({ stacks, locations, type: initialType, inventor
     const [selectedType, setSelectedType] = useState(initialType || 'production');
     const [selectedStackId, setSelectedStackId] = useState('');
     const [selectedLocationId, setSelectedLocationId] = useState('');
+    const [adjustDirection, setAdjustDirection] = useState('remove');
     const [error, setError] = useState<string | null>(null);
 
     // If initialType is provided, lock the form to that type
@@ -26,6 +27,7 @@ export default function LogForm({ stacks, locations, type: initialType, inventor
 
     // Filter logic
     const isSale = selectedType === 'sale';
+    const isAdjustment = selectedType === 'adjustment';
 
     // Get available inventory for selected stack at selected location (if applicable)
     const getAvailableStock = (stackId: string, locationId: string) => {
@@ -153,7 +155,7 @@ export default function LogForm({ stacks, locations, type: initialType, inventor
             </div>
 
             <div>
-                <label className="label-modern">{isSale ? 'Source Location' : 'Destination Location'}</label>
+                <label className="label-modern">{isSale ? 'Source Location' : isAdjustment ? 'Location' : 'Destination Location'}</label>
                 <CustomSelect
                     name="locationId"
                     options={locationOptions}
@@ -163,7 +165,27 @@ export default function LogForm({ stacks, locations, type: initialType, inventor
                 {isSale && filteredLocations.length === 0 && selectedStackId && (
                     <p className="text-red-500 text-sm mt-1">No stock available for this stack.</p>
                 )}
+                {isAdjustment && selectedStackId && selectedLocationId && selectedLocationId !== 'none' && (
+                    <p className="text-sm mt-1" style={{ color: 'var(--text-dim)' }}>
+                        HayFlow currently shows {getAvailableStock(selectedStackId, selectedLocationId).toLocaleString()} bales of this stack here.
+                    </p>
+                )}
             </div>
+
+            {isAdjustment && (
+                <div>
+                    <label className="label-modern">Correction</label>
+                    <CustomSelect
+                        name="adjustDirection"
+                        options={[
+                            { value: 'remove', label: 'Remove bales (shrink, spoilage, missing)' },
+                            { value: 'add', label: 'Add bales (found, recount up)' },
+                        ]}
+                        value={adjustDirection}
+                        onChange={setAdjustDirection}
+                    />
+                </div>
+            )}
 
             <div className="grid grid-cols-2 gap-4">
                 <div>

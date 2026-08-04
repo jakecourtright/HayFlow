@@ -24,7 +24,7 @@ async function getLocationsWithInventory(orgId: string) {
                 s.bale_size,
                 COALESCE(SUM(
                     CASE
-                        WHEN t.type IN ('production', 'purchase', 'transfer_in') THEN t.amount
+                        WHEN t.type IN ('production', 'purchase', 'transfer_in', 'adjustment') THEN t.amount
                         WHEN t.type IN ('sale', 'transfer_out') THEN -t.amount
                         ELSE 0
                     END
