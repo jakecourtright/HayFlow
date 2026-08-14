@@ -10,6 +10,17 @@ import { requireActiveSubscription } from "@/lib/billing";
 import { askClaude, sendSupportEmail, type ChatMessage } from "@/lib/support";
 import crypto from 'crypto';
 
+// Auth gate for every org-scoped action. A signed-out or org-less caller is a
+// stale tab / expired session (phones left open overnight), not a bug — send
+// them to sign back in instead of throwing, which surfaced in Sentry as
+// unhandled "Unauthorized" on POST and showed users a dead-end error.
+async function requireOrgAuth(): Promise<{ userId: string; orgId: string }> {
+    const { userId, orgId } = await auth();
+    if (!userId) redirect('/sign-in');
+    if (!orgId) redirect('/welcome');
+    return { userId, orgId };
+}
+
 // Race-safe, monotonic per-org invoice number. Seeds from existing invoices the
 // first time it runs for an org, then increments an atomic counter row. The
 // ON CONFLICT row-lock serializes concurrent callers, and the counter never
@@ -40,8 +51,7 @@ async function lockStockBin(client: any, orgId: string, stackId: string | number
 }
 
 export async function submitTransaction(formData: FormData) {
-    const { userId, orgId } = await auth();
-    if (!userId || !orgId) throw new Error("Unauthorized");
+    const { userId, orgId } = await requireOrgAuth();
     await requireActiveSubscription();
 
     const type = formData.get('type') as string;
@@ -155,8 +165,7 @@ export async function submitTransaction(formData: FormData) {
 }
 
 export async function updateTransaction(id: string, formData: FormData) {
-    const { userId, orgId } = await auth();
-    if (!userId || !orgId) throw new Error("Unauthorized");
+    const { userId, orgId } = await requireOrgAuth();
     await requireActiveSubscription();
 
     const type = formData.get('type') as string;
@@ -238,8 +247,7 @@ export async function updateTransaction(id: string, formData: FormData) {
 }
 
 export async function deleteTransaction(id: string) {
-    const { userId, orgId } = await auth();
-    if (!userId || !orgId) throw new Error("Unauthorized");
+    const { userId, orgId } = await requireOrgAuth();
     await requireActiveSubscription();
 
     const client = await pool.connect();
@@ -479,8 +487,7 @@ export async function deleteStack(id: string) {
 // (not the stricter STACKS_DELETE). Hard delete stays privileged. No redirect: these
 // are awaited from StackActions, which toasts + router.refresh().
 export async function archiveStack(id: string) {
-    const { userId, orgId } = await auth();
-    if (!userId || !orgId) throw new Error("Unauthorized");
+    const { userId, orgId } = await requireOrgAuth();
     await requireActiveSubscription();
 
     const client = await pool.connect();
@@ -498,8 +505,7 @@ export async function archiveStack(id: string) {
 }
 
 export async function unarchiveStack(id: string) {
-    const { userId, orgId } = await auth();
-    if (!userId || !orgId) throw new Error("Unauthorized");
+    const { userId, orgId } = await requireOrgAuth();
     await requireActiveSubscription();
 
     const client = await pool.connect();
@@ -558,8 +564,7 @@ export async function getDashboardLayout(): Promise<DashboardLayout> {
 }
 
 export async function saveDashboardLayout(layout: DashboardLayout) {
-    const { userId, orgId } = await auth();
-    if (!userId || !orgId) throw new Error("Unauthorized");
+    const { userId, orgId } = await requireOrgAuth();
     await requireActiveSubscription();
 
     const client = await pool.connect();
@@ -580,8 +585,7 @@ export async function saveDashboardLayout(layout: DashboardLayout) {
 // ============ TICKET ACTIONS ============
 
 export async function createTicket(formData: FormData) {
-    const { userId, orgId } = await auth();
-    if (!userId || !orgId) throw new Error("Unauthorized");
+    const { userId, orgId } = await requireOrgAuth();
     await requireActiveSubscription();
 
     const ticketType = (formData.get('type') as string) || 'sale';
@@ -667,8 +671,7 @@ export async function createTicket(formData: FormData) {
 }
 
 export async function approveTicket(id: string) {
-    const { userId, orgId } = await auth();
-    if (!userId || !orgId) throw new Error("Unauthorized");
+    const { userId, orgId } = await requireOrgAuth();
     await requireActiveSubscription();
 
     if (!(await checkPermission(Permissions.TICKETS_MANAGE))) {
@@ -795,8 +798,7 @@ export async function approveTicket(id: string) {
 }
 
 export async function createTransfer(formData: FormData) {
-    const { userId, orgId } = await auth();
-    if (!userId || !orgId) throw new Error("Unauthorized");
+    const { userId, orgId } = await requireOrgAuth();
     await requireActiveSubscription();
 
     // An immediate transfer carries the same authority as approving a ticket, so it's
@@ -896,8 +898,7 @@ export async function createTransfer(formData: FormData) {
 }
 
 export async function rejectTicket(id: string) {
-    const { userId, orgId } = await auth();
-    if (!userId || !orgId) throw new Error("Unauthorized");
+    const { userId, orgId } = await requireOrgAuth();
     await requireActiveSubscription();
 
     if (!(await checkPermission(Permissions.TICKETS_MANAGE))) {
@@ -923,8 +924,7 @@ export async function rejectTicket(id: string) {
 }
 
 export async function deleteTicket(id: string) {
-    const { userId, orgId } = await auth();
-    if (!userId || !orgId) throw new Error("Unauthorized");
+    const { userId, orgId } = await requireOrgAuth();
     await requireActiveSubscription();
 
     const client = await pool.connect();
@@ -962,8 +962,7 @@ export async function deleteTicket(id: string) {
 // ============ INVOICE ACTIONS ============
 
 export async function createInvoice(formData: FormData) {
-    const { userId, orgId } = await auth();
-    if (!userId || !orgId) throw new Error("Unauthorized");
+    const { userId, orgId } = await requireOrgAuth();
     await requireActiveSubscription();
 
     if (!(await checkPermission(Permissions.INVOICES_MANAGE))) {
@@ -1054,8 +1053,7 @@ export async function createInvoice(formData: FormData) {
 }
 
 export async function updateInvoiceStatus(id: string, status: string) {
-    const { userId, orgId } = await auth();
-    if (!userId || !orgId) throw new Error("Unauthorized");
+    const { userId, orgId } = await requireOrgAuth();
     await requireActiveSubscription();
 
     if (!(await checkPermission(Permissions.INVOICES_MANAGE))) {
@@ -1081,8 +1079,7 @@ export async function updateInvoiceStatus(id: string, status: string) {
 }
 
 export async function deleteInvoice(id: string) {
-    const { userId, orgId } = await auth();
-    if (!userId || !orgId) throw new Error("Unauthorized");
+    const { userId, orgId } = await requireOrgAuth();
     await requireActiveSubscription();
 
     if (!(await checkPermission(Permissions.INVOICES_MANAGE))) {
@@ -1136,8 +1133,7 @@ export async function deleteInvoice(id: string) {
 }
 
 export async function updateInvoice(id: string, formData: FormData) {
-    const { userId, orgId } = await auth();
-    if (!userId || !orgId) throw new Error("Unauthorized");
+    const { userId, orgId } = await requireOrgAuth();
     await requireActiveSubscription();
 
     if (!(await checkPermission(Permissions.INVOICES_MANAGE))) {
@@ -1207,8 +1203,7 @@ export async function updateInvoice(id: string, formData: FormData) {
 }
 
 export async function quickSale(formData: FormData) {
-    const { userId, orgId } = await auth();
-    if (!userId || !orgId) throw new Error("Unauthorized");
+    const { userId, orgId } = await requireOrgAuth();
     await requireActiveSubscription();
 
     if (!(await checkPermission(Permissions.INVOICES_MANAGE))) {
@@ -1360,8 +1355,7 @@ export interface BusinessProfile {
 }
 
 export async function getBusinessProfile(): Promise<BusinessProfile | null> {
-    const { userId, orgId } = await auth();
-    if (!userId || !orgId) throw new Error("Unauthorized");
+    const { userId, orgId } = await requireOrgAuth();
     return getBusinessProfileByOrg(orgId);
 }
 
@@ -1380,8 +1374,7 @@ export async function getBusinessProfileByOrg(orgId: string): Promise<BusinessPr
 }
 
 export async function saveBusinessProfile(formData: FormData) {
-    const { userId, orgId } = await auth();
-    if (!userId || !orgId) throw new Error("Unauthorized");
+    const { userId, orgId } = await requireOrgAuth();
     await requireActiveSubscription();
     await requirePermission(Permissions.INVOICES_MANAGE);
 
@@ -1435,7 +1428,7 @@ export async function saveBusinessProfile(formData: FormData) {
  */
 export async function askHelp(messages: ChatMessage[]): Promise<{ reply: string }> {
     const { userId } = await auth();
-    if (!userId) throw new Error("Unauthorized");
+    if (!userId) redirect('/sign-in');
 
     // Sanitize: valid roles only, trimmed, capped in length and count.
     const safe: ChatMessage[] = (Array.isArray(messages) ? messages : [])
@@ -1477,7 +1470,7 @@ export async function escalateSupport(input: {
     page?: string;
 }): Promise<{ ok: boolean; emailed: boolean }> {
     const { userId, orgId } = await auth();
-    if (!userId) throw new Error("Unauthorized");
+    if (!userId) redirect('/sign-in');
 
     const message = (input.message || "").trim();
     if (!message) throw new Error("Message is required");
@@ -1606,8 +1599,7 @@ export async function getCompletedTours(): Promise<string[]> {
  * during onboarding/trial.
  */
 export async function markTourComplete(tourId: string): Promise<{ ok: boolean }> {
-    const { userId, orgId } = await auth();
-    if (!userId || !orgId) throw new Error("Unauthorized");
+    const { userId, orgId } = await requireOrgAuth();
 
     const id = (tourId || "").trim();
     if (!id) return { ok: false };

@@ -37,6 +37,7 @@ export default function InvoiceStatusActions({ invoiceId, currentStatus, shareTo
                 'success'
             );
         } catch (e: any) {
+            if (e?.digest?.startsWith('NEXT_REDIRECT')) throw e;
             const msg = e.message || 'Failed to update status';
             setError(msg);
             toast.show(msg, 'error');

@@ -31,6 +31,7 @@ export default function TicketActions({ ticketId, status, canManage, isOwner }: 
             toast.success(successMessage);
             router.refresh();
         } catch (e: any) {
+            if (e?.digest?.startsWith('NEXT_REDIRECT')) throw e;
             const msg = e.message || 'Action failed';
             setError(msg);
             toast.error(msg);

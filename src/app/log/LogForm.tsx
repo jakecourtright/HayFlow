@@ -72,7 +72,8 @@ export default function LogForm({ stacks, locations, type: initialType, inventor
             setError(null);
             await submitTransaction(formData);
             router.push('/');
-        } catch (e) {
+        } catch (e: any) {
+            if (e?.digest?.startsWith('NEXT_REDIRECT')) throw e;
             setError('Error logging transaction. Please try again.');
         } finally {
             setLoading(false);
